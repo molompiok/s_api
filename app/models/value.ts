@@ -21,7 +21,7 @@ export default class Value extends BaseModel {
   declare type: string // Text , Icon , Color , component , Date , Files , Input, Interval
 
   @column()
-  declare icon: string
+  declare icon: object
   
   @column()
   declare text: string

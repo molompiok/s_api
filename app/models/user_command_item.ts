@@ -18,6 +18,9 @@ export default class UserCommandItem extends BaseModel {
   declare price_unit: number
 
   @column()
+  declare views : string
+
+  @column()
   declare devise: string
 
   @column()

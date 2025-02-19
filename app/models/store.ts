@@ -29,7 +29,7 @@ export default class Store extends BaseModel {
   @column()
   declare api_port: number
 
-  @column.dateTime()
+  @column.dateTime({})
   declare expire_at: DateTime
 
   @column()

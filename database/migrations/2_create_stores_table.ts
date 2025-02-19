@@ -8,14 +8,14 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('user_id').notNullable().references('id').inTable('users')
 
+      table.uuid('current_theme_id')
       table.string('name')
       table.json('logo')
       table.json('banner')
       table.text('description')
       table.string('url')
-      table.string('current_theme_id')
       table.integer('api_port')
-      table.integer('expire_at')
+      table.timestamp('expire_at')
       table.integer('disk_storage_limit_gb')
       
       table.timestamps(true) 

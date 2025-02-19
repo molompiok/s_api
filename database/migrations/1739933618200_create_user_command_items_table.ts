@@ -8,6 +8,7 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('user_command_id').references('id').inTable('user_commands')
       table.uuid('product_id').references('id').inTable('products')
+      table.json('views')
       table.integer('quantity')
       table.integer('price_unit')
       table.string('devise')
