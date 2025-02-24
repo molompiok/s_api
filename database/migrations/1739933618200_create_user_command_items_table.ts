@@ -6,15 +6,19 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
-      table.uuid('user_command_id').references('id').inTable('user_commands')
+      table.uuid('command_id').nullable().references('id').inTable('user_commands')
       table.uuid('product_id').references('id').inTable('products')
+      table.uuid('user_id').references('id').inTable('users')
+      table.uuid('store_id')
+
       table.json('views')
       table.integer('quantity')
+  
       table.integer('price_unit')
-      table.string('devise')
+      table.string('currency')
       table.json('features')
 
-      table.timestamps(true) 
+      table.timestamps(true,true) 
     })
   }
 

@@ -10,6 +10,9 @@ export default class Product extends BaseModel {
   declare store_id: string
 
   @column()
+  declare category_id: string
+
+  @column()
   declare name: string
 
   @column()
@@ -23,6 +26,9 @@ export default class Product extends BaseModel {
 
   @column()
   declare barred_price: number
+
+  @column()
+  declare currency: string
 
   @column()
   declare stock: number

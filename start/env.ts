@@ -27,5 +27,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_PORT: Env.schema.number(),
   DB_USER: Env.schema.string(),
   DB_PASSWORD: Env.schema.string.optional(),
-  DB_DATABASE: Env.schema.string()
+  DB_DATABASE: Env.schema.string(),
+
+  STORE_ID: Env.schema.string(),
+  OWNER_ID: Env.schema.string(),
+  THEME_ID: Env.schema.string(),
+  STORE_NAME: Env.schema.string(),
+  
+
 })

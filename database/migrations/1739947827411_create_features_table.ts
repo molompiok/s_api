@@ -9,6 +9,7 @@ export default class extends BaseSchema {
       table.uuid('product_id').notNullable().references('id').inTable('products')
 
       table.string('name')
+      table.string('type')
       table.json('icon')
       table.boolean('required')
       table.string('default')

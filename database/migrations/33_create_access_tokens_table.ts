@@ -1,11 +1,13 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
+import { v4 } from 'uuid'
 
 export default class extends BaseSchema {
   protected tableName = 'auth_access_tokens'
 
   async up() {
+
     this.schema.createTable(this.tableName, (table) => {
-      table.increments('id')
+      table.bigIncrements('id', {primaryKey : true})
       table
         .uuid('tokenable_id')
         .notNullable()
@@ -24,7 +26,9 @@ export default class extends BaseSchema {
     })
   }
 
+
   async down() {
     this.schema.dropTable(this.tableName)
+
   }
 }

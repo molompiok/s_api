@@ -1,82 +1,119 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
+export enum OrderStatus {
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  CANCELED = 'canceled',
+  DELIVERED = 'delivered',
+  PICKED_UP = 'picked_up',
+  NOT_DELIVERED = 'not_delivered',
+  NOT_PICKED_UP = 'not_picked_up',
+  WAITING_FOR_PAYMENT = 'waiting_for_payment',
+  WAITING_PICKED_UP = 'waiting_picked_up',
+  RETURNED = 'returned',
+}
+
+export enum PaymentMethod {
+  CREDIT_CARD = 'credit_card',
+  PAYPAL = 'paypal',
+  MOBILE_MONEY = 'mobile_money',
+  CASH = 'cash',
+}
+
+export enum PaymentStatus {
+  PENDING = 'pending',
+  PAID = 'paid',
+  FAILED = 'failed',
+  REFUNDED = 'refunded',
+}
 export default class UserCommand extends BaseModel {
+  // Identifiant principal
   @column({ isPrimary: true })
   declare id: string
 
   @column()
-  declare user_id: string
+  declare store_id: string
+  
+  // Informations sur l'utilisateur
+  @column()
+  declare userId: string
 
+  @column()
+  declare phoneNumber: string
+
+  @column()
+  declare formattedPhoneNumber: string
+
+  @column()
+  declare countryCode: string
+
+  // Détails de la commande
   @column()
   declare reference: string
 
   @column()
-  declare status: string
+  declare status: OrderStatus
 
   @column()
-  declare payment_method: string
+  declare paymentMethod: PaymentMethod
 
   @column()
-  declare payment_status: string
+  declare paymentStatus: PaymentStatus
 
   @column()
-  declare devise: string
+  declare currency: string 
 
   @column()
-  declare total_price: number
+  declare totalPrice: number
 
   @column()
-  declare price_delivery: number
+  declare deliveryPrice: number
 
   @column()
-  declare price_return_delivery: number
+  declare returnDeliveryPrice: number
 
   @column()
-  declare with_delivery: boolean
+  declare withDelivery: boolean
+
+  // Adresse de livraison
+  @column()
+  declare deliveryAddress: string
 
   @column()
-  declare phone_number_customer: string
+  declare deliveryAddressName: string
+
+  @column.dateTime()
+  declare deliveryDate: DateTime
 
   @column()
-  declare format_number_customer: string
+  declare deliveryLatitude: number
 
   @column()
-  declare country_code_customer: string
+  declare deliveryLongitude: number
+
+  // Adresse de retrait (pickup)
+  @column()
+  declare pickupAddress: string
 
   @column()
-  declare delivery_address: string
+  declare pickupAddressName: string
+
+  @column.dateTime()
+  declare pickupDate: DateTime
 
   @column()
-  declare delivery_date: string
+  declare pickupLatitude: number
 
   @column()
-  declare pickup_address: string
+  declare pickupLongitude: number
 
-  @column()
-  declare pickup_date: string
-
-  @column()
-  declare longitude_delivery: number
-
-  @column()
-  declare latitude_delivery: number
-
-  @column()
-  declare latitude_pickup: number
-
-  @column()
-  declare longitude_pickup: number
-
-  @column()
-  declare pickup_address_name: string
-
-  @column()
-  declare delivery_address_name: string
-
+  // Dates de création et mise à jour
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+
 }

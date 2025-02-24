@@ -15,10 +15,8 @@ export default class Value extends BaseModel {
   declare additional_price: number
 
   @column()
-  declare devise: string 
+  declare currency: string 
 
-  @column()
-  declare type: string // Text , Icon , Color , component , Date , Files , Input, Interval
 
   @column()
   declare icon: object

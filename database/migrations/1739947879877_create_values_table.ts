@@ -9,11 +9,10 @@ export default class extends BaseSchema {
       table.uuid('feature_id').notNullable().references('id').inTable('features')
       table.uuid('product_id').notNullable().references('id').inTable('products')
 
-      table.string('devise')
-      table.string('type')
+      table.string('currency')
+      table.json('views')
       table.json('icon')
       table.string('text')
-
 
       table.integer('additional_price')
       table.integer('min')
@@ -21,10 +20,9 @@ export default class extends BaseSchema {
       table.integer('min_size')
       table.integer('max_size')
 
-
       table.boolean('is_double')
       table.boolean('multiple')
-      table.timestamps(true) 
+      table.timestamps(true,true) 
     })
   }
 

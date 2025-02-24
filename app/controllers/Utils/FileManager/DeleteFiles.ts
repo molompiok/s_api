@@ -6,7 +6,7 @@ import fs from "fs";
 export async function deleteFiles(id: string,fieldName?:string): Promise<number> {
     let deletedFileCounter = 0;
     const dir  = env.get("FILE_STORAGE_PATH");
-  fs.readdir(dir, (_, files) => {
+  fs.readdir(dir as any, (_, files) => {
     files?.forEach(fileName => {
       const selector = fieldName ? `${fieldName}_${id}`:id;
      if(fileName.includes(selector)){

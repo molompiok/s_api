@@ -2,6 +2,7 @@ import  hash  from '@adonisjs/core/services/hash';
 import User from '#models/user'
 import type { HttpContext } from '@adonisjs/core/http'
 import { v4 } from 'uuid';
+import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
 
 
 export default class AuthController {
@@ -33,21 +34,18 @@ export default class AuthController {
         try {
           const { full_name, email, password } = request.only(['full_name', 'email', 'password'])
     
-          // Vérification si l'utilisateur existe déjà
           const existingUser = await User.findBy('email', email)
           if (existingUser) {
             return response.conflict({ message: 'Email already in use' })
           }
     
-          // Création de l'utilisateur
           const user = await User.create({
             id: v4(),
             full_name,
             email,
-            password: password, // Hash du mot de passe
+            password: password, 
           })
     
-          // Création du token
           const token = (await User.accessTokens.create(user)).value?.release()
     
           return response.created( { ...User.ParseUser(user), token})
@@ -103,17 +101,11 @@ export default class AuthController {
   async update({ request, response, auth }: HttpContext) {
     try {
       const user = await auth.authenticate()
-      const { full_name, password } = request.only(['full_name', 'email', 'password'])
+      const { full_name, password ,email} = request.only(['full_name', 'email', 'password'])
 
       if (full_name) user.full_name = full_name
-    //   if (email) {
-    //     const emailExists = await User.findBy('email', email)
-    //     if (emailExists && emailExists.id !== user.id) {
-    //       return response.conflict({ message: 'Email already taken' })
-    //     }
-    //     user.email = email
-    //   }
       if (password) user.password = await hash.make(password)
+      if (email) return response.gone({message : 'Email do not modify'})
 
       await user.save()
 
@@ -125,9 +117,6 @@ export default class AuthController {
   }
 
 
-  /**
-   * Suppression du compte utilisateur
-   */
   async delete_account({ response, auth }: HttpContext) {
     try {
       const user = await auth.authenticate()
@@ -135,7 +124,7 @@ export default class AuthController {
       await User.accessTokens.delete(user, user.id)
 
       await user.delete()
-
+      await deleteFiles(user.id)
       return response.ok({ isDelete: user.$isDeleted })
     } catch (error) {
       console.error('Delete account error:', error)

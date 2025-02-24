@@ -12,6 +12,10 @@ export default class Feature extends BaseModel {
   declare name: string
 
   @column()
+  declare type: string // Text , Icon , Color , component , Date , Files , Input, Interval
+
+
+  @column()
   declare icon: string
 
   @column()

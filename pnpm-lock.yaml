@@ -82,7 +82,7 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0
       prettier:
-        specifier: ^3.5.0
+        specifier: ^3.5.1
         version: 3.5.1
       ts-node-maintained:
         specifier: ^10.9.5

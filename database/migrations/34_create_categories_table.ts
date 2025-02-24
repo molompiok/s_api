@@ -5,12 +5,12 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      table.uuid('id').primary().notNullable()
+      table.uuid('id').primary().nullable()
       
-      table.uuid('store_id').notNullable().references('id').inTable('stores')
+      table.uuid('store_id').notNullable()
       table.uuid('parent_category_id')
       table.string('name')
-      table.string('description')
+      table.json('description')
       table.json('view')
       table.string('icon')
 

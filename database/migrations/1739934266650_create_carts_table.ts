@@ -7,11 +7,7 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
       table.uuid('user_id').notNullable().references('id').inTable('users')
-      table.uuid('product_id').notNullable().references('id').inTable('products')
-      table.integer('quantity')
-      table.integer('price_unit')
-      table.string('devise')
-      table.json('features')
+      table.uuid('command_item_id').notNullable().references('id').inTable('user_command_items')
 
       table.timestamps(true) 
     })

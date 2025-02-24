@@ -6,7 +6,13 @@ export default class UserCommandItem extends BaseModel {
   declare id: string
 
   @column()
-  declare user_command_id: string
+  declare store_id: string
+  
+  @column()
+  declare user_id: string
+
+  @column()
+  declare command_id: string
 
   @column()
   declare product_id: string
@@ -21,7 +27,7 @@ export default class UserCommandItem extends BaseModel {
   declare views : string
 
   @column()
-  declare devise: string
+  declare currency: string
 
   @column()
   declare features: string

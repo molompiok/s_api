@@ -3,7 +3,7 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 
 export default class Categorie extends BaseModel {
   @column({ isPrimary: true })
-  declare id: string
+  declare id: string | null
 
   @column()
   declare store_id: string
