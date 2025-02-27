@@ -124,7 +124,6 @@ export default class CommentsController {
             return response.internalServerError({ error: 'Bad config or server error' })
         }
     }
-
     public async delete({ request, response , auth}: HttpContext) {
         const user = await auth.authenticate();
         const comment_id = request.param('id')
