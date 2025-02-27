@@ -12,8 +12,7 @@ export default class extends BaseSchema {
       table.string('delivery_status').nullable()
       table.string('payment_status').nullable()
       table.string('payment_method').nullable()
-      table.string('currency')
-      
+      table.string('currency').defaultTo('CFA')      
       table.integer('total_price').nullable()
       table.integer('price_delivery').nullable()
       table.integer('price_return_delivery').nullable()
@@ -25,7 +24,6 @@ export default class extends BaseSchema {
 
       table.string('pickup_address').nullable()
       table.string('pickup_date').nullable()
-      
       
       table.string('delivery_date').nullable()
       table.string('delivery_address').nullable()

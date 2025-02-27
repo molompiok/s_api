@@ -15,6 +15,9 @@ export default class UserCommandItem extends BaseModel {
   declare command_id: string
 
   @column()
+  declare status: 'RETURN'
+
+  @column()
   declare product_id: string
 
   @column()

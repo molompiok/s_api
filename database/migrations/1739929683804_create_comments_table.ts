@@ -8,7 +8,8 @@ export default class extends BaseSchema {
       table.uuid('id').notNullable().primary()
       table.uuid('user_id').notNullable().references('id').inTable('users')
       table.uuid('product_id').notNullable().references('id').inTable('products')
-      table.text('comment').notNullable()
+      table.text('title').notNullable()
+      table.text('description').nullable()
       table.json('views').notNullable()
       table.integer('rating').notNullable()
 

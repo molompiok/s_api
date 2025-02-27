@@ -11,6 +11,7 @@ export default class extends BaseSchema {
 
       table.string('currency')
       table.json('views')
+      table.json('stock')
       table.json('icon')
       table.string('text')
 

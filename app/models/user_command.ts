@@ -11,7 +11,6 @@ export enum OrderStatus {
   NOT_PICKED_UP = 'not_picked_up',
   WAITING_FOR_PAYMENT = 'waiting_for_payment',
   WAITING_PICKED_UP = 'waiting_picked_up',
-  RETURNED = 'returned',
 }
 
 export enum PaymentMethod {

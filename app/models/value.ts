@@ -3,7 +3,7 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 
 export default class Value extends BaseModel {
   @column({ isPrimary: true })
-  declare value_id: string
+  declare id: string
 
   @column()
   declare feature_id: string

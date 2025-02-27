@@ -11,7 +11,7 @@ import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
 export default class CommentsController {
     public async create_comment({ request, response , auth}: HttpContext) {
 
-        const { comment, product_id ,rating} = request.only(['comment', 'product_id', 'rating'])
+        const { title, description,  product_id ,rating} = request.only(['title','description', 'product_id', 'rating'])
         if (!product_id) {
             return response.badRequest({ message: 'product_id is required' })
         }
@@ -33,13 +33,14 @@ export default class CommentsController {
                   },
               });
 
-            if (!comment || !rating) {
+            if (!title || !rating) {
                 return response.badRequest({ message: 'information missing' })
             }
             const newComment = await Comment.create({
                 user_id: user.id,
                 product_id,
-                comment,
+                title,
+                description,
                 rating: parseFloat(rating),
                 views: JSON.stringify(views) 
             })
@@ -82,7 +83,7 @@ export default class CommentsController {
     public async update_comment({ request, response , auth }: HttpContext) {
 
         const user = await auth.authenticate();
-        const { comment: text,rating , comment_id } = request.only(['comment', 'rating', 'comment_id']);
+        const {  title, description ,rating , comment_id } = request.only(['title','description' , 'rating', 'comment_id']);
         const body = request.body();
         try {
           const comment = await Comment.find(comment_id);
@@ -92,7 +93,7 @@ export default class CommentsController {
             if (comment.user_id !== user.id) {
                 return response.unauthorized({ message: 'Unauthorized' })
             }
-            comment.merge({ comment : text, rating })
+            comment.merge({  title , rating ,description })
               let urls = [];
             
                       for (const f of ['views'] as const) {

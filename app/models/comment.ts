@@ -12,7 +12,10 @@ export default class Comment extends BaseModel {
   declare product_id: string
 
   @column()
-  declare comment: string
+  declare title: string
+
+  @column()
+  declare description: string
 
   @column()
   declare rating: number

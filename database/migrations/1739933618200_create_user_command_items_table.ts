@@ -10,10 +10,9 @@ export default class extends BaseSchema {
       table.uuid('product_id').references('id').inTable('products')
       table.uuid('user_id').references('id').inTable('users')
       table.uuid('store_id')
-
+      table.string('status')
       table.json('views')
       table.integer('quantity')
-  
       table.integer('price_unit')
       table.string('currency')
       table.json('features')
@@ -21,7 +20,6 @@ export default class extends BaseSchema {
       table.timestamps(true,true) 
     })
   }
-
   async down() {
     this.schema.dropTable(this.tableName)
   }
