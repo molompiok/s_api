@@ -10,6 +10,7 @@ export default class UserCommandItemsController {
     try {
       const currency = 'CFA'
       const user = await auth.authenticate()
+      const stock = 1
       
       const { product_id, quantity, price, views, features } = request.only(['product_id', 'quantity', 'price', 'views', 'features'])
 
@@ -23,7 +24,7 @@ export default class UserCommandItemsController {
         .first()
 
       if (!userCommandItem) {
-        if (quantity <= 0 || product.stock < quantity) {
+        if (quantity <= 0 || stock < quantity) {
           return response.badRequest({ message: 'Stock not enough' })
         }
 
@@ -35,7 +36,7 @@ export default class UserCommandItemsController {
           price_unit: price,
           currency,
           store_id: product.store_id,
-          views: JSON.stringify(views),
+          views,
           features: JSON.stringify(features),
         })
 
@@ -54,7 +55,7 @@ export default class UserCommandItemsController {
         return response.ok({ isDeleted: true })
       }
 
-      if (quantity > product.stock) {
+      if (quantity > stock) {
         return response.badRequest({ message: 'Stock not enough' })
       }
 
@@ -62,7 +63,7 @@ export default class UserCommandItemsController {
         quantity,
         price_unit: price,
         currency,
-        views: JSON.stringify(views),
+        views,
         features: JSON.stringify(features),
       })
       await userCommandItem.save()

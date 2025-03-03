@@ -10,8 +10,8 @@ export default class extends BaseSchema {
 
       table.uuid('current_theme_id')
       table.string('name')
-      table.json('logo')
-      table.json('banner')
+      table.jsonb('logo').defaultTo('[]')
+      table.jsonb('banner').defaultTo('[]')
       table.text('description')
       table.string('url')
       table.integer('api_port')

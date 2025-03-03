@@ -12,7 +12,7 @@ export default class extends BaseSchema {
       table.enum('type', Object.values(RoleType)).defaultTo(RoleType.CLIENT)
       table.string('email', 254).notNullable().unique()
       table.string('password').notNullable()
-      table.string('photo').nullable()
+      table.jsonb('photo').defaultTo('[]')
 
       table.timestamps(true) 
     })

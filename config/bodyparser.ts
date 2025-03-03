@@ -14,6 +14,7 @@ const bodyParserConfig = defineConfig({
   form: {
     convertEmptyStringsToNull: true,
     types: ['application/x-www-form-urlencoded'],
+    
   },
 
   /**
@@ -27,6 +28,7 @@ const bodyParserConfig = defineConfig({
       'application/vnd.api+json',
       'application/csp-report',
     ],
+
   },
 
   /**

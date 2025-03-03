@@ -9,9 +9,6 @@ export default class Value extends BaseModel {
   declare feature_id: string
 
   @column()
-  declare product_id: string
-
-  @column()
   declare additional_price: number
 
   @column()
@@ -19,7 +16,14 @@ export default class Value extends BaseModel {
 
 
   @column()
-  declare icon: object
+  declare icon: string
+  
+  @column({
+    prepare: (value) => JSON.stringify(value), 
+    consume: (value) => JSON.parse(value),
+  })
+  declare views: string[]
+
   
   @column()
   declare text: string

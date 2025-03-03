@@ -6,10 +6,10 @@ export default class Favorite extends BaseModel {
   declare id: string
 
   @column()
-  declare label: string
+  declare user_id: string
 
   @column()
-  declare user_id: string
+  declare label: string
 
   @column()
   declare store_id: string

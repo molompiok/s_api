@@ -9,7 +9,7 @@ export default class extends BaseSchema {
       
       table.uuid('inventory_id').notNullable().references('id').inTable('inventories')
       table.string('name')
-      table.json('icon')
+      table.jsonb('icon').defaultTo('[]')
       table.string('url')
 
       table.timestamps(true) 

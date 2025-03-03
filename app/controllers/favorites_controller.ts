@@ -6,33 +6,40 @@ import { v4 } from 'uuid';
 import { applyOrderBy } from './Utils/query.js';
 
 export default class FavoritesController {
-    async create_favorite({ request, response, auth }: HttpContext) {
-        let { label, product_id } = request.body();
-        const user = await auth.authenticate();
+    async create_favorite({ request, response }: HttpContext) {
+        let { product_id, user_id } = request.body();
+
+        // if(!)
+        // const user = await auth.authenticate();
         try {
             const product = await Product.find(product_id)
+
+
             if (!product) {
                 return response.notFound({ message: 'Product not found' })
             }
-            label = label.trim().toLowerCase()
-
+            // label = label.trim().toLowerCase()
             let favorite = (await Favorite.query()
-            .where('label', label)
-            .andWhere('store_id', product.store_id)
-            .andWhere('user_id', user.id)
-            .andWhere('product_id', product_id).limit(1))[0];
-
+                // .where('label', label)
+                .where('store_id', product.store_id)
+                .andWhere('user_id', user_id)
+                // .andWhere('user_id', user.id)
+                .andWhere('product_id', product_id).limit(1))[0];
+            console.log({ favorite });
             if (favorite) {
                 return response.badRequest({ message: 'Favorite already exists' })
             } else {
+                console.log({ favorite, po: '66666' });
                 const id = v4();
                 favorite = await Favorite.create({
                     id,
-                    label,
+                    label: 'default',
                     product_id,
                     store_id: product.store_id,
-                    user_id: user.id,
+                    // user_id: user.id,
+                    user_id: user_id,
                 })
+                console.log({ favorite, po: '66666' });
                 return response.created(favorite)
             }
         } catch (error) {
@@ -41,7 +48,7 @@ export default class FavoritesController {
     }
 
     async get_favorites({ request, response, auth }: HttpContext) {
-        const user = await auth.authenticate();
+        // const user = await auth.authenticate();
         const { page = 1,
             limit = 10,
             order_by,
@@ -54,17 +61,20 @@ export default class FavoritesController {
             const pageNum = Math.max(1, parseInt(page))
             const limitNum = Math.max(1, parseInt(limit))
 
-            let query = db.from(Favorite.table).select('*');
+            let query = db.from(Favorite.table)
+                .innerJoin(Product.table, 'favorites.product_id', 'products.id')
+                .select('products.*')
+                .select('favorites.*')
 
             if (favorite_id) {
                 query = query.where('id', favorite_id)
             }
             if (label) {
                 query = query.where('label', label);
-              }
-            if (user.id) {
-                query = query.where('user_id', user.id)
             }
+            // if (user.id) {
+            //     query = query.where('user_id', user.id)
+            // }
             if (store_id) {
                 query = query.where('store_id', store_id)
             }
@@ -103,18 +113,19 @@ export default class FavoritesController {
     }
 
     async delete_favorite({ request, response, auth }: HttpContext) {
-        const user = await auth.authenticate();
-        const { favorite_id } = request.param('id');
+        // const user = await auth.authenticate();
+        const id = request.param('id');
+        
         try {
-            const favorite = await Favorite.find(favorite_id)
+            const favorite = await Favorite.find(id)
             if (!favorite) {
                 return response.notFound({ message: 'Favorite not found' })
             }
-            if (favorite.user_id !== user.id) {
-                return response.forbidden({ message: 'Forbidden operation' })
-            }
+            // if (favorite.user_id !== user.id) {
+            //     return response.forbidden({ message: 'Forbidden operation' })
+            // }
             await favorite.delete()
-            return response.ok({ message: 'Favorite deleted successfully' })
+            return response.ok({ isDeleted: favorite.$isDeleted})
         } catch (error) {
             console.error('Error in delete_favorites:', error)
             return response.internalServerError({ message: 'Une erreur est survenue', error })

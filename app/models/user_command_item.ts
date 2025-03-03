@@ -26,8 +26,11 @@ export default class UserCommandItem extends BaseModel {
   @column()
   declare price_unit: number
 
-  @column()
-  declare views : string
+  @column({
+    prepare: (value) => JSON.stringify(value), 
+    consume: (value) => JSON.parse(value),
+  })
+  declare views: string[]
 
   @column()
   declare currency: string

@@ -1,6 +1,5 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-
 export default class GroupFeature extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
@@ -11,8 +10,12 @@ export default class GroupFeature extends BaseModel {
   @column()
   declare stock: number
 
-  @column()
-  declare bind:string
+  @column({ 
+    serializeAs: 'bind', 
+    prepare: (value) => JSON.stringify(value), 
+    consume: (value) => JSON.parse(value) 
+  })
+  declare bind: Record<string, any> | null
 
   
   @column.dateTime({ autoCreate: true })
@@ -20,4 +23,6 @@ export default class GroupFeature extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+
 }

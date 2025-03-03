@@ -10,7 +10,7 @@ export default class extends BaseSchema {
       table.uuid('store_id').notNullable().references('id').inTable('stores')
       table.string('name')
       table.string('description')
-      table.json('view')
+      table.jsonb('view').defaultTo('[]')
       table.timestamps(true) 
     })
   }

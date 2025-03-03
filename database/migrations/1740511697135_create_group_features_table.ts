@@ -8,9 +8,13 @@ export default class extends BaseSchema {
       table.uuid('id').notNullable().primary()
       table.uuid('product_id').notNullable().references('id').inTable('products')
       table.integer('stock')
-      table.json('bind')
+      table.jsonb('bind').nullable()
       table.timestamp('created_at')
       table.timestamp('updated_at')
+
+      this.schema.alterTable('group_features', (table) => {
+        table.index(['bind'], 'group_features_bind_idx', 'gin')
+      })
     })
   }
 

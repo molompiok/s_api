@@ -9,7 +9,7 @@ export default class extends BaseSchema {
       table.uuid('user_id').references('id').inTable('users')
       table.string('label').notNullable()
       table.uuid('product_id').references('id').inTable('products')
-      table.uuid('store_id').references('id').inTable('stores')
+      table.uuid('store_id').notNullable()
 
       table.timestamps(true,true) 
     })

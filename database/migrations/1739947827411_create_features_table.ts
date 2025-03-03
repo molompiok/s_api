@@ -7,9 +7,9 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
       table.uuid('product_id').notNullable().references('id').inTable('products')
-      table.string('name')
+      table.string('name').nullable()
       table.string('type')
-      table.json('icon')
+      table.jsonb('icon').defaultTo('[]')
       table.boolean('required')
       table.string('default')
 

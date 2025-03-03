@@ -17,11 +17,20 @@ export default class Categorie extends BaseModel {
   @column()
   declare description: string
 
-  @column()
-  declare view: string
 
-  @column()
-  declare icon: string
+  @column({
+    prepare: (value) => JSON.stringify(value), // Convertit en JSON avant d'insérer
+    consume: (value) => JSON.parse(value), // Convertit en tableau après récupération
+  })
+  declare view: string[]
+
+
+  @column({
+    prepare: (value) => JSON.stringify(value), 
+    consume: (value) => JSON.parse(value),
+  })
+  declare icon: string[]
+
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

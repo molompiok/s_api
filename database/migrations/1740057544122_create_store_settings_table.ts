@@ -1,4 +1,3 @@
-import { column } from '@adonisjs/lucid/orm'
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
@@ -10,7 +9,7 @@ export default class extends BaseSchema {
 
       table.uuid('store_id')
       table.uuid('user_id')
-      table.string('currency')
+      table.string('currency').defaultTo('CFA')
       
 
       table.timestamp('created_at')

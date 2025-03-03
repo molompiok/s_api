@@ -42,7 +42,7 @@ export default class CommentsController {
                 title,
                 description,
                 rating: parseFloat(rating),
-                views: JSON.stringify(views) 
+                views 
             })
             return response.created(newComment)
             
@@ -115,7 +115,7 @@ export default class CommentsController {
                                   maxSize: 12 * MEGA_OCTET,
                               },
                           });
-                          comment[f] = JSON.stringify(urls);
+                          comment[f] = urls;
                       }
                       await comment.save()
     

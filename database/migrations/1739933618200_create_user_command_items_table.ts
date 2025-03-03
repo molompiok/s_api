@@ -11,10 +11,10 @@ export default class extends BaseSchema {
       table.uuid('user_id').references('id').inTable('users')
       table.uuid('store_id')
       table.string('status')
-      table.json('views')
+      table.jsonb('views').defaultTo('[]')
       table.integer('quantity')
       table.integer('price_unit')
-      table.string('currency')
+      table.string('currency').defaultTo('CFA')
       table.json('features')
 
       table.timestamps(true,true) 

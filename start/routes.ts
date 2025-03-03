@@ -12,24 +12,31 @@ import CategoriesController from '#controllers/categories_controller'
 import CommentsController from '#controllers/comments_controller'
 import FavoritesController from '#controllers/favorites_controller'
 import FeaturesController from '#controllers/features_controller'
+import GroupFeaturesController from '#controllers/group_features_controller'
 import ProductsController from '#controllers/products_controller'
 import RolesController from '#controllers/roles_controller'
 import UserAddressesController from '#controllers/user_addresses_controller'
 import UserCommandItemsController from '#controllers/user_command_items_controller'
 import UserCommandsController from '#controllers/user_commands_controller'
 import UserPhonesController from '#controllers/user_phones_controller'
+import UsersController from '#controllers/users_controller'
 import ValuesController from '#controllers/values_controller'
 
 import router from '@adonisjs/core/services/router'
+import { env } from 'process'
 
 // Auth
-router.post('/register', [AuthController, 'register'])
+router.post('/signup', [AuthController, 'signup'])
 router.post('/login', [AuthController, 'login'])
 router.post('/logout', [AuthController, 'logout'])
 router.get('/me', [AuthController, 'me'])
 router.post('/global_logout', [AuthController, 'global_logout'])
 router.post('/update_account', [AuthController, 'update'])
 router.delete("/delete_account",[AuthController, 'delete_account'])
+
+// Users
+router.get('/get_users', [UsersController, 'get_users'])
+
 
 //Cart
 router.get('/get_cart_items', [CartsController, 'get_cart_items'])
@@ -61,6 +68,7 @@ router.delete('/delete_favorite/:id', [FavoritesController, 'delete_favorite'])
 
 //Feature
 router.get('/get_features', [FeaturesController, 'get_features'])
+router.get('/get_features_with_values', [FeaturesController, 'get_features_with_values'])
 router.post('/create_feature', [FeaturesController, 'create_feature'])
 router.put('/update_feature', [FeaturesController, 'update_feature'])
 router.delete('/delete_feature/:id', [FeaturesController, 'delete_feature'])
@@ -96,7 +104,25 @@ router.put('/update_user_phone', [UserPhonesController, 'update_user_phone'])
 router.delete('/delete_user_phone/:id', [UserPhonesController, 'delete_user_phone'])
 
 //values_feature
-router.get('/create_value', [ValuesController, 'create_value'])
+router.get('/get_values', [ValuesController, 'get_values'])
 router.post('/create_value', [ValuesController, 'create_value'])
 router.put('/update_value', [ValuesController, 'update_value'])
 router.delete('/delete_value/:id', [ValuesController, 'delete_value'])
+
+
+router.post('/create_group', [GroupFeaturesController, 'create_group']) 
+router.put('/update_group', [GroupFeaturesController, 'update_group']) 
+router.get('/get_group_features', [GroupFeaturesController, 'get_group_features']) 
+router.delete('/delete_group/:id', [GroupFeaturesController, 'delete_group']) 
+
+router.get('/get_stock_by_feature', [GroupFeaturesController, 'get_stock_by_feature'])
+
+router.get('/',()=>{
+    return env
+})
+
+
+router.get('/uploads/*',({request, response})=>{
+
+    return response.download('.'+request.url())
+})

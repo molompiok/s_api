@@ -20,8 +20,11 @@ export default class Comment extends BaseModel {
   @column()
   declare rating: number
 
-  @column()
-  declare views: string
+  @column({
+    prepare: (value) => JSON.stringify(value), 
+    consume: (value) => JSON.parse(value),
+  })
+  declare views: string[]
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

@@ -14,14 +14,17 @@ export default class Feature extends BaseModel {
   @column()
   declare type: string // Text , Icon , Color , component , Date , Files , Input, Interval
 
-  @column()
-  declare icon: string
+  @column({
+    prepare: (value) => JSON.stringify(value), 
+    consume: (value) => JSON.parse(value),
+  })
+  declare icon: string[]
 
   @column()
   declare required: boolean
 
   @column()
-  declare default: string
+  declare default: string | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
