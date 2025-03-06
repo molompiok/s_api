@@ -8,6 +8,7 @@ import { applyOrderBy } from './Utils/query.js';
 export default class FavoritesController {
     async create_favorite({ request, response }: HttpContext) {
         let { product_id, user_id } = request.body();
+        console.log("🚀 ~ FavoritesController ~ create_favorite ~ { product_id, user_id }:", { product_id, user_id })
 
         // if(!)
         // const user = await auth.authenticate();

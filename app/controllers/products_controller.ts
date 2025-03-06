@@ -12,9 +12,9 @@ import GroupFeature from '#models/group_feature';
 export default class ProductsController {
     async create_product(httpContext: HttpContext) {
         const { request, response } = httpContext
-        //     const user  = await  auth.authenticate()
-        //    if (!(await Role.isAuthorized( user.id , 'create_delete_product'))) {
-        //        return response.methodNotAllowed('Not authorized')
+        // const user  = await  auth.authenticate()
+        // if (!(await Role.isAuthorized( user.id , 'create_delete_product'))) {
+        //  return response.methodNotAllowed('Not authorized')
         //    } 
         const feature_id = v4();
         const product_id = v4();
@@ -24,11 +24,11 @@ export default class ProductsController {
         let product = null
         let newValue = null
         let groupFeature = null
-
+        
         const { name, description, price, category_id, barred_price, stock } = request.body();
 
         if (!name || !description || !price || !stock) {
-            return response.badRequest({ message: 'Missing required fields' })
+            return response.badRequest({ message: 'Missing required fields'})
         }
         try {
             product = await Product.create({
