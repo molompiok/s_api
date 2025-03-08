@@ -89,7 +89,7 @@ export default class ProductsController {
 
     async get_products({ request, response, auth }: HttpContext) {
         // await auth.authenticate();
-        const { product_id, store_id, name, order_by, category_id, page = 1, limit = 10 } = request.qs()
+        const { product_id, store_id, search, order_by, category_id, slug ,page = 1, limit = 10 } = request.qs()
 
         const pageNum = Math.max(1, parseInt(page))
         const limitNum = Math.max(1, parseInt(limit))
@@ -103,13 +103,18 @@ export default class ProductsController {
         if (product_id) {
             query = query.where('id', product_id)
         }
+        
+        if (slug) {
+            query = query.where('slug', slug)
+            //TODO gere dans une route diferente ave findBy
+        }
 
         if (category_id) {
             query = query.where('category_id', category_id)
         }
 
-        if (name) {
-            const searchTerm = `%${name.toLowerCase()}%`
+        if (search) {
+            const searchTerm = `%${search.toLowerCase()}%`
             query.where((q) => {
                 q.whereRaw('LOWER(products.name) LIKE ?', [searchTerm])
                     .orWhereRaw('LOWER(products.description) LIKE ?', [searchTerm])

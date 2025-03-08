@@ -6,11 +6,11 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
-      table.uuid('product_id').notNullable().references('id').inTable('products')
+      table.uuid('product_id').notNullable().references('id').inTable('products').onDelete('CASCADE')
       table.string('name').nullable()
       table.string('type')
       table.jsonb('icon').defaultTo('[]')
-      table.boolean('required')
+      table.boolean('required').defaultTo(false)
       table.string('default')
 
       table.timestamps(true) 

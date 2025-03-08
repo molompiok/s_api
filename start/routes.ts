@@ -26,16 +26,25 @@ import router from '@adonisjs/core/services/router'
 import { env } from 'process'
 
 // Auth
-router.post('/signup', [AuthController, 'signup'])
+router.post('/register', [AuthController, 'register_mdp'])
 router.post('/login', [AuthController, 'login'])
 router.post('/logout', [AuthController, 'logout'])
-router.get('/me', [AuthController, 'me'])
-router.post('/global_logout', [AuthController, 'global_logout'])
+
 router.post('/update_account', [AuthController, 'update'])
 router.delete("/delete_account",[AuthController, 'delete_account'])
+ 
+
+// Authentification Google
+router.post('/google_callback', [AuthController, 'google_auth']) 
+
+// Gestion de compte
+router.get('/me', [AuthController, 'me'])                
+router.put('/update', [AuthController, 'update'])          
+router.delete('/delete', [AuthController, 'delete_account'])
 
 // Users
 router.get('/get_users', [UsersController, 'get_users'])
+
 
 
 //Cart

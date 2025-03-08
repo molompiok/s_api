@@ -1,13 +1,11 @@
 import { DateTime } from 'luxon'
-import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeSave, column } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
-import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import { TypeJsonRole } from './role.js'
-import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
 import { OWNER_ID, STORE_ID } from '#controllers/Utils/ctrlManager'
+import hash from '@adonisjs/core/services/hash'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -45,7 +43,20 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 
-  static accessTokens = DbAccessTokensProvider.forModel(User)
+  @beforeSave()
+  static async hashPassword(user: User) {
+    if (user.$dirty.password) {
+      user.password = await hash.make(user.password)
+    }
+  }
+
+  public async verifyCredentials(email: string, password: string) {
+    const user = await User.findByOrFail('email', email)
+    if (!(await hash.verify(user.password, password))) {
+      throw new Error('Invalid credentials')
+    }
+    return user
+  }
 
   public static ParseUser(user: User['$attributes']) {
     return {

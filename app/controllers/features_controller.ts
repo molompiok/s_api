@@ -45,8 +45,6 @@ export default class FeaturesController {
 
     async get_features({ request, response }: HttpContext) {
         const { product_id, feature_id } = request.qs()
-
-
         try {
             let query = db.from(Feature.table).select('*')
 
@@ -61,29 +59,29 @@ export default class FeaturesController {
     }
     async get_features_with_values({ request, response }: HttpContext) {
         const { product_id, feature_id } = request.qs()
-
-
+    
+        console.log("🚀 ~ FeaturesController ~ get_features_with_values ~ { product_id, feature_id }:", { product_id, feature_id })
         try {
-
-            let query = db.from(Feature.table)
-            .innerJoin(Value.table, 'features.id', 'values.feature_id')
-            .select('values.*')
-            .select('features.name as feature_name', 'features.type as feature_type', 'features.icon as feature_icon' , 'features.product_id as product_id','features.required as feature_required')
-            // let query = db.from(Value.table)
-            //     .innerJoin(Feature.table, 'values.feature_id', 'features.id')
-            //     .select('values.*')
-            //     .select('features.name as feature_name', 'features.type as feature_type', 'features.icon as feature_icon')
-
-            if (feature_id) query.where('features.id', feature_id)
-            if (product_id) query.where('product_id', product_id)
-
-            const valuesPaginate = await query.paginate(1, 50)
-            return response.ok({ list: valuesPaginate.all(), meta: valuesPaginate.getMeta() })
+          const query = Feature.query().preload('values')  
+    
+          if (feature_id) query.where('id', feature_id)
+          if (product_id) query.where('product_id', product_id)
+    
+          const features = await query
+    
+          if (!features || features.length === 0) {
+            return response.notFound({ message: 'Feature not found' })
+          }
+    
+          return response.ok({ features })
         } catch (error) {
-            return response.internalServerError({ message: 'Bad config or server error', error: error.message })
+            console.error('Error:', error) 
+          return response.internalServerError({
+            message: 'Server error',
+            error: error.message,
+          })
         }
-    }
-
+      }
 
     async update_feature({ request, response }: HttpContext) {
         const { name, required, default_value, feature_id } = request.only(['name', 'required', 'default_value', 'feature_id'])

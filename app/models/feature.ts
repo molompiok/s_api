@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany} from '@adonisjs/lucid/orm'
+import {  type HasMany } from '@adonisjs/lucid/types/relations'
+import Value from './value.js'
 
 export default class Feature extends BaseModel {
   @column({ isPrimary: true })
@@ -12,11 +14,10 @@ export default class Feature extends BaseModel {
   declare name: string
 
   @column()
-  declare type: string // Text , Icon , Color , component , Date , Files , Input, Interval
+  declare type: string 
 
   @column({
-    prepare: (value) => JSON.stringify(value), 
-    consume: (value) => JSON.parse(value),
+    prepare: (value) => JSON.stringify(value),
   })
   declare icon: string[]
 
@@ -25,6 +26,9 @@ export default class Feature extends BaseModel {
 
   @column()
   declare default: string | null
+
+  @hasMany(() => Value, { foreignKey: 'feature_id' })
+  declare values: HasMany<typeof Value>
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

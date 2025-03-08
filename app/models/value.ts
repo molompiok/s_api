@@ -1,11 +1,13 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
+import type {  BelongsTo } from '@adonisjs/lucid/types/relations'
+import Feature from './feature.js'
 
 export default class Value extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
 
-  @column()
+  @column({ columnName: 'feature_id' })
   declare feature_id: string
 
   @column()
@@ -14,20 +16,17 @@ export default class Value extends BaseModel {
   @column()
   declare currency: string 
 
-
   @column()
   declare icon: string
-  
+
   @column({
-    prepare: (value) => JSON.stringify(value), 
-    consume: (value) => JSON.parse(value),
+    prepare: (value) => JSON.stringify(value),
   })
   declare views: string[]
 
-  
   @column()
   declare text: string
-    
+
   @column()
   declare min: number
 
@@ -43,9 +42,11 @@ export default class Value extends BaseModel {
   @column()
   declare multiple: boolean
 
-  
   @column()
   declare is_double: boolean
+
+  @belongsTo(() => Feature , { foreignKey: 'feature_id' })
+  declare feature: BelongsTo<typeof Feature>
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

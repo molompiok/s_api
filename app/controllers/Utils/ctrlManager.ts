@@ -8,5 +8,6 @@ export const OWNER_ID = env.get('OWNER_ID')
 export const THEME_ID = env.get('THEME_ID')
 export const STORE_ID = env.get('STORE_ID')
 export const STORE_NAME = env.get('STORE_NAME')
+export const GOOGLE_CLIENT_ID = env.get('GOOGLE_CLIENT_ID')
 
 

@@ -8,9 +8,9 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('store_id').notNullable()
       table.uuid('category_id').references('id').inTable('categories')
-      table.string('name').notNullable()
-      table.uuid('default_feature_id').references('id').inTable('features').notNullable().unique()
-    
+      table.string('name').notNullable().unique()
+      table.uuid('default_feature_id').notNullable().unique()
+      table.string("slug").notNullable().unique();
       table.text('description')
       table.integer('barred_price')
       table.integer('price')

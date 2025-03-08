@@ -33,6 +33,20 @@ export default await Env.create(new URL('../', import.meta.url), {
   OWNER_ID: Env.schema.string(),
   THEME_ID: Env.schema.string(),
   STORE_NAME: Env.schema.string(),
-  
 
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring ally package
+  |----------------------------------------------------------
+  */
+  GOOGLE_CLIENT_ID: Env.schema.string(),
+  GOOGLE_CLIENT_SECRET: Env.schema.string(),
+  GOOGLE_CALLBACK_URL: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring session package
+  |----------------------------------------------------------
+  */
+  SESSION_DRIVER: Env.schema.enum(['cookie', 'memory'] as const)
 })

@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, column } from '@adonisjs/lucid/orm'
+import limax from "limax";
+
 
 export default class Product extends BaseModel {
   @column({ isPrimary: true })
@@ -29,6 +31,14 @@ export default class Product extends BaseModel {
   @column()
   declare currency: string
 
+  @column()
+  declare slug: string
+
+  @beforeCreate()
+  public static async generateSlug(product: Product) {
+    let baseSlug = limax(product.name, { maintainCase: true })
+    product.slug = baseSlug
+  }
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
