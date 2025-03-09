@@ -5,7 +5,7 @@ tmp
 uploads
 
 # Secrets
-.env
+# .env
 # .env.local
 # .env.production.local
 # .env.development.local
