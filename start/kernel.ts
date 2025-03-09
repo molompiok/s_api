@@ -8,8 +8,6 @@
 |
 */
 
-import Feature from '#models/feature'
-import Value from '#models/value'
 import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
 

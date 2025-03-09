@@ -1,6 +1,6 @@
 import env from "#start/env";
 
-export const EXT_SUPPORTED = ['jpg', 'jpeg', 'jfif', 'pjpeg', 'pjp', 'avif', 'apng', 'gif', "jpg", "png", "jpeg", "webp"]
+export const EXT_SUPPORTED = ['jpg', 'jpeg', 'jfif', 'pjpeg', 'pjp', 'avif', 'apng', 'gif', "jpg", "png", "jpeg", "webp",'mp4']
 
 export const MEGA_OCTET = 1024 * 1024;
 

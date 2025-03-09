@@ -34,6 +34,10 @@ export default class Value extends BaseModel {
   declare max: number
 
   @column()
+  declare index: number
+
+
+  @column()
   declare min_size: number
 
   @column()

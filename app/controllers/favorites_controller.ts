@@ -6,12 +6,10 @@ import { v4 } from 'uuid';
 import { applyOrderBy } from './Utils/query.js';
 
 export default class FavoritesController {
-    async create_favorite({ request, response }: HttpContext) {
-        let { product_id, user_id } = request.body();
-        console.log("🚀 ~ FavoritesController ~ create_favorite ~ { product_id, user_id }:", { product_id, user_id })
+    async create_favorite({ request, response , auth }: HttpContext) {
+        let { product_id } = request.body();
 
-        // if(!)
-        // const user = await auth.authenticate();
+        const user = await auth.authenticate();
         try {
             const product = await Product.find(product_id)
 
@@ -23,10 +21,8 @@ export default class FavoritesController {
             let favorite = (await Favorite.query()
                 // .where('label', label)
                 .where('store_id', product.store_id)
-                .andWhere('user_id', user_id)
-                // .andWhere('user_id', user.id)
+                .andWhere('user_id', user.id)
                 .andWhere('product_id', product_id).limit(1))[0];
-            console.log({ favorite });
             if (favorite) {
                 return response.badRequest({ message: 'Favorite already exists' })
             } else {
@@ -37,10 +33,8 @@ export default class FavoritesController {
                     label: 'default',
                     product_id,
                     store_id: product.store_id,
-                    // user_id: user.id,
-                    user_id: user_id,
+                    user_id: user.id,
                 })
-                console.log({ favorite, po: '66666' });
                 return response.created(favorite)
             }
         } catch (error) {
@@ -49,7 +43,12 @@ export default class FavoritesController {
     }
 
     async get_favorites({ request, response, auth }: HttpContext) {
-        // const user = await auth.authenticate();
+        const user = await auth.use('web').authenticate()
+        console.log("🚀 ~ FavoritesController ~ get_favorites ~ user:", user)
+        if (!user) {
+          return response.unauthorized({ message: 'Non authentifié' })
+        }
+        
         const { page = 1,
             limit = 10,
             order_by,
@@ -73,9 +72,9 @@ export default class FavoritesController {
             if (label) {
                 query = query.where('label', label);
             }
-            // if (user.id) {
-            //     query = query.where('user_id', user.id)
-            // }
+            if (user.id) {
+                query = query.where('user_id', user.id)
+            }
             if (store_id) {
                 query = query.where('store_id', store_id)
             }
@@ -114,17 +113,16 @@ export default class FavoritesController {
     }
 
     async delete_favorite({ request, response, auth }: HttpContext) {
-        // const user = await auth.authenticate();
+        const user = await auth.authenticate();
         const id = request.param('id');
-        
         try {
             const favorite = await Favorite.find(id)
             if (!favorite) {
                 return response.notFound({ message: 'Favorite not found' })
             }
-            // if (favorite.user_id !== user.id) {
-            //     return response.forbidden({ message: 'Forbidden operation' })
-            // }
+            if (favorite.user_id !== user.id) {
+                return response.forbidden({ message: 'Forbidden operation' })
+            }
             await favorite.delete()
             return response.ok({ isDeleted: favorite.$isDeleted})
         } catch (error) {

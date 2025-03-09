@@ -39,7 +39,7 @@ export default class ValuesController {
         table_name: Value.table,
         options: {
           throwError: true,
-          compress: 'img',
+          // compress: 'img',
           min: 0,
           max: 5,
           extname: EXT_SUPPORTED,
@@ -127,7 +127,7 @@ export default class ValuesController {
                   throwError: true,
                   min: 1,
                   max: 1,
-                  compress: 'img',
+                  // compress: 'img',
                   extname: EXT_SUPPORTED,
                   maxSize: 12 * MEGA_OCTET,
               },

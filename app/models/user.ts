@@ -43,14 +43,14 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 
-  @beforeSave()
-  static async hashPassword(user: User) {
-    if (user.$dirty.password) {
-      user.password = await hash.make(user.password)
-    }
-  }
+  // @beforeSave()
+  // static async hashPassword(user: User) {
+  //   if (user.$dirty.password) {
+  //     user.password = await hash.make(user.password)
+  //   }
+  // }
 
-  public async verifyCredentials(email: string, password: string) {
+  public static async VerifyUser(email: string, password: string) {
     const user = await User.findByOrFail('email', email)
     if (!(await hash.verify(user.password, password))) {
       throw new Error('Invalid credentials')

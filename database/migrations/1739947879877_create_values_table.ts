@@ -7,12 +7,12 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
       table.uuid('feature_id').notNullable().references('id').inTable('features').onDelete('CASCADE')
-
+      
       table.string('currency').defaultTo('CFA')
       table.jsonb('views').defaultTo('[]')
       table.json('icon')
       table.string('text')
-
+      table.tinyint('type')
       table.integer('additional_price').defaultTo(0)
       table.integer('min')
       table.integer('max')

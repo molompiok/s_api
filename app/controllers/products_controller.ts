@@ -64,7 +64,7 @@ export default class ProductsController {
                 table_name: Value.table,
                 options: {
                     throwError: true,
-                    compress: 'img',
+                    // compress: 'img',
                     min: 1,
                     max: 5,
                     extname: EXT_SUPPORTED,
@@ -139,27 +139,6 @@ export default class ProductsController {
                 return response.notFound({ message: 'Product not found' })
             }
             product.merge({ name, description, category_id, barred_price, price, currency })
-            //   let urls = [];
-            //   for (const f of ['views'] as const) {
-            //       if (!body[f]) continue;
-            //       urls = await updateFiles({
-            //           request,
-            //           table_name: "products",
-            //           table_id: product_id,
-            //           column_name: f,
-            //           lastUrls: product[f],
-            //           newPseudoUrls: body[f],
-            //           options: {
-            //               throwError: true,
-            //               min: 1,
-            //               max: 1,
-            //               compress: 'img',
-            //               extname: EXT_SUPPORTED,
-            //               maxSize: 12 * MEGA_OCTET,
-            //           },
-            //       });
-            //       product[f] = JSON.stringify(urls);
-            //   }
 
             await product.save()
 

@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('product_id').notNullable().references('id').inTable('products').onDelete('CASCADE')
       table.string('name').nullable()
-      table.string('type')
+      table.tinyint('type')
       table.jsonb('icon').defaultTo('[]')
       table.boolean('required').defaultTo(false)
       table.string('default')

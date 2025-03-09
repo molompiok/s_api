@@ -6,12 +6,14 @@ import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
 import { GOOGLE_CLIENT_ID } from './Utils/ctrlManager.js';
 import { OAuth2Client } from 'google-auth-library';
 import UserAuthentification from '#models/user_authentification';
+import vine from '@vinejs/vine';
 const client = new OAuth2Client(GOOGLE_CLIENT_ID)
 
 
 export default class AuthController {
 
   async login({ request, response ,auth }: HttpContext) {
+    console.log("🚀 ~ AuthController ~ login ~ response:")
     try {
       const { email, password } = request.only(['email', 'password'])
 
@@ -78,45 +80,74 @@ export default class AuthController {
     }
   }
 
-   async register_mdp({ request, response ,auth }: HttpContext) {
-    const { full_name, email, password } = request.only(['full_name', 'email', 'password'])
+  public async register_mdp({ request, response, auth }: HttpContext) {
+    const userSchema = vine.compile(
+      vine.object({
+        full_name: vine.string().trim().minLength(3).maxLength(25).optional(),
+        email: vine.string().trim().email(),
+        password: vine.string().minLength(6),
+      })
+    )
+
+    const payload = await request.validateUsing(userSchema)
+
     try {
-      let user = await User.findBy('email', email)
-      if (!user) {
-         user = await User.create({
-          id: v4(),
-          full_name,
-          email,
-          photo: [],
-          password: await hash.make(password),
+      let user = await User.findBy('email', payload.email)
+
+      if (user) {
+        const isPasswordValid = await hash.verify(user.password, payload.password)
+
+        if (!isPasswordValid) {
+          return response.unauthorized({ message: 'Mot de passe incorrect' })
+        }
+
+        await auth.use('web').login(user)
+
+        return response.ok({
+          user: User.ParseUser(user),
+          message: 'Connexion réussie',
         })
       }
-      const existingAuth = await UserAuthentification.query()
-      .where('user_id', user.id)
-      .where('provider', 'email')
-      .first()
-      if (!existingAuth) {
-        await UserAuthentification.create({
-          id: v4(),
-          user_id: user.id,
-          provider: 'email',
-          provider_id: user.email,
+
+      if (!payload.full_name) {
+        return response.unprocessableEntity({
+          message: "Veuillez fournir un nom complet pour créer un compte.",
         })
       }
+
+      user = await User.create({
+        id: v4(),
+        full_name: payload.full_name,
+        email: payload.email,
+        photo: [],
+        password: payload.password, 
+      })
+
+      await UserAuthentification.create({
+        id: v4(),
+        user_id: user.id,
+        provider: 'email',
+        provider_id: user.email,
+      })
 
       await auth.use('web').login(user)
-      return response.redirect('/')
 
+      return response.ok({
+        user: User.ParseUser(user),
+        message: 'Inscription et connexion réussies',
+      })
     } catch (error) {
-      console.error('Register error:', error)
-      return response.badRequest({ message: 'User not created', error: error.message })
+      console.error('Erreur lors de l’inscription/connexion:', error)
+      return response.badRequest({
+        message: 'Une erreur est survenue',
+        error: error.message,
+      })
     }
   }
-  
   public async logout({ auth ,response }: HttpContext) {
 
     await auth.use('web').logout()
-    return response.redirect('/')
+    return response.ok({ isDisconnect : true })
  
   }
 
