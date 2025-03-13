@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import GroupFeature from '#models/group_feature'
-import { v4 as uuidv4 } from 'uuid'
+import { v4 } from 'uuid'
 import { applyOrderBy } from './Utils/query.js'
 import db from '@adonisjs/lucid/services/db'
 
@@ -10,11 +10,11 @@ export default class GroupFeaturesController {
         try {
             const data = request.only(['productId', 'stock', 'bind'])
 
-            if (!data.productId || !data.stock) {
-                return response.badRequest({ message: 'productId and stock are required' })
+            if (!data.productId || !data.stock || Object.keys(data.bind).length === 0) {
+                return response.badRequest({ message: 'productId , stock and bind are required' })
             }
 
-            const feature = await GroupFeature.create({ id: uuidv4(), ...data })
+            const feature = await GroupFeature.create({ id: v4(), ...data })
             return response.created(feature)
         } catch (error) {
             return response.internalServerError({ message: 'Error creating group feature', error })

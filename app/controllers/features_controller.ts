@@ -7,13 +7,12 @@ import Product from '#models/product';
 import { updateFiles } from './Utils/FileManager/UpdateFiles.js';
 import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
 import db from '@adonisjs/lucid/services/db';
-import Value from '#models/value';
 
 export default class FeaturesController {
     public async create_feature({ request, response }: HttpContext) {
-        const {  name, required, default: default_value ,product_id } = request.only(['product_id' ,'name', 'required', 'default'])
+        const {  name, default: default_value ,product_id, type } = request.only(['product_id' ,'name', 'default','type'])
         const id = v4();
-        if (!product_id || !name || !required || !default_value) {
+        if (!product_id || !name || !type) {
             return response.badRequest({ message: 'Missing required fields' })
         }
         const produit = await Product.find(product_id)
@@ -28,14 +27,14 @@ export default class FeaturesController {
             options: {
                 throwError: true,
                 compress: 'img',
-                min: 1,
+                min: 0,
                 max: 1,
                 extname: EXT_SUPPORTED,
                 maxSize: 12 * MEGA_OCTET,
             },
         });
         try {
-            const feature = await Feature.create({ id, product_id, name, required, default: default_value, icon })
+            const feature = await Feature.create({ id, product_id, name, default: default_value, icon })
             return response.ok(feature)
 
         } catch (error) {
@@ -60,7 +59,7 @@ export default class FeaturesController {
     async get_features_with_values({ request, response }: HttpContext) {
         const { product_id, feature_id } = request.qs()
     
-        console.log("🚀 ~ FeaturesController ~ get_features_with_values ~ { product_id, feature_id }:", { product_id, feature_id })
+        console.log("🚀 ~ FeaturesController ~ get_features_with_values ~ feature_id:", feature_id)
         try {
           const query = Feature.query().preload('values')  
     
@@ -68,6 +67,7 @@ export default class FeaturesController {
           if (product_id) query.where('product_id', product_id)
     
           const features = await query
+          console.log("🚀 ~ FeaturesController ~ get_features_with_values ~ features:", features[0].$attributes)
     
           if (!features || features.length === 0) {
             return response.notFound({ message: 'Feature not found' })
@@ -84,14 +84,14 @@ export default class FeaturesController {
       }
 
     async update_feature({ request, response }: HttpContext) {
-        const { name, required, default_value, feature_id } = request.only(['name', 'required', 'default_value', 'feature_id'])
+        const { name, required, default_value, feature_id , type } = request.only(['name', 'required', 'default_value', 'feature_id', 'type'])
         const body = request.body();
         try {
             const feature = await Feature.find(feature_id)
             if (!feature) {
                 return response.notFound({ message: 'Feature not found' })
             }
-            feature.merge({ name, required, default: default_value })
+            feature.merge({ name, required, default: default_value , type })
             let urls = [];
 
             for (const f of ['icon'] as const) {

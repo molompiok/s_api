@@ -8,20 +8,15 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('feature_id').notNullable().references('id').inTable('features').onDelete('CASCADE')
       
+      table.integer('additional_price').defaultTo(0)
       table.string('currency').defaultTo('CFA')
       table.jsonb('views').defaultTo('[]')
       table.json('icon')
+      table.tinyint('index').checkPositive()
       table.string('text')
-      table.tinyint('type')
-      table.integer('additional_price').defaultTo(0)
-      table.integer('min')
-      table.integer('max')
-      table.integer('min_size')
-      table.integer('max_size')
-
-      table.boolean('multiple').defaultTo(false)
-      table.boolean('is_double').defaultTo(false)
       table.timestamps(true,true) 
+      
+
     })
   }
 

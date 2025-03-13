@@ -16,38 +16,22 @@ export default class Value extends BaseModel {
   @column()
   declare currency: string 
 
-  @column()
-  declare icon: string
-
   @column({
     prepare: (value) => JSON.stringify(value),
   })
   declare views: string[]
+  
+  @column()
+  declare icon: string
+
 
   @column()
   declare text: string
 
-  @column()
-  declare min: number
-
-  @column()
-  declare max: number
-
+  
   @column()
   declare index: number
-
-
-  @column()
-  declare min_size: number
-
-  @column()
-  declare max_size: number
-
-  @column()
-  declare multiple: boolean
-
-  @column()
-  declare is_double: boolean
+  
 
   @belongsTo(() => Feature , { foreignKey: 'feature_id' })
   declare feature: BelongsTo<typeof Feature>

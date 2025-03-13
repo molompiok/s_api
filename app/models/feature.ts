@@ -14,7 +14,7 @@ export default class Feature extends BaseModel {
   declare name: string
 
   @column()
-  declare type: string 
+  declare type: FeaturType 
 
   @column({
     prepare: (value) => JSON.stringify(value),
@@ -27,6 +27,30 @@ export default class Feature extends BaseModel {
   @column()
   declare default: string | null
 
+  @column()
+  declare regex: string
+    
+  @column()
+  declare index: number
+  
+  @column()
+  declare min: number
+
+  @column()
+  declare max: number
+
+  @column()
+  declare min_size: number
+
+  @column()
+  declare max_size: number
+
+  @column()
+  declare multiple: boolean
+
+  @column()
+  declare is_double: boolean
+
   @hasMany(() => Value, { foreignKey: 'feature_id' })
   declare values: HasMany<typeof Value>
 
@@ -35,4 +59,16 @@ export default class Feature extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+}
+
+
+export enum FeaturType {
+  COLOR = 'color',
+  TEXT = 'text',
+  ICON = 'icon',
+  ICON_TEXT = 'icon_text',
+  INPUT = 'input',
+  DATE ='date',
+  RANGE = 'range',
+  FILE = ' file'
 }

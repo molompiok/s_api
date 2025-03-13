@@ -10,10 +10,12 @@ export default class extends BaseSchema {
       table.uuid('store_id').notNullable()
       table.uuid('parent_category_id')
       table.string('name')
+      table.string('slug').notNullable().unique()
       table.string('description')
       table.jsonb('view').defaultTo('[]')
       table.jsonb('icon').defaultTo('[]')
-
+      
+      table.index('slug');
       table.timestamps(true) 
     })
   }

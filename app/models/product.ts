@@ -1,9 +1,10 @@
 import { DateTime } from 'luxon'
-import { BaseModel, beforeCreate, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, column, SnakeCaseNamingStrategy } from '@adonisjs/lucid/orm'
 import limax from "limax";
 
 
 export default class Product extends BaseModel {
+  
   @column({ isPrimary: true })
   declare id: string
 

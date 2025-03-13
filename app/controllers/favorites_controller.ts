@@ -26,7 +26,6 @@ export default class FavoritesController {
             if (favorite) {
                 return response.badRequest({ message: 'Favorite already exists' })
             } else {
-                console.log({ favorite, po: '66666' });
                 const id = v4();
                 favorite = await Favorite.create({
                     id,
@@ -35,7 +34,7 @@ export default class FavoritesController {
                     store_id: product.store_id,
                     user_id: user.id,
                 })
-                return response.created(favorite)
+                return response.created({favorite_id : id , product_name: product.name})
             }
         } catch (error) {
             return response.badRequest({ message: 'Invalid request' })
@@ -44,7 +43,6 @@ export default class FavoritesController {
 
     async get_favorites({ request, response, auth }: HttpContext) {
         const user = await auth.use('web').authenticate()
-        console.log("🚀 ~ FavoritesController ~ get_favorites ~ user:", user)
         if (!user) {
           return response.unauthorized({ message: 'Non authentifié' })
         }

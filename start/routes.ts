@@ -56,6 +56,7 @@ router.post('/create_category', [CategoriesController, 'create_category'])
 router.get('/get_categories', [CategoriesController, 'get_categories'])
 router.put('/update_category', [CategoriesController, 'update_category'])
 router.delete('/delete_category/:id', [CategoriesController, 'delete_category'])  
+router.get('/get_products_by_category', [CategoriesController, 'get_products_by_category'])  
 
 //User_command_items
 router.get('/get_user_command_items', [UserCommandItemsController, 'get_user_command_items'])

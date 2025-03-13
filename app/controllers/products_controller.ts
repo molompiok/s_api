@@ -12,10 +12,7 @@ import GroupFeature from '#models/group_feature';
 export default class ProductsController {
     async create_product(httpContext: HttpContext) {
         const { request, response } = httpContext
-        // const user  = await  auth.authenticate()
-        // if (!(await Role.isAuthorized( user.id , 'create_delete_product'))) {
-        //  return response.methodNotAllowed('Not authorized')
-        //    } 
+
         const feature_id = v4();
         const product_id = v4();
         const value_id = v4();

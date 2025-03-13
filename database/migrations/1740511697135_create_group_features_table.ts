@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.uuid('id').notNullable().primary()
       table.uuid('product_id').notNullable().references('id').inTable('products')
       table.integer('stock')
-      table.jsonb('bind').nullable()
+      table.jsonb('bind').nullable() // exemple [{couleur : red , taille : XL}]
       table.timestamp('created_at')
       table.timestamp('updated_at')
 

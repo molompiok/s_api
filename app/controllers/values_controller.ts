@@ -14,13 +14,7 @@ export default class ValuesController {
         'additional_price',
         'currency',
         'icon',
-        'text',
-        'min',
-        'max',
-        'min_size',
-        'max_size',
-        'multiple',
-        'is_double',
+        'text'
       ])
 
       // Générer un ID unique pour la valeur
@@ -89,12 +83,6 @@ export default class ValuesController {
         'type',
         'icon',
         'text',
-        'min',
-        'max',
-        'min_size',
-        'max_size',
-        'multiple',
-        'is_double',
       ])
       const body = request.body()
 

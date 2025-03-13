@@ -15,6 +15,8 @@ export default class extends BaseSchema {
       table.integer('barred_price')
       table.integer('price')
       table.string('currency').defaultTo('CFA')
+
+      table.index('slug');
       table.timestamps(true)  
     })
   }

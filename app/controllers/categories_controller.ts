@@ -73,18 +73,22 @@ export default class CategoriesController {
     }
 
     async get_categories({ response, request, auth }: HttpContext) {
-        const { category_id, name, order_by, page = 1, limit = 10, user_id } = request.qs()
+        const { category_id, search, slug, order_by, page = 1, limit = 10, user_id } = request.qs()
+        const pageNum = Math.max(1, parseInt(page))
+        const limitNum = Math.max(1, parseInt(limit))
         try {
-            const pageNum = Math.max(1, parseInt(page))
-            const limitNum = Math.max(1, parseInt(limit))
 
             let query = db.from(Categorie.table).select('*')
 
             if (category_id) {
                 query = query.where('id', category_id)
             }
-            if (name) {
-                const searchTerm = `%${name.toLowerCase()}%`
+            if (slug) {
+                query = query.where('slug', slug)
+                //TODO gere dans une route diferente ave findBy
+            }
+            if (search) {
+                const searchTerm = `%${search.toLowerCase()}%`
                 query.where((q) => {
                     q.whereRaw('LOWER(categories.name) LIKE ?', [searchTerm])
                         .orWhereRaw('LOWER(categories.description) LIKE ?', [searchTerm])
@@ -103,6 +107,33 @@ export default class CategoriesController {
         } catch (error) {
             response.internalServerError({ message: 'Internal server error', error: error.message })
         }
+    }
+    public async get_products_by_category({ request, response }: HttpContext) {
+        const { order_by, slug, page = 1, limit = 10 } = request.qs()
+
+        const page_ = Math.max(1, parseInt(page))
+        const limit_ = Math.max(1, parseInt(limit))
+
+        try {
+            const { products, category } = await Categorie.getProductsWithSubCategoriesBySlug(slug, page_, limit_, order_by);
+            return response.ok({
+                list: {
+                    products: products.all(),
+                    category
+                }, 
+                meta: products.getMeta()
+            })
+            //   return response.json({
+            //     success: true,
+            //     data: products.toJSON(),
+            //   });
+        } catch (error) {
+            return response.status(404).json({
+                success: false,
+                message: error.message || 'Erreur lors de la récupération des produits',
+            });
+        }
+
     }
 
     async update_category({ request, response, auth }: HttpContext) {
