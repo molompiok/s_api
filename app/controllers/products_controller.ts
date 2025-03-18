@@ -12,7 +12,6 @@ import GroupFeature from '#models/group_feature';
 export default class ProductsController {
     async create_product(httpContext: HttpContext) {
         const { request, response } = httpContext
-
         const feature_id = v4();
         const product_id = v4();
         const value_id = v4();
@@ -24,6 +23,8 @@ export default class ProductsController {
         
         const { name, description, price, category_id, barred_price, stock } = request.body();
 
+        console.log("🚀 ~ ProductsController ~ create_product ~ request:", request.allFiles())
+        
         if (!name || !description || !price || !stock) {
             return response.badRequest({ message: 'Missing required fields'})
         }
@@ -68,16 +69,13 @@ export default class ProductsController {
                     maxSize: 12 * MEGA_OCTET,
                 },
             });
-
-
-
-            newValue = await Value.create({ id: value_id, feature_id, views, additional_price: 0 })
+            newValue = await Value.create({ id: value_id, feature_id, views , })
         } catch (error) {
             return response.internalServerError({ message: 'value_default not created - provide at least one image', error: error.message })
         }
         /********************GroupFeature */
         try {
-            groupFeature = await GroupFeature.create({ stock, product_id, id: group_feature_id, bind: {} })
+            groupFeature = await GroupFeature.create({ stock, product_id, id: group_feature_id, bind: {} , additional_price: 0 })
         } catch (error) {
             return response.internalServerError({ message: 'groupFeature not created', error: error.message })
         }

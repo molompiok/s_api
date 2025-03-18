@@ -8,7 +8,6 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('feature_id').notNullable().references('id').inTable('features').onDelete('CASCADE')
       
-      table.integer('additional_price').defaultTo(0)
       table.string('currency').defaultTo('CFA')
       table.jsonb('views').defaultTo('[]')
       table.json('icon')

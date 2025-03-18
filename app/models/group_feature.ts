@@ -6,14 +6,16 @@ export default class GroupFeature extends BaseModel {
 
   @column()
   declare product_id:string
+  
+  @column()
+  declare additional_price: number
 
   @column()
   declare stock: number
 
   @column({ 
-    serializeAs: 'bind', 
-    prepare: (value) => JSON.stringify(value), 
-    consume: (value) => JSON.parse(value) 
+    serializeAs: 'bind',
+    prepare: (value: Record<string, any> | null) => (value ? JSON.stringify(value) : null),
   })
   declare bind: Record<string, any> | null
 

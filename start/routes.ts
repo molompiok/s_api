@@ -30,7 +30,7 @@ router.post('/register', [AuthController, 'register_mdp'])
 router.post('/login', [AuthController, 'login'])
 router.post('/logout', [AuthController, 'logout'])
 
-router.post('/update_account', [AuthController, 'update'])
+// router.post('/update_account', [AuthController, 'update'])
 router.delete("/delete_account",[AuthController, 'delete_account'])
  
 
@@ -39,7 +39,7 @@ router.post('/google_callback', [AuthController, 'google_auth'])
 
 // Gestion de compte
 router.get('/me', [AuthController, 'me'])                
-router.put('/update', [AuthController, 'update'])          
+router.put('/update_user', [AuthController, 'update_user'])          
 router.delete('/delete', [AuthController, 'delete_account'])
 
 // Users
@@ -99,7 +99,7 @@ router.delete('/remove_collaborator/:id', [RolesController, 'remove_collaborator
 router.get('/create_user_address', [UserAddressesController, 'create_user_address'])
 router.post('/create_user_address', [UserAddressesController, 'create_user_address'])
 router.put('/update_user_address', [UserAddressesController, 'update_user_address'])
-router.delete('/delete_user_addreses/:id', [UserAddressesController, 'delete_user_address'])
+router.delete('/delete_user_address/:id', [UserAddressesController, 'delete_user_address'])
 
 //User_command
 router.get('/get_user_commands', [UserCommandsController, 'get_user_commands'])
@@ -119,13 +119,13 @@ router.post('/create_value', [ValuesController, 'create_value'])
 router.put('/update_value', [ValuesController, 'update_value'])
 router.delete('/delete_value/:id', [ValuesController, 'delete_value'])
 
-
+//group_feature
 router.post('/create_group', [GroupFeaturesController, 'create_group']) 
 router.put('/update_group', [GroupFeaturesController, 'update_group']) 
 router.get('/get_group_features', [GroupFeaturesController, 'get_group_features']) 
 router.delete('/delete_group/:id', [GroupFeaturesController, 'delete_group']) 
 
-router.get('/get_stock_by_feature', [GroupFeaturesController, 'get_stock_by_feature'])
+router.get('/get_group_by_feature', [GroupFeaturesController, 'get_group_by_feature'])
 
 router.get('/',()=>{
     return env

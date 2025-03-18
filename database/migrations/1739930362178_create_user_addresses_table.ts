@@ -8,12 +8,8 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('user_id').notNullable().references('id').inTable('users')
       table.string('name')
-      //longitude
       table.double('longitude')
-
-      //latitude
       table.double('latitude')
-
       table.timestamps(true) 
     })
   }

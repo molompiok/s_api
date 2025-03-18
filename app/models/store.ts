@@ -13,14 +13,14 @@ export default class Store extends BaseModel {
 
   @column({
     prepare: (value) => JSON.stringify(value), 
-    consume: (value) => JSON.parse(value),
+    // consume: (value) => JSON.parse(value),
   })
   declare logo: string[]
 
 
   @column({
     prepare: (value) => JSON.stringify(value), 
-    consume: (value) => JSON.parse(value),
+    // consume: (value) => JSON.parse(value),
   })
   declare banner: string[]
 

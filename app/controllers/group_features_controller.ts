@@ -7,11 +7,22 @@ import db from '@adonisjs/lucid/services/db'
 export default class GroupFeaturesController {
 
     async create_group({ request, response }: HttpContext) {
-        try {
-            const data = request.only(['productId', 'stock', 'bind'])
+        try { 
+            const data = request.only(['product_id', 'stock', 'bind','additional_price'])
 
-            if (!data.productId || !data.stock || Object.keys(data.bind).length === 0) {
+            if (!data.product_id || !data.stock || Object.keys(data.bind).length === 0) {
                 return response.badRequest({ message: 'productId , stock and bind are required' })
+            }
+
+            if (data.bind) {
+                try {
+                    data.bind = JSON.parse(data.bind);
+                    if (typeof data.bind !== 'object' || data.bind === null) {
+                        return response.badRequest({ message: 'bind must be a valid JSON object' });
+                    }
+                } catch (e) {
+                    return response.badRequest({ message: 'Invalid bind JSON format' });
+                }
             }
 
             const feature = await GroupFeature.create({ id: v4(), ...data })
@@ -20,32 +31,75 @@ export default class GroupFeaturesController {
             return response.internalServerError({ message: 'Error creating group feature', error })
         }
     }
+    async get_group_by_feature({ request, response }: HttpContext) {
+        try {
+            const { product_id, feature_key, feature_value } = request.qs();
+            
+            console.log("🚀 ~ GroupFeaturesController ~ get_group_by_feature ~ { product_id, feature_key, feature_value } :",
+                 { product_id, feature_key, feature_value })
+            if (!product_id) return response.badRequest({ message: 'product_id is required' });
+    
+            const query = GroupFeature.query()
+                .select('*')
+                .where('product_id', product_id);
+    
+            if (feature_key && feature_value) {
+                query.whereRaw('bind->>? = ?', [feature_key, feature_value]);
+            }
+    
+            const group_features = await query;
+    
+            if (group_features.length === 0) {
+                return response.notFound({ 
+                    message: 'No stock found for this group_feature',
+                    details: { product_id, feature_key, feature_value }
+                });
+            }
+    
+            return response.json(Array.isArray(group_features) ? group_features : [group_features]);
+        } catch (error) {
+            console.error('Error in get_group_by_feature:', error);
+            return response.internalServerError({ 
+                message: 'Error fetching stock by feature',
+                error: error.message
+            });
+        }
+    }
 
     async update_group({ request, response }: HttpContext) {
         try {
-            const { id } = request.only(['id'])
-            const feature = await GroupFeature.find(id)
+            const { group_id } = request.only(['group_id'])
+            const feature = await GroupFeature.findOrFail(group_id)
             if (!feature) {
                 return response.notFound({ message: 'Group feature not found' })
             }
 
-            const {bind , product_id ,stock} = request.only(['product_id', 'stock', 'bind'])
-
-            if (product_id) feature.product_id = product_id
-            if (stock !== undefined) feature.stock = stock
+            let {bind , product_id ,stock} = request.only(['product_id', 'stock', 'bind'])
+            
+            if (bind) {
+                try {
+                    bind = JSON.parse(bind);
+                    if (typeof bind !== 'object' || bind === null) {
+                        return response.badRequest({ message: 'bind must be a valid JSON object' });
+                    }
+                } catch (e) {
+                    return response.badRequest({ message: 'Invalid bind JSON format' });
+                }
+            }
+            if (product_id) feature.product_id = product_id;
+            if (stock !== undefined) feature.stock = Number(stock);
 
             
-            // Mise à jour fine du JSON `bind`
             if (bind && typeof bind === 'object') {
+                let currentBind = feature.bind || {};
                 Object.keys(bind).forEach((key) => {
                     if (bind[key] === null) {
-                        // 🛑 Supprimer une clé de `bind`
-                        feature.$attributes.bind = db.raw(`bind - '${key}'`)
+                        delete currentBind[key];
                     } else {
-                        // ✅ Ajouter ou mettre à jour une clé spécifique dans `bind`
-                        feature.$attributes.bind = db.raw(`jsonb_set(bind, '{${key}}', ?)`, [JSON.stringify(bind[key])])
+                        currentBind[key] = bind[key];
                     }
-                })
+                });
+                feature.bind = currentBind;
             }
             await feature.save()
 
@@ -83,28 +137,7 @@ export default class GroupFeaturesController {
             return response.internalServerError({ message: 'Error fetching group features', error })
         }
     }
-    async get_stock_by_feature({ request, response }: HttpContext) {
-        try {
-            const { product_id, featureKey, featureValue } = request.qs()
-
-            if (!product_id || !featureKey || !featureValue) {
-                return response.badRequest({ message: 'Missing query parameters: productId, featureKey, featureValue' })
-            }
-
-            const feature = await GroupFeature.query()
-                .where('product_id', product_id)
-                .whereRaw(`bind->>? = ?`, [featureKey, featureValue])
-                .first()
-
-            if (!feature) {
-                return response.notFound({ message: 'No stock found for this feature' })
-            }
-
-            return response.json({ stock: feature.stock })
-        } catch (error) {
-            return response.internalServerError({ message: 'Error fetching stock by feature', error })
-        }
-    }
+ 
     async delete_group({ params, response }: HttpContext) {
         try {
             const feature = await GroupFeature.find(params.id)

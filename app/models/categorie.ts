@@ -24,13 +24,13 @@ export default class Categorie extends BaseModel {
 
   @column({
     prepare: (value) => JSON.stringify(value),
-    consume: (value) => JSON.parse(value),
+    // consume: (value) => JSON.parse(value),
   })
   declare view: string[]
 
   @column({
     prepare: (value) => JSON.stringify(value),
-    consume: (value) => JSON.parse(value),
+    // consume: (value) => JSON.parse(value),
   })
   declare icon: string[]
 

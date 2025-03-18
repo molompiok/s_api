@@ -1,11 +1,14 @@
 import { DateTime } from 'luxon'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, beforeSave, column } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { TypeJsonRole } from './role.js'
 import db from '@adonisjs/lucid/services/db'
 import { OWNER_ID, STORE_ID } from '#controllers/Utils/ctrlManager'
+import type { HasMany } from '@adonisjs/lucid/types/relations';
 import hash from '@adonisjs/core/services/hash'
+import UserAddress from './user_address.js'
+import UserPhone from './user_phone.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -43,12 +46,15 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 
-  // @beforeSave()
-  // static async hashPassword(user: User) {
-  //   if (user.$dirty.password) {
-  //     user.password = await hash.make(user.password)
-  //   }
-  // }
+  @hasMany(() => UserAddress, {
+    foreignKey: 'user_id'
+  })
+  declare user_addresses: HasMany<typeof UserAddress>
+
+  @hasMany(() => UserPhone, {
+    foreignKey: 'user_id'
+  })
+  declare user_phones: HasMany<typeof UserPhone>
 
   public static async VerifyUser(email: string, password: string) {
     const user = await User.findByOrFail('email', email)

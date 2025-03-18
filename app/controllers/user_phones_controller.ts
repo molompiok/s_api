@@ -23,7 +23,6 @@ export default class UserPhonesController {
     }
     async get_user_phones({ request, response , auth }: HttpContext) {
         const { user_id  ,  id } = request.qs()
-        // const user = await auth.authenticate()
         try {
             let query = db.from(UserPhone.table).select('*')
 
@@ -43,7 +42,7 @@ export default class UserPhonesController {
         const {phone_number, format, country_code, id} = request.only(['phone_number', 'format', 'country_code', 'id'])
 
         if(!id) {
-            return response.badRequest({ message: "Id is required" })
+            return response.badRequest({ message: "id is required" })
         }
 
        try {
@@ -55,7 +54,6 @@ export default class UserPhonesController {
         if (user_phone.user_id !== user.id) {
             return response.forbidden({ message: 'Unauthorized: You are not the owner of this user phone' })
           }
-    
 
         user_phone.merge({
             phone_number,
@@ -72,12 +70,15 @@ export default class UserPhonesController {
      
     }
 
-    async delete_user_phone({ request, response, auth }: HttpContext) {
+    async delete_user_phone({ params, response, auth }: HttpContext) {
         try {
             const user = await auth.authenticate()
     
-            const { id } = request.only(['id'])
+             const id = params.id
+       
     
+            console.log("🚀 ~ UserPhonesController ~ delete_user_phone ~ id:", id)
+            
             if (!id) {
                 return response.badRequest({ message: "Id is required" })
             }

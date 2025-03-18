@@ -34,7 +34,7 @@ export default class FeaturesController {
             },
         });
         try {
-            const feature = await Feature.create({ id, product_id, name, default: default_value, icon })
+            const feature = await Feature.create({ id, product_id, name, default: default_value,type, icon })
             return response.ok(feature)
 
         } catch (error) {
@@ -59,7 +59,6 @@ export default class FeaturesController {
     async get_features_with_values({ request, response }: HttpContext) {
         const { product_id, feature_id } = request.qs()
     
-        console.log("🚀 ~ FeaturesController ~ get_features_with_values ~ feature_id:", feature_id)
         try {
           const query = Feature.query().preload('values')  
     
@@ -67,7 +66,6 @@ export default class FeaturesController {
           if (product_id) query.where('product_id', product_id)
     
           const features = await query
-          console.log("🚀 ~ FeaturesController ~ get_features_with_values ~ features:", features[0].$attributes)
     
           if (!features || features.length === 0) {
             return response.notFound({ message: 'Feature not found' })

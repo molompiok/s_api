@@ -28,7 +28,7 @@ export default class UserCommandItem extends BaseModel {
 
   @column({
     prepare: (value) => JSON.stringify(value), 
-    consume: (value) => JSON.parse(value),
+    // consume: (value) => JSON.parse(value),
   })
   declare views: string[]
 

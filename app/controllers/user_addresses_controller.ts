@@ -29,29 +29,29 @@ export default class UserAddressesController {
        
     }
     async get_user_address({ request, response , auth }: HttpContext) {
-        const { user_id , id } = request.qs()
-        // const user = await auth.authenticate()
- try {
-    let query = db.from(UserAddress.table).select('*')
+        const { id } = request.qs()
+        const user = await auth.authenticate()
+        try {
+        let query = db.from(UserAddress.table).select('*')
 
-    if(user_id) query.where('user_id', user_id)
+        if(user.id) query.where('user_id', user.id)
 
-    if(id) query.where('id', id)
+        if(id) query.where('id', id)
 
-    const userAddresses = await query
+        const userAddresses = await query
 
-    return response.ok(userAddresses)
- } catch (error) {
-    console.error('Get user address error:', error)
-    return response.internalServerError({ message: 'Get failed', error: error.message })
- }
+        return response.ok(userAddresses)
+        } catch (error) {
+        console.error('Get user address error:', error)
+        return response.internalServerError({ message: 'Get failed', error: error.message })
+        }
     }   
     
     async update_user_address({ request, response , auth }: HttpContext) {
         const user = await auth.authenticate()
-        const { name, longitude, latitude , user_address_id } = request.only(['name', 'longitude', 'latitude', 'user_address_id'])
+        const { name, longitude, latitude , id } = request.only(['name', 'longitude', 'latitude', 'id'])
         try {
-            const user_address = await UserAddress.find(user_address_id)
+            const user_address = await UserAddress.find(id)
 
             if(!user_address) return response.notFound({ message: 'User address not found' })
                 
@@ -73,7 +73,6 @@ export default class UserAddressesController {
             console.error('Update user address error:', error)
             return response.internalServerError({ message: 'Update failed', error: error.message })
         }
-
         
     }
     

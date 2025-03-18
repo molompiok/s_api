@@ -11,7 +11,7 @@ export default class extends BaseSchema {
       table.string('format')
       table.string('country_code')
       table.timestamps(true) 
-    })
+  })
   }
 
   async down() {
