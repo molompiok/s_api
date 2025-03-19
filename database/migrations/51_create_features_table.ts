@@ -23,6 +23,7 @@ export default class extends BaseSchema {
       table.boolean('is_double').defaultTo(false)
 
       table.string('default').nullable()
+      
       table.timestamps(true)
 
     })

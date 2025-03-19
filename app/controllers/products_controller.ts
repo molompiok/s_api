@@ -2,13 +2,13 @@ import Product from '#models/product';
 import type { HttpContext } from '@adonisjs/core/http'
 import { v4 } from 'uuid';
 import { applyOrderBy } from './Utils/query.js';
-import db from '@adonisjs/lucid/services/db';
 import { EXT_SUPPORTED, MEGA_OCTET, STORE_ID } from './Utils/ctrlManager.js';
 import Feature from '#models/feature';
 import Value from '#models/value';
 import { createFiles } from './Utils/FileManager/CreateFiles.js';
 import GroupFeature from '#models/group_feature';
-
+import Categorie from '#models/categorie';
+import { ModelPaginatorContract, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 export default class ProductsController {
     async create_product(httpContext: HttpContext) {
         const { request, response } = httpContext
@@ -82,49 +82,106 @@ export default class ProductsController {
         return response.created({ product, newValue, feature, groupFeature })
     }
 
-    async get_products({ request, response, auth }: HttpContext) {
-        // await auth.authenticate();
-        const { product_id, store_id, search, order_by, category_id, slug ,page = 1, limit = 10 } = request.qs()
-
-        const pageNum = Math.max(1, parseInt(page))
-        const limitNum = Math.max(1, parseInt(limit))
-
-        let query = db.from(Product.table).select('*')
-
-        if (store_id) {
-            query = query.where('store_id', store_id)
+    private getPaginationParams(page: string = '1', limit: string = '10'): { pageNum: number; limitNum: number } {
+        return {
+          pageNum: Math.max(1, parseInt(page)),
+          limitNum: Math.max(1, parseInt(limit)),
         }
-
-        if (product_id) {
-            query = query.where('id', product_id)
+      }
+    
+      private formatResponse(
+        response: HttpContext['response'],
+        products: ModelPaginatorContract<Product>,
+        category?: Categorie | null
+      ) {
+        const baseResponse = {
+          list: { products: products.all(), category },
+          meta: products.getMeta(),
         }
-        
-        if (slug) {
-            query = query.where('slug', slug)
-            //TODO gere dans une route diferente ave findBy
-        }
-
-        if (category_id) {
-            query = query.where('category_id', category_id)
-        }
-
+        return response.ok(baseResponse)
+      }
+    
+      private applySearch(query: any, search?: string) {
         if (search) {
-            const searchTerm = `%${search.toLowerCase()}%`
-            query.where((q) => {
-                q.whereRaw('LOWER(products.name) LIKE ?', [searchTerm])
-                    .orWhereRaw('LOWER(products.description) LIKE ?', [searchTerm])
-            })
+          const searchTerm = `%${search.toLowerCase()}%`
+          query.where((q : any) => {
+            q.whereRaw('LOWER(products.name) LIKE ?', [searchTerm])
+              .orWhereRaw('LOWER(products.description) LIKE ?', [searchTerm])
+          })
         }
-
-        if (order_by) {
-            query = applyOrderBy(query, order_by, Product.table)
+        return query
+      }
+    
+      private applyFilters(query: ModelQueryBuilderContract<typeof Product>, filters: Record<string, string[]>) {
+        Object.entries(filters).forEach(([featureId, values]) => {
+          query.whereHas('features', (featureQuery: ModelQueryBuilderContract<typeof Feature>) => {
+            featureQuery
+              .where('id', featureId)
+              .whereHas('values', (valueQuery) => {
+                valueQuery.whereIn('text', values)
+              })
+          })
+        })
+        return query
+      }
+    
+      public async get_products({ request, response, auth }: HttpContext) {
+        // await auth.authenticate();
+        const {
+          product_id,
+          store_id,
+          search,
+          order_by,
+          category_id,
+          slug_cat,
+          slug_product,
+          filters = {},
+          page,
+          limit
+        } = request.qs()
+    
+        const { pageNum, limitNum } = this.getPaginationParams(page, limit)
+    
+        try {
+          let products: ModelPaginatorContract<Product>
+          let category: Categorie | null = null
+    
+          let query = Product.query().select('*').preload('features', (featureQuery) => {
+            featureQuery.preload('values')
+          })
+    
+          if (slug_cat) {
+            const categoryIds = await Categorie.get_all_category_ids_by_slug(slug_cat)
+            query = query.whereIn('category_id', categoryIds)
+            category = await Categorie.query()
+            .where('slug', slug_cat)
+            .select('id', 'name', 'description')
+            .firstOrFail()
+              
+          }
+    
+          if (store_id) query = query.where('store_id', store_id)
+          if (slug_product) query = query.where('slug', slug_product)
+          if (product_id) query = query.where('id', product_id)
+          if (category_id) query = query.where('category_id', category_id)
+    
+          query = this.applyFilters(query, filters)
+    
+          query = this.applySearch(query, search)
+    
+          if (order_by) query = applyOrderBy(query, order_by, Product.table)
+    
+          products = await query.paginate(pageNum, limitNum)
+    
+          return this.formatResponse(response, products, category)
+          
+        } catch (error) {
+          return response.status(404).json({
+            success: false,
+            message: error.message || 'Erreur lors de la récupération des produits',
+          })
         }
-
-        const productsPaginate = await query.paginate(pageNum, limitNum)
-
-        return response.ok({ list: productsPaginate.all(), meta: productsPaginate.getMeta() })
-    }
-
+      }
     async update_product({ request, response }: HttpContext) {
         const { product_id, name, description, category_id, barred_price, price, currency } = request.body()
         // const body = request.body();

@@ -10,11 +10,6 @@ export default class Value extends BaseModel {
   @column({ columnName: 'feature_id' })
   declare feature_id: string
 
-
-
-  @column()
-  declare currency: string 
-
   @column({
     prepare: (value) => JSON.stringify(value),
   })

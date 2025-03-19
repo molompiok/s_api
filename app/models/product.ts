@@ -1,7 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, beforeCreate, column, SnakeCaseNamingStrategy } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, column, hasMany, SnakeCaseNamingStrategy } from '@adonisjs/lucid/orm'
 import limax from "limax";
-
+import type { HasMany } from '@adonisjs/lucid/types/relations';
+import Feature from './feature.js';
 
 export default class Product extends BaseModel {
   
@@ -34,6 +35,12 @@ export default class Product extends BaseModel {
 
   @column()
   declare slug: string
+
+  @hasMany(() => Feature, {
+    foreignKey: 'product_id', // La clé étrangère dans la table features
+    localKey: 'id',          // La clé primaire dans la table products
+  })
+  declare features: HasMany<typeof Feature>
 
   @beforeCreate()
   public static async generateSlug(product: Product) {

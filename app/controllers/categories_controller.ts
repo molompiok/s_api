@@ -108,32 +108,22 @@ export default class CategoriesController {
             response.internalServerError({ message: 'Internal server error', error: error.message })
         }
     }
-    public async get_products_by_category({ request, response }: HttpContext) {
-        const { order_by, slug, page = 1, limit = 10 } = request.qs()
+ 
 
-        const page_ = Math.max(1, parseInt(page))
-        const limit_ = Math.max(1, parseInt(limit))
-
+    async get_filters({ response, request }: HttpContext) {
+        let { slug } = request.qs();
+        let filters = []
         try {
-            const { products, category } = await Categorie.getProductsWithSubCategoriesBySlug(slug, page_, limit_, order_by);
-            return response.ok({
-                list: {
-                    products: products.all(),
-                    category
-                }, 
-                meta: products.getMeta()
-            })
-            //   return response.json({
-            //     success: true,
-            //     data: products.toJSON(),
-            //   });
-        } catch (error) {
-            return response.status(404).json({
-                success: false,
-                message: error.message || 'Erreur lors de la récupération des produits',
-            });
-        }
+            if (slug) {
 
+                filters = await Categorie.getAvailableFilters(slug)
+            } else {
+                filters = await Categorie.getGlobalFilters()
+            }
+            return response.json(filters)
+        } catch (error) {
+            return response.status(404).json({ error: error.message })
+        }
     }
 
     async update_category({ request, response, auth }: HttpContext) {

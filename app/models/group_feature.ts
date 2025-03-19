@@ -8,6 +8,9 @@ export default class GroupFeature extends BaseModel {
   declare product_id:string
   
   @column()
+  declare currency: string 
+
+  @column()
   declare additional_price: number
 
   @column()
