@@ -137,9 +137,9 @@ export default class CategoriesController {
             }
 
             const user_id = (await Store.find(category.store_id))?.user_id
-            if (user_id !== user.id) {
-                return response.forbidden({ message: 'Unauthorized: You are not the owner of this store' })
-            }
+            // if (user_id !== user.id) {
+            //     return response.forbidden({ message: 'Unauthorized: You are not the owner of this store' })
+            // }
             category.merge({ name, description, parent_category_id })
 
 
@@ -148,7 +148,7 @@ export default class CategoriesController {
                 if (!body[f]) continue;
                 urls = await updateFiles({ // non synchrone
                     request,
-                    table_name: "products",
+                    table_name: Categorie.table,
                     table_id: category_id,
                     column_name: f,
                     lastUrls: category[f],

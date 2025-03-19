@@ -17,6 +17,7 @@ export default class extends BaseSchema {
       table.string('currency').defaultTo('CFA')
 
       table.index('slug');
+      table.boolean('is_visible');
       table.timestamps(true)  
     })
   }

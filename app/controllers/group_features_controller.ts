@@ -34,9 +34,7 @@ export default class GroupFeaturesController {
     async get_group_by_feature({ request, response }: HttpContext) {
         try {
             const { product_id, feature_key, feature_value } = request.qs();
-            
-            console.log("🚀 ~ GroupFeaturesController ~ get_group_by_feature ~ { product_id, feature_key, feature_value } :",
-                 { product_id, feature_key, feature_value })
+      
             if (!product_id) return response.badRequest({ message: 'product_id is required' });
     
             const query = GroupFeature.query()

@@ -23,7 +23,6 @@ export default class ProductsController {
         
         const { name, description, price, category_id, barred_price, stock } = request.body();
 
-        console.log("🚀 ~ ProductsController ~ create_product ~ request:", request.allFiles())
         
         if (!name || !description || !price || !stock) {
             return response.badRequest({ message: 'Missing required fields'})
@@ -95,7 +94,8 @@ export default class ProductsController {
         category?: Categorie | null
       ) {
         const baseResponse = {
-          list: { products: products.all(), category },
+          list: products.all(),
+          category,
           meta: products.getMeta(),
         }
         return response.ok(baseResponse)
@@ -139,7 +139,8 @@ export default class ProductsController {
           page,
           limit
         } = request.qs()
-    
+        
+        console.log("🚀 ~ ProductsController ~ get_products ~ filters:", filters)
         const { pageNum, limitNum } = this.getPaginationParams(page, limit)
     
         try {
