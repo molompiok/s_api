@@ -14,7 +14,7 @@ export default class Categorie extends BaseModel {
   declare store_id: string
 
   @column()
-  declare parent_category_id: string
+  declare parent_category_id: string|null
 
   @column()
   declare name: string

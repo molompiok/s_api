@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
-
+import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import UserCommandItem from './user_command_item.js'
+import type { HasMany } from '@adonisjs/lucid/types/relations';
 export enum OrderStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
@@ -18,7 +19,7 @@ export enum PaymentMethod {
   CREDIT_CARD = 'credit_card',
   PAYPAL = 'paypal',
   MOBILE_MONEY = 'mobile_money',
-  CASH = 'cash',
+  CASH = 'cash'
 }
 
 export enum PaymentStatus {
@@ -27,26 +28,25 @@ export enum PaymentStatus {
   FAILED = 'failed',
   REFUNDED = 'refunded',
 }
-export default class UserCommand extends BaseModel {
-  // Identifiant principal
+export default class UserOrder extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
 
   @column()
   declare store_id: string
-  
+
   // Informations sur l'utilisateur
   @column()
-  declare userId: string
+  declare user_id: string
 
   @column()
-  declare phoneNumber: string
+  declare phone_number: string
 
   @column()
-  declare formattedPhoneNumber: string
+  declare formatted_phone_number: string
 
   @column()
-  declare countryCode: string
+  declare country_code: string
 
   // Détails de la commande
   @column()
@@ -56,64 +56,69 @@ export default class UserCommand extends BaseModel {
   declare status: OrderStatus
 
   @column()
-  declare paymentMethod: PaymentMethod
+  declare payment_method: PaymentMethod
 
   @column()
-  declare paymentStatus: PaymentStatus
+  declare payment_status: PaymentStatus
 
   @column()
-  declare currency: string 
+  declare currency: string
 
   @column()
-  declare totalPrice: number
+  declare total_price: number
 
   @column()
-  declare deliveryPrice: number
+  declare delivery_price: number
 
   @column()
-  declare returnDeliveryPrice: number
+  declare return_delivery_price: number
 
   @column()
-  declare withDelivery: boolean
+  declare with_delivery: boolean
 
   // Adresse de livraison
   @column()
-  declare deliveryAddress: string
+  declare delivery_address: string
 
   @column()
-  declare deliveryAddressName: string
+  declare delivery_address_name: string
 
   @column.dateTime()
-  declare deliveryDate: DateTime
+  declare delivery_date: DateTime
 
   @column()
-  declare deliveryLatitude: number
+  declare delivery_latitude: number
 
   @column()
-  declare deliveryLongitude: number
+  declare delivery_longitude: number
 
   // Adresse de retrait (pickup)
   @column()
-  declare pickupAddress: string
+  declare pickup_address: string
 
   @column()
-  declare pickupAddressName: string
+  declare pickup_address_name: string
 
   @column.dateTime()
-  declare pickupDate: DateTime
+  declare pickup_date: DateTime
 
   @column()
-  declare pickupLatitude: number
+  declare pickup_latitude: number
 
   @column()
-  declare pickupLongitude: number
+  declare pickup_longitude: number
 
   // Dates de création et mise à jour
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 
+  @hasMany(() => UserCommandItem, {
+    foreignKey: 'command_id', // La clé étrangère dans UserCommandItem
+    localKey: 'id',          // La clé primaire dans UserCommand
+  })
+  declare items: HasMany<typeof UserCommandItem>
 
 }

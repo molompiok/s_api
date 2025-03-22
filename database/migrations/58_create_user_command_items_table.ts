@@ -1,3 +1,4 @@
+import { OrderStatus } from '#models/user_command'
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
@@ -6,13 +7,11 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
-      table.uuid('command_id').nullable().references('id').inTable('user_commands')
-      table.uuid('product_id').references('id').inTable('products')
-      table.uuid('user_id').references('id').inTable('users')
-      table.uuid('store_id')
-      table.string('status')
-      table.jsonb('views').defaultTo('[]')
-      table.integer('quantity')
+      table.uuid('command_id').nullable().references('id').inTable('user_commands').onDelete('CASCADE')
+      table.uuid('group_product_id').references('id').inTable('group_products').onDelete('CASCADE')
+      table.uuid('store_id').notNullable()
+       table.enu('status', Object.values(OrderStatus)).nullable()
+      table.integer('quantity').notNullable().defaultTo(1)
       table.integer('price_unit')
       table.string('currency').defaultTo('CFA')
       table.json('features')

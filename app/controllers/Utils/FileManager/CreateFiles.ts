@@ -49,7 +49,8 @@ export async function createFiles({
 
   filesList.forEach((file, i) => {
     if (!file) return;
-    if (extname && !extname.includes(file.extname || "")) {
+    file.extname = file.extname?.toLowerCase() || "";
+    if (extname && !extname.includes(file.extname)) {
       if (throwError) throw new Error("File bad Extension : " + file?.extname);
       else return;
     }

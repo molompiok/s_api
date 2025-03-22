@@ -12,12 +12,12 @@ import CategoriesController from '#controllers/categories_controller'
 import CommentsController from '#controllers/comments_controller'
 import FavoritesController from '#controllers/favorites_controller'
 import FeaturesController from '#controllers/features_controller'
-import GroupFeaturesController from '#controllers/group_features_controller'
+import GroupProductController from '#controllers/group_product_controller'
+import GroupFeaturesController from '#controllers/group_product_controller'
 import ProductsController from '#controllers/products_controller'
 import RolesController from '#controllers/roles_controller'
 import UserAddressesController from '#controllers/user_addresses_controller'
-import UserCommandItemsController from '#controllers/user_command_items_controller'
-import UserCommandsController from '#controllers/user_commands_controller'
+import UserCommandsController from '#controllers/user_order_controller'
 import UserPhonesController from '#controllers/user_phones_controller'
 import UsersController from '#controllers/users_controller'
 import ValuesController from '#controllers/values_controller'
@@ -48,7 +48,7 @@ router.get('/get_users', [UsersController, 'get_users'])
 
 
 //Cart
-router.get('/get_cart_items', [CartsController, 'get_cart_items'])
+// router.get('/get_cart_items', [CartsController, 'get_cart_items'])
 
 
 //Category
@@ -60,10 +60,10 @@ router.delete('/delete_category/:id', [CategoriesController, 'delete_category'])
 // router.get('/get_products_by_category', [CategoriesController, 'get_products_by_category'])  
 
 //User_command_items
-router.get('/get_user_command_items', [UserCommandItemsController, 'get_user_command_items'])
-router.post('/add_command_item', [UserCommandItemsController, 'add_command_item'])
-router.delete('/delete_all_command_items', [UserCommandItemsController, 'delete_all_command_items'])
-router.delete('/delete_item_from_command', [UserCommandItemsController, 'delete_item_from_command'])
+// router.get('/get_user_command_items', [UserCommandItemsController, 'get_user_command_items'])
+// router.post('/add_command_item', [UserCommandItemsController, 'add_command_item'])
+// router.delete('/delete_all_command_items', [UserCommandItemsController, 'delete_all_command_items'])
+// router.delete('/delete_item_from_command', [UserCommandItemsController, 'delete_item_from_command'])
 
 //CommmentForProduct
 router.post('/create_comment', [CommentsController, 'create_comment'])
@@ -120,13 +120,13 @@ router.post('/create_value', [ValuesController, 'create_value'])
 router.put('/update_value', [ValuesController, 'update_value'])
 router.delete('/delete_value/:id', [ValuesController, 'delete_value'])
 
-//group_feature
-router.post('/create_group', [GroupFeaturesController, 'create_group']) 
-router.put('/update_group', [GroupFeaturesController, 'update_group']) 
-router.get('/get_group_features', [GroupFeaturesController, 'get_group_features']) 
-router.delete('/delete_group/:id', [GroupFeaturesController, 'delete_group']) 
+//group_product
+router.post('/create_group', [GroupProductController, 'create_group']) 
+router.put('/update_group', [GroupProductController, 'update_group']) 
+router.get('/get_group_products', [GroupProductController, 'get_group_product']) 
+router.delete('/delete_group/:id', [GroupProductController, 'delete_group']) 
 
-router.get('/get_group_by_feature', [GroupFeaturesController, 'get_group_by_feature'])
+router.get('/get_group_by_feature', [GroupProductController, 'get_group_by_feature'])
 
 router.get('/',()=>{
     return env

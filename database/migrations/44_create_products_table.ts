@@ -7,13 +7,13 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
       table.uuid('store_id').notNullable()
-      table.uuid('category_id').references('id').inTable('categories')
+      table.jsonb('categories_id')
       table.string('name').notNullable().unique()
       table.uuid('default_feature_id').notNullable().unique()
       table.string("slug").notNullable().unique();
       table.text('description')
       table.integer('barred_price')
-      table.integer('price')
+      table.integer('price').defaultTo(0)
       table.string('currency').defaultTo('CFA')
 
       table.index('slug');

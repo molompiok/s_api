@@ -6,27 +6,58 @@ import { EXT_SUPPORTED, MEGA_OCTET, STORE_ID } from './Utils/ctrlManager.js';
 import Feature from '#models/feature';
 import Value from '#models/value';
 import { createFiles } from './Utils/FileManager/CreateFiles.js';
-import GroupFeature from '#models/group_feature';
+import GroupFeature from '#models/group_product';
 import Categorie from '#models/categorie';
 import { ModelPaginatorContract, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
+async function getListCategoriesId(categories_id: string) {
+  let listIds = [];
+  try {
+    const a = JSON.parse(categories_id);
+    if (Array.isArray(a)) {
+      for (const id of a) {
+        const c = await Categorie.find(id)
+        if (c) listIds.push(id);
+      }
+    }
+  } catch (error) {}
+  return listIds
+}
+
 export default class ProductsController {
     async create_product(httpContext: HttpContext) {
         const { request, response } = httpContext
         const feature_id = v4();
         const product_id = v4();
         const value_id = v4();
-        const group_feature_id = v4();
+        const group_product_id = v4();
         let feature = null
         let product = null
         let newValue = null
         let groupFeature = null
         
-        const { name, description, price, category_id, barred_price, stock } = request.body();
+        const { name, description, price, categories_id, barred_price, stock } = request.body();
 
+        console.log(request.all());
         
-        if (!name || !description || !price || !stock) {
+        
+        if (!name || !description || !price ) {
             return response.badRequest({ message: 'Missing required fields'})
         }
+        const views = await createFiles({
+          request,
+          column_name: "views",
+          table_id: value_id,
+          table_name: Value.table,
+          options: {
+              throwError: true,
+              // compress: 'img',
+              min: 1,
+              max: 5,
+              extname: EXT_SUPPORTED,
+              maxSize: 12 * MEGA_OCTET,
+          },
+      });
+      if (views.length == 0) return response.notAcceptable('product view required')
         try {
             product = await Product.create({
                 id: product_id,
@@ -34,7 +65,7 @@ export default class ProductsController {
                 description,
                 price,
                 store_id: STORE_ID,
-                category_id,
+                categories_id,
                 barred_price,
                 default_feature_id: feature_id,
                 currency: "CFA",
@@ -54,34 +85,23 @@ export default class ProductsController {
 
         /********************Value */
         try {
-            const views = await createFiles({
-                request,
-                column_name: "views",
-                table_id: value_id,
-                table_name: Value.table,
-                options: {
-                    throwError: true,
-                    // compress: 'img',
-                    min: 1,
-                    max: 5,
-                    extname: EXT_SUPPORTED,
-                    maxSize: 12 * MEGA_OCTET,
-                },
-            });
             newValue = await Value.create({ id: value_id, feature_id, views , })
         } catch (error) {
             return response.internalServerError({ message: 'value_default not created - provide at least one image', error: error.message })
         }
         /********************GroupFeature */
         try {
-            groupFeature = await GroupFeature.create({ stock, product_id, id: group_feature_id, bind: {} , additional_price: 0 })
+            groupFeature = await GroupFeature.create({ stock, product_id, id: group_product_id, bind: {} , additional_price: 0 })
         } catch (error) {
             return response.internalServerError({ message: 'groupFeature not created', error: error.message })
         }
-        return response.created({ product, newValue, feature, groupFeature })
+        const a: any = product.toJSON();
+        a.features=[{...feature,values:[newValue]}];
+        a.groups=[groupFeature]
+        return response.created(a)
     }
 
-    private getPaginationParams(page: string = '1', limit: string = '10'): { pageNum: number; limitNum: number } {
+    private getPaginationParams(page: string = '1', limit: string = '20'): { pageNum: number; limitNum: number } {
         return {
           pageNum: Math.max(1, parseInt(page)),
           limitNum: Math.max(1, parseInt(limit)),
@@ -139,6 +159,7 @@ export default class ProductsController {
           page,
           limit
         } = request.qs()
+          console.log("🚀 ~ ProductsController ~ get_products ~ order_by:", order_by)
         
         console.log("🚀 ~ ProductsController ~ get_products ~ filters:", filters)
         const { pageNum, limitNum } = this.getPaginationParams(page, limit)
@@ -184,14 +205,13 @@ export default class ProductsController {
         }
       }
     async update_product({ request, response }: HttpContext) {
-        const { product_id, name, description, category_id, barred_price, price, currency } = request.body()
-        // const body = request.body();
+        const { product_id, name, description, categories_id, barred_price, price, currency } = request.body()
         try {
             const product = await Product.find(product_id)
             if (!product) {
                 return response.notFound({ message: 'Product not found' })
             }
-            product.merge({ name, description, category_id, barred_price, price, currency })
+            product.merge({ name, description, categories_id: categories_id || null, barred_price, price, currency })
 
             await product.save()
 

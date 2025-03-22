@@ -1,33 +1,37 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-export default class GroupFeature extends BaseModel {
+
+export default class Country extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
 
   @column()
-  declare product_id:string
+  declare name: string
+
+  @column()
+  declare format_number: string
+
+  @column()
+  declare length_number: string
   
   @column()
-  declare currency: string 
+  declare lang: string
 
   @column()
-  declare additional_price: number
+  declare code: string
 
   @column()
-  declare stock: number
+  declare currency: string
 
-  @column({ 
-    serializeAs: 'bind',
-    prepare: (value: Record<string, any> | null) => (value ? JSON.stringify(value) : null),
-  })
-  declare bind: Record<string, any> | null
+  @column()
+  declare flag: string
 
-  
+  @column()
+  declare bound: string
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
-
-
 }

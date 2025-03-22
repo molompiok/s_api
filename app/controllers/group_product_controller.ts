@@ -1,10 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import GroupFeature from '#models/group_feature'
+import GroupProduct from '#models/group_product'
 import { v4 } from 'uuid'
 import { applyOrderBy } from './Utils/query.js'
 import db from '@adonisjs/lucid/services/db'
 
-export default class GroupFeaturesController {
+export default class GroupProductController {
 
     async create_group({ request, response }: HttpContext) {
         try { 
@@ -25,7 +25,7 @@ export default class GroupFeaturesController {
                 }
             }
 
-            const feature = await GroupFeature.create({ id: v4(), ...data })
+            const feature = await GroupProduct.create({ id: v4(), ...data })
             return response.created(feature)
         } catch (error) {
             return response.internalServerError({ message: 'Error creating group feature', error })
@@ -37,7 +37,7 @@ export default class GroupFeaturesController {
       
             if (!product_id) return response.badRequest({ message: 'product_id is required' });
     
-            const query = GroupFeature.query()
+            const query = GroupProduct.query()
                 .select('*')
                 .where('product_id', product_id);
     
@@ -67,7 +67,7 @@ export default class GroupFeaturesController {
     async update_group({ request, response }: HttpContext) {
         try {
             const { group_id } = request.only(['group_id'])
-            const feature = await GroupFeature.findOrFail(group_id)
+            const feature = await GroupProduct.findOrFail(group_id)
             if (!feature) {
                 return response.notFound({ message: 'Group feature not found' })
             }
@@ -106,7 +106,7 @@ export default class GroupFeaturesController {
             return response.internalServerError({ message: 'Error updating group feature', error })
         }
     }
-    async get_group_features({ request, response }: HttpContext) {
+    async get_group_product({ request, response }: HttpContext) {
         try {
 
             const { product_id, order_by, page = 1, limit = 50, group_feature_id } = request.qs()
@@ -114,7 +114,7 @@ export default class GroupFeaturesController {
             const pageNum = Math.max(1, parseInt(page))
             const limitNum = Math.max(1, parseInt(limit))
 
-            let query = db.from(GroupFeature.table).select('*')
+            let query = db.from(GroupProduct.table).select('*')
 
             if (product_id) {
                 query = query.where('product_id', product_id)
@@ -125,7 +125,7 @@ export default class GroupFeaturesController {
             }
 
             if (order_by) {
-                query = applyOrderBy(query, order_by, GroupFeature.table)
+                query = applyOrderBy(query, order_by, GroupProduct.table)
             }
 
             const featuresPaginate = await query.paginate(pageNum, limitNum)
@@ -138,7 +138,7 @@ export default class GroupFeaturesController {
  
     async delete_group({ params, response }: HttpContext) {
         try {
-            const feature = await GroupFeature.find(params.id)
+            const feature = await GroupProduct.find(params.id)
             if (!feature) {
                 return response.notFound({ message: 'Group feature not found' })
             }

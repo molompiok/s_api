@@ -31,9 +31,9 @@ export default class CategoriesController {
                 request,
                 column_name: "view",
                 table_id: category_id,
-                table_name: 'categories',
+                table_name: Categorie.table,
                 options: {
-                    throwError: false,
+                    throwError: true,
                     compress: 'img',
                     min: 1,
                     max: 1,
@@ -47,7 +47,7 @@ export default class CategoriesController {
                 table_id: category_id,
                 table_name: Categorie.table,
                 options: {
-                    throwError: false,
+                    throwError: true,
                     compress: 'img',
                     min: 1,
                     max: 1,
@@ -55,6 +55,8 @@ export default class CategoriesController {
                     maxSize: 12 * MEGA_OCTET,
                 },
             });
+            if (iconCategory.length == 0) return response.notAcceptable('category Icon required')
+            if (imgCategory.length == 0) return response.notAcceptable('category View required')
             const newCategory = await Categorie.create({
                 id: category_id,
                 name: name,
@@ -108,7 +110,7 @@ export default class CategoriesController {
             response.internalServerError({ message: 'Internal server error', error: error.message })
         }
     }
- 
+
 
     async get_filters({ response, request }: HttpContext) {
         let { slug } = request.qs();
@@ -127,7 +129,7 @@ export default class CategoriesController {
     }
 
     async update_category({ request, response, auth }: HttpContext) {
-        const user = await auth.authenticate();
+        // const user = await auth.authenticate();
         const body = request.body();
         const { category_id, name, description, parent_category_id } = request.only(['category_id', 'name', 'description', 'parent_category_id'])
         try {
@@ -140,7 +142,7 @@ export default class CategoriesController {
             // if (user_id !== user.id) {
             //     return response.forbidden({ message: 'Unauthorized: You are not the owner of this store' })
             // }
-            category.merge({ name, description, parent_category_id })
+            category.merge({ name, description,parent_category_id: parent_category_id||null })
 
 
             for (const f of ['view', 'icon'] as const) {
@@ -171,8 +173,9 @@ export default class CategoriesController {
             response.internalServerError({ message: 'Internal server error', error: error.message })
         }
     }
+    
     async delete_category({ request, response, auth }: HttpContext) {
-        const user = await auth.authenticate();
+        // const user = await auth.authenticate();
         const { id: category_id } = request.params()
         console.log(category_id);
 
@@ -182,12 +185,12 @@ export default class CategoriesController {
             if (!category) {
                 return response.notFound({ message: 'Category not found' })
             }
-            if (category.parent_category_id) {
-                return response.badRequest({ message: 'Category has subcategories' })
-            }
-            if (!(await Role.isAuthorized(user.id, 'create_delete_product'))) {
-                return response.forbidden({ message: 'Unauthorized: not permitted' })
-            }
+            // if (category.parent_category_id) {
+            //     return response.badRequest({ message: 'Category has subcategories' })
+            // }
+            // if (!(await Role.isAuthorized(user.id, 'create_delete_product'))) {
+            //     return response.forbidden({ message: 'Unauthorized: not permitted' })
+            // }
             // const user_id = (await Store.find(category.store_id))?.user_id
             // if (user_id !== user.id) {
             //     return response.forbidden({ message: 'Unauthorized: You are not the owner of this store' })

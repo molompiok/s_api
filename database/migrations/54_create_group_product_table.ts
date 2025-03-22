@@ -1,7 +1,7 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'group_features'
+  protected tableName = 'group_products'
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
@@ -14,8 +14,8 @@ export default class extends BaseSchema {
       table.timestamp('created_at')
       table.timestamp('updated_at')
 
-      this.schema.alterTable('group_features', (table) => {
-        table.index(['bind'], 'group_features_bind_idx', 'gin')
+      this.schema.alterTable('group_products', (table) => {
+        table.index(['bind'], 'group_products_bind_idx', 'gin')
       })
     })
   }

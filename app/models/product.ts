@@ -12,8 +12,10 @@ export default class Product extends BaseModel {
   @column()
   declare store_id: string
 
-  @column()
-  declare category_id: string
+  @column({
+    prepare: (value) => JSON.stringify(value),
+  })
+  declare categories_id: string[]
 
   @column()
   declare default_feature_id:  string
@@ -40,6 +42,7 @@ export default class Product extends BaseModel {
     foreignKey: 'product_id', // La clé étrangère dans la table features
     localKey: 'id',          // La clé primaire dans la table products
   })
+
   declare features: HasMany<typeof Feature>
 
   @beforeCreate()

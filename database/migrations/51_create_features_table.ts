@@ -18,6 +18,7 @@ export default class extends BaseSchema {
       table.integer('max').nullable()
       table.integer('min_size').nullable()
       table.integer('max_size').nullable()
+      table.integer('ext_name').nullable()
       table.tinyint('index').checkPositive()
       table.boolean('multiple').defaultTo(false)
       table.boolean('is_double').defaultTo(false)
