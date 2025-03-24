@@ -13,7 +13,6 @@ import CommentsController from '#controllers/comments_controller'
 import FavoritesController from '#controllers/favorites_controller'
 import FeaturesController from '#controllers/features_controller'
 import GroupProductController from '#controllers/group_product_controller'
-import GroupFeaturesController from '#controllers/group_product_controller'
 import ProductsController from '#controllers/products_controller'
 import RolesController from '#controllers/roles_controller'
 import UserAddressesController from '#controllers/user_addresses_controller'
@@ -21,8 +20,11 @@ import UserCommandsController from '#controllers/user_order_controller'
 import UserPhonesController from '#controllers/user_phones_controller'
 import UsersController from '#controllers/users_controller'
 import ValuesController from '#controllers/values_controller'
+import Feature from '#models/feature'
+import { TestMessages, TestValidator, UpdateFeaturesValuesMessage, UpdateFeaturesValuesValidator } from '#validators/FeaturesValidator'
 
 import router from '@adonisjs/core/services/router'
+import db from '@adonisjs/lucid/services/db'
 import { env } from 'process'
 
 // Auth
@@ -45,10 +47,11 @@ router.delete('/delete', [AuthController, 'delete_account'])
 // Users
 router.get('/get_users', [UsersController, 'get_users'])
 
-
-
-//Cart
-// router.get('/get_cart_items', [CartsController, 'get_cart_items'])
+// Cart
+router.post('/update_cart', [CartsController, 'update_cart'])
+router.delete('/remove_from_cart', [CartsController, 'remove_from_cart'])
+router.get('/view_cart', [CartsController, 'view_cart'])
+router.post('/merge_cart_on_login', [CartsController, 'merge_cart_on_login'])
 
 
 //Category
@@ -82,6 +85,7 @@ router.get('/get_features', [FeaturesController, 'get_features'])
 router.get('/get_features_with_values', [FeaturesController, 'get_features_with_values'])
 router.post('/create_feature', [FeaturesController, 'create_feature'])
 router.put('/update_feature', [FeaturesController, 'update_feature'])
+router.post('/muptiple_update_features_values', [FeaturesController, 'muptiple_update_features_values'])
 router.delete('/delete_feature/:id', [FeaturesController, 'delete_feature'])
 
 //Product
@@ -137,3 +141,19 @@ router.get('/uploads/*',({request, response})=>{
 
     return response.download('.'+request.url())
 })
+
+router.post('/test-vine', async ({ request, response }) => {
+    const rawBody = request.body();
+    console.log('Raw body:', rawBody);
+  
+    try {
+      const payload = await TestValidator.validate({
+        data: rawBody,
+        messages: TestMessages,
+      });
+      return response.ok({ message: 'Validation succeeded', payload });
+    } catch (error) {
+      return response.badRequest({ message: 'Validation failed', errors: error.messages });
+    }
+  });
+ 

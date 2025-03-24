@@ -8,7 +8,6 @@ import { applyOrderBy } from './Utils/query.js';
 import Store from '#models/store';
 import { updateFiles } from './Utils/FileManager/UpdateFiles.js';
 import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
-import Role from '#models/role';
 
 export default class CategoriesController {
 
@@ -75,15 +74,19 @@ export default class CategoriesController {
     }
 
     async get_categories({ response, request, auth }: HttpContext) {
-        const { category_id, search, slug, order_by, page = 1, limit = 10, user_id } = request.qs()
+        const { categories_id, search, slug, order_by, page = 1, limit = 10, user_id } = request.qs()
         const pageNum = Math.max(1, parseInt(page))
         const limitNum = Math.max(1, parseInt(limit))
         try {
+            console.log({categories_id});
+            
 
             let query = db.from(Categorie.table).select('*')
 
-            if (category_id) {
-                query = query.where('id', category_id)
+            if (categories_id) {
+                const c = JSON.parse(categories_id)
+                if(!Array.isArray(c)) return response.notAcceptable('categories_id must json Array')
+                query = query.whereIn('id',c)
             }
             if (slug) {
                 query = query.where('slug', slug)
@@ -107,6 +110,8 @@ export default class CategoriesController {
             const categoriesPaginate = await query.paginate(pageNum, limitNum)
             return response.ok({ list: categoriesPaginate.all(), meta: categoriesPaginate.getMeta() })
         } catch (error) {
+            console.log(error);
+            
             response.internalServerError({ message: 'Internal server error', error: error.message })
         }
     }

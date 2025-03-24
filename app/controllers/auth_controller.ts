@@ -178,16 +178,16 @@ export default class AuthController {
           name: address.name,
           longitude: address.longitude,
           latitude: address.latitude,
-          created_at: address.createdAt,
-          updated_at: address.updatedAt
+          created_at: address.created_at,
+          updated_at: address.updated_at
         })),
         phone_numbers: user.user_phones.map(phone => ({
           id: phone.id,
           phone_number: phone.phone_number,
           format: phone.format,
           country_code: phone.country_code,
-          created_at: phone.createdAt,
-          updated_at: phone.updatedAt
+          created_at: phone.created_at,
+          updated_at: phone.updated_at
         }))
       }
   
@@ -286,16 +286,16 @@ export default class AuthController {
         //   name: address.name,
         //   longitude: address.longitude,
         //   latitude: address.latitude,
-        //   created_at: address.createdAt,
-        //   updated_at: address.updatedAt
+        //   created_at: address.created_at,
+        //   updated_at: address.updated_at
         // })),
         // phone_numbers: user.user_phones.map(phone => ({
         //   id: phone.id,
         //   phone_number: phone.phone_number,
         //   format: phone.format,
         //   country_code: phone.country_code,
-        //   created_at: phone.createdAt,
-        //   updated_at: phone.updatedAt
+        //   created_at: phone.created_at,
+        //   updated_at: phone.updated_at
         // }))
       }
   

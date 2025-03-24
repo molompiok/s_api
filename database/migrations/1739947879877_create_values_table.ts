@@ -7,10 +7,9 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
       table.uuid('feature_id').notNullable().references('id').inTable('features').onDelete('CASCADE')
-      
       table.jsonb('views').defaultTo('[]')
-      table.json('icon')
-      table.tinyint('index').checkPositive()
+      table.jsonb('icon')
+      table.tinyint('index')
       table.string('text')
       table.timestamps(true,true) 
       

@@ -22,6 +22,25 @@ export default class Value extends BaseModel {
   @column()
   declare text: string
 
+  @column()
+  declare key: string
+
+  @column()
+  declare stock: number
+
+  @column()
+  declare additional_price: number
+
+  @column()
+  declare currency: string
+
+  @column()
+  declare decreases_stock: boolean
+
+
+  @column()
+  declare continue_selling: boolean
+
   
   @column()
   declare index: number
@@ -31,8 +50,8 @@ export default class Value extends BaseModel {
   declare feature: BelongsTo<typeof Feature>
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 }

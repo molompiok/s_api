@@ -1,3 +1,4 @@
+import { FeaturType } from '#models/feature'
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
@@ -9,7 +10,7 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('product_id').notNullable().references('id').inTable('products').onDelete('CASCADE')
       table.string('name').notNullable()
-      table.string('type').checkIn(['color','text', 'icon_text','icon','input','date','range','file'])
+      table.enu('type', Object.values(FeaturType)).nullable()
       table.jsonb('icon').defaultTo('[]')
       table.boolean('required').defaultTo(false)
 
@@ -19,18 +20,18 @@ export default class extends BaseSchema {
       table.integer('min_size').nullable()
       table.integer('max_size').nullable()
       table.integer('ext_name').nullable()
-      table.tinyint('index').checkPositive()
+      table.tinyint('index')
       table.boolean('multiple').defaultTo(false)
       table.boolean('is_double').defaultTo(false)
 
-      table.string('default').nullable()
+      table.string('default_value').nullable()
       
-      table.timestamps(true)
+      table.timestamps(true, true)
 
     })
   }
 
   async down() {
-    this.schema.dropTable(this.tableName)
+    this.schema.dropTable(this.tableName) 
   }
 }

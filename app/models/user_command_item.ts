@@ -42,10 +42,10 @@ export default class UserCommandItem extends BaseModel {
   declare features: string
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 
   @belongsTo(() => GroupProduct, { foreignKey: 'group_product_id',localKey: 'id', })
   declare group_product: BelongsTo<typeof GroupProduct>

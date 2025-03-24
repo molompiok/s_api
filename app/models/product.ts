@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, beforeCreate, column, hasMany, SnakeCaseNamingStrategy } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, beforeSave, beforeUpdate, column, hasMany, SnakeCaseNamingStrategy } from '@adonisjs/lucid/orm'
 import limax from "limax";
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import Feature from './feature.js';
@@ -47,13 +47,25 @@ export default class Product extends BaseModel {
 
   @beforeCreate()
   public static async generateSlug(product: Product) {
-    let baseSlug = limax(product.name, { maintainCase: true })
+    let baseSlug = limax(product.name, { maintainCase: false })
+    product.slug = baseSlug
+  }
+
+  @beforeUpdate()
+  public static async updateSlug(product: Product) {
+    let baseSlug = limax(product.name, { maintainCase: false })
+    product.slug = baseSlug
+  }
+
+  @beforeSave()
+  public static async saveSlug(product: Product) {
+    let baseSlug = limax(product.name, { maintainCase: false })
     product.slug = baseSlug
   }
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 }

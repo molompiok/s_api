@@ -12,14 +12,24 @@ export default class Cart extends BaseModel {
 
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
+  
+  @column.dateTime()
+  declare expires_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 
   @hasMany(() => CartItem, {
     foreignKey: 'cart_id',
     localKey: 'id',
   })
   declare items: HasMany<typeof CartItem>
+
+  public getTotal() {
+    return this.items.reduce((sum, item) => {
+      const itemPrice = (item.group_product.additional_price || 0) + (item.group_product.product?.price || 0)
+      return sum + item.quantity * itemPrice
+    }, 0)
+  }
 }

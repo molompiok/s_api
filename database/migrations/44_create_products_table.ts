@@ -9,11 +9,11 @@ export default class extends BaseSchema {
       table.uuid('store_id').notNullable()
       table.jsonb('categories_id')
       table.string('name').notNullable().unique()
-      table.uuid('default_feature_id').notNullable().unique()
+      table.uuid('default_feature_id').notNullable()
       table.string("slug").notNullable().unique();
       table.text('description')
-      table.integer('barred_price')
-      table.integer('price').defaultTo(0)
+      table.integer('barred_price').checkPositive()
+      table.integer('price').defaultTo(0).checkPositive()
       table.string('currency').defaultTo('CFA')
 
       table.index('slug');

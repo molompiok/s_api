@@ -13,11 +13,13 @@ export default class extends BaseSchema {
       table.jsonb('bind').nullable() // exemple {couleur : red , taille : XL}
       table.timestamp('created_at')
       table.timestamp('updated_at')
-
-      this.schema.alterTable('group_products', (table) => {
-        table.index(['bind'], 'group_products_bind_idx', 'gin')
-      })
     })
+
+
+    this.schema.alterTable('group_products', (table) => {
+      table.index(['bind'], 'group_products_bind_idx', 'gin')
+    })
+    
   }
 
   async down() {

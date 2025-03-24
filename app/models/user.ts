@@ -41,10 +41,10 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
+  declare updated_at: DateTime | null
 
   @hasMany(() => UserAddress, {
     foreignKey: 'user_id'

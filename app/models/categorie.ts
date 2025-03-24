@@ -1,6 +1,6 @@
 import limax from 'limax';
 import { DateTime } from 'luxon'
-import { BaseModel, beforeCreate, column, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, beforeSave, beforeUpdate, column, hasMany } from '@adonisjs/lucid/orm'
 import Product from './product.js';
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import db from '@adonisjs/lucid/services/db';
@@ -43,16 +43,27 @@ export default class Categorie extends BaseModel {
 
   @beforeCreate()
   public static async generateSlug(category: Categorie) {
-    let baseSlug = limax(category.name, { maintainCase: true });
-    const existing = await this.findBy('slug', baseSlug);
-    category.slug = existing ? `${baseSlug}-${category.slug || Date.now()}` : baseSlug;
+    let baseSlug = limax(category.name, { maintainCase: false })
+    category.slug = baseSlug
   }
 
+  @beforeUpdate()
+  public static async updateSlug(category: Categorie) {
+    let baseSlug = limax(category.name, { maintainCase: false })
+    category.slug = baseSlug
+  }
+
+  @beforeSave()
+  public static async saveSlug(category: Categorie) {
+    let baseSlug = limax(category.name, { maintainCase: false })
+    category.slug = baseSlug
+  }
+  
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 
   public static async getGlobalFilters(limit: number = 5) {
     const filters = await db
@@ -80,31 +91,34 @@ export default class Categorie extends BaseModel {
   }
 
   public static async getAvailableFilters(slug: string, limit: number = 5) {
-    const categoryIds = await this.get_all_category_ids_by_slug(slug)
-
+    const categoryIds = await this.get_all_category_ids_by_slug(slug);
+  
+    if (!categoryIds || categoryIds.length === 0) {
+      return []; 
+    }
+  
     const filters = await db
       .from('features')
       .join('products', 'products.id', 'features.product_id')
-      .whereIn('products.category_id', categoryIds)
+      .whereRaw('"categories_id"::jsonb \\?| ?', [categoryIds])
       .select(
         'features.id',
         'features.name',
         'features.type',
         db.raw('array_agg(distinct values.text) as possible_values')
       )
-      .leftJoin('values', 'values.feature_id', 'features.id')
+      .join('values', 'values.feature_id', 'features.id') 
       .groupBy('features.id', 'features.name', 'features.type')
       .whereNotNull('values.text')
-      .limit(limit) 
-
+      .limit(limit);
+  
     return filters.map(filter => ({
       id: filter.id,
       name: filter.name,
       type: filter.type,
       values: filter.possible_values,
-    }))
+    }));
   }
-
   public static async get_all_category_ids_by_slug(slug: string): Promise<string[]> {
     const result = await db.rawQuery(`
       WITH RECURSIVE category_tree AS (

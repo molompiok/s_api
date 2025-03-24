@@ -25,7 +25,7 @@ export default class Feature extends BaseModel {
   declare required: boolean
 
   @column()
-  declare default: string | null
+  declare default_value: string | null
 
   @column()
   declare regex: string
@@ -55,20 +55,23 @@ export default class Feature extends BaseModel {
   declare values: HasMany<typeof Value>
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 }
 
 
 export enum FeaturType {
+
+  ICON_TEXT = 'icon_text',
   COLOR = 'color',
   TEXT = 'text',
   ICON = 'icon',
-  ICON_TEXT = 'icon_text',
   INPUT = 'input',
   DATE ='date',
+  DOUBLE_DATE ='double_date',
   RANGE = 'range',
-  FILE = ' file'
+  LEVEL='level',
+  FILE = ' file',
 }
