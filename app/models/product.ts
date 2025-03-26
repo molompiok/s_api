@@ -1,9 +1,9 @@
 import { DateTime } from 'luxon'
-import { BaseModel, beforeCreate, beforeSave, beforeUpdate, column, hasMany, SnakeCaseNamingStrategy } from '@adonisjs/lucid/orm'
+import { beforeCreate, beforeSave, beforeUpdate, column, hasMany } from '@adonisjs/lucid/orm'
 import limax from "limax";
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import Feature from './feature.js';
-
+import BaseModel from './base_model.js';
 export default class Product extends BaseModel {
   
   @column({ isPrimary: true })

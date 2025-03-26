@@ -98,17 +98,17 @@ export default class ValuesController {
       return response.internalServerError({ message: 'Error fetching values', error })
     }
   }
-  public static  async _update_value(request: HttpContext['request'], payload: any, trx: any) {
-    const value = await Value.findOrFail(payload.value_id)
+  public static  async _update_value(request: HttpContext['request'], value_id:string ,payload: any, trx: any) {
+    const value = await Value.findOrFail(value_id)
     payload.stock = payload.stock && parseInt(payload.stock)
     payload.index = payload.index && parseInt(payload.index || '1')
     payload.additional_price = payload.additional_price && parseFloat(payload.additional_price)
     value.useTransaction(trx).merge({
-      stock: payload.stock,
+      stock: payload.stock >1_000_000?1_000_000:(payload.stock < 0?0:payload.stock),
       decreases_stock: !!payload.decreases_stock,
       continue_selling: !!payload.continue_selling,
       index: payload.index,
-      additional_price: payload.additional_price,
+      additional_price:  payload.additional_price > 1_000_000 ? 1_000_000 : (payload.additional_price < 0?0:payload.additional_price),
       currency: payload.currency,
       icon: payload.icon,
       text: payload.text,
@@ -142,6 +142,7 @@ export default class ValuesController {
   async update_value({ request, response }: HttpContext) {
     const payload = request.only([
       'value_id',
+      'id',
       'feature_id',
       'additional_price',
       'currency',
@@ -159,7 +160,7 @@ export default class ValuesController {
     const trx = await db.transaction();
     try {
 
-      const value = await ValuesController._update_value(request, payload, trx)
+      const value = await ValuesController._update_value(request,payload.value_id||payload.id, payload, trx)
 
       await trx.commit()
       response.ok(value)

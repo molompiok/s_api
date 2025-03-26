@@ -16,7 +16,7 @@ import GroupProductController from '#controllers/group_product_controller'
 import ProductsController from '#controllers/products_controller'
 import RolesController from '#controllers/roles_controller'
 import UserAddressesController from '#controllers/user_addresses_controller'
-import UserCommandsController from '#controllers/user_order_controller'
+import UserOrdersController from '#controllers/user_order_controller'
 import UserPhonesController from '#controllers/user_phones_controller'
 import UsersController from '#controllers/users_controller'
 import ValuesController from '#controllers/values_controller'
@@ -106,11 +106,13 @@ router.post('/create_user_address', [UserAddressesController, 'create_user_addre
 router.put('/update_user_address', [UserAddressesController, 'update_user_address'])
 router.delete('/delete_user_address/:id', [UserAddressesController, 'delete_user_address'])
 
-//User_command
-router.get('/get_user_commands', [UserCommandsController, 'get_user_commands'])
-router.post('/create_user_command', [UserCommandsController, 'create_user_command'])
-router.put('/update_user_command', [UserCommandsController, 'update_user_command'])
-router.delete('/delete_user_command/:id', [UserCommandsController, 'delete_user_command'])
+//User_orders
+router.get('/get_users_orders', [UserOrdersController, 'get_users_orders'])
+router.get('/get_orders', [UserOrdersController, 'get_orders'])
+
+router.post('/create_user_order', [UserOrdersController, 'create_user_order'])
+router.put('/update_user_order', [UserOrdersController, 'update_user_order'])
+router.delete('/delete_user_order/:id', [UserOrdersController, 'delete_user_order'])
 
 //user_phones
 router.get('/create_user_phone', [UserPhonesController, 'create_user_phone'])

@@ -1,10 +1,11 @@
 import limax from 'limax';
 import { DateTime } from 'luxon'
-import { BaseModel, beforeCreate, beforeSave, beforeUpdate, column, hasMany } from '@adonisjs/lucid/orm'
+import {beforeCreate, beforeSave, beforeUpdate, column, hasMany } from '@adonisjs/lucid/orm'
 import Product from './product.js';
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import db from '@adonisjs/lucid/services/db';
 import { applyOrderBy } from '#controllers/Utils/query';
+import BaseModel from './base_model.js';
 
 export default class Categorie extends BaseModel {
   @column({ isPrimary: true })

@@ -1,7 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
-import UserCommandItem from './user_command_item.js'
+import { column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations';
+import UserOrderItem from './user_order_item.js';
+import BaseModel from './base_model.js';
 export enum OrderStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
@@ -115,10 +116,10 @@ export default class UserOrder extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updated_at: DateTime
 
-  @hasMany(() => UserCommandItem, {
-    foreignKey: 'command_id', // La clé étrangère dans UserCommandItem
+  @hasMany(() => UserOrderItem, {
+    foreignKey: 'order_id', // La clé étrangère dans UserCommandItem
     localKey: 'id',          // La clé primaire dans UserCommand
   })
-  declare items: HasMany<typeof UserCommandItem>
+  declare items: HasMany<typeof UserOrderItem>
 
 }

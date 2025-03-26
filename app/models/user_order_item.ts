@@ -1,10 +1,10 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
-import { OrderStatus } from './user_command.js'
+import { column, belongsTo } from '@adonisjs/lucid/orm'
+import BaseModel from './base_model.js';
 import type { BelongsTo } from '@adonisjs/lucid/types/relations';
 import GroupProduct from './group_product.js';
-import type { HasMany } from '@adonisjs/lucid/types/relations';
-export default class UserCommandItem extends BaseModel {
+import UserOrder, { OrderStatus } from '#models/user_order';
+export default class UserOrderItem extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
 
@@ -15,13 +15,13 @@ export default class UserCommandItem extends BaseModel {
   declare user_id: string
 
   @column()
-  declare command_id: string
+  declare order_id: string
 
   @column()
   declare status: OrderStatus
 
-  @column()
-  declare group_product_id: string
+  // @column()
+  // declare group_product_id: string
 
   @column()
   declare quantity: number
@@ -50,9 +50,6 @@ export default class UserCommandItem extends BaseModel {
   @belongsTo(() => GroupProduct, { foreignKey: 'group_product_id',localKey: 'id', })
   declare group_product: BelongsTo<typeof GroupProduct>
 
-  @hasMany(() => UserCommandItem, {
-    foreignKey: 'commandId', 
-    localKey: 'id', // Colonne dans UserCommand
-  })
-  declare items: HasMany<typeof UserCommandItem>
+  @belongsTo(() => UserOrder, { foreignKey: 'order_id',localKey: 'id', })
+  declare order: BelongsTo<typeof UserOrder>
 }

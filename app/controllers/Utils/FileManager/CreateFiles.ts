@@ -94,6 +94,7 @@ export function moveFile({
   compress,
   table_name,
   count,
+  trx,
 }: {
   file: FileType;
   compress?: 'none' | 'img' | 'zip';
@@ -101,6 +102,7 @@ export function moveFile({
   table_name: string;
   column_name: string;
   count: number;
+  trx?: any; // Transaction optionnelle
 }) {
   if (!file) return Promise.reject(null);
 

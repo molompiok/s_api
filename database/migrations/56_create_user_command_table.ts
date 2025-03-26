@@ -1,4 +1,4 @@
-import { OrderStatus, PaymentMethod, PaymentStatus } from '#models/user_command'
+import { OrderStatus, PaymentMethod, PaymentStatus } from '#models/user_order'
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {

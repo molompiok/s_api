@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { column } from '@adonisjs/lucid/orm'
+import BaseModel from './base_model.js';
 import { OWNER_ID } from '#controllers/Utils/ctrlManager'
 
 export default class Role extends BaseModel {

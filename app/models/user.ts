@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import { column, hasMany } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { TypeJsonRole } from './role.js'
 import db from '@adonisjs/lucid/services/db'
@@ -9,7 +9,7 @@ import type { HasMany } from '@adonisjs/lucid/types/relations';
 import hash from '@adonisjs/core/services/hash'
 import UserAddress from './user_address.js'
 import UserPhone from './user_phone.js'
-
+import BaseModel from './base_model.js';
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
   passwordColumnName: 'password'

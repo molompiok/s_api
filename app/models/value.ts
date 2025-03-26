@@ -1,8 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
+import { column, belongsTo } from '@adonisjs/lucid/orm'
 import type {  BelongsTo } from '@adonisjs/lucid/types/relations'
 import Feature from './feature.js'
-
+import BaseModel from './base_model.js';
 export default class Value extends BaseModel {
   @column({ isPrimary: true })
   declare id: string

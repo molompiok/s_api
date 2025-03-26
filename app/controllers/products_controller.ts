@@ -14,7 +14,7 @@ import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
 
 
 export default class ProductsController {
-  
+
   async create_product(httpContext: HttpContext) {
     const { request, response } = httpContext
     const feature_id = v4()
@@ -82,7 +82,7 @@ export default class ProductsController {
           {
             id: value_id,
             feature_id,
-            views, 
+            views,
           },
           { client: trx }
         )
@@ -109,7 +109,7 @@ export default class ProductsController {
     } catch (error) {
       console.error('Error in create_product:', error)
 
-        await deleteFiles(value_id) 
+      await deleteFiles(value_id)
 
       return response.internalServerError({
         message: 'Failed to create product',
@@ -117,7 +117,7 @@ export default class ProductsController {
       })
     }
   }
-  
+
 
   private getPaginationParams(page: string = '1', limit: string = '20'): { pageNum: number; limitNum: number } {
     return {
@@ -184,18 +184,23 @@ export default class ProductsController {
       let products: ModelPaginatorContract<Product>
       let category: Categorie | null = null
 
+      
       let query = Product.query().select('*').preload('features', (featureQuery) => {
-        featureQuery.preload('values')
+        featureQuery
+          .orderBy('features.created_at', 'desc') // 🔥 Trier les features par date de création
+          .preload('values', (valueQuery) => {
+            valueQuery.orderBy('values.created_at', 'desc') // 🔥 Trier les values par date de création
+          });
       })
 
       if (slug_cat) {
         const categoryIds = await Categorie.get_all_category_ids_by_slug(slug_cat)
-       
+
         query = query.whereRaw('"categories_id"::jsonb \\?| ?', [categoryIds]);
         category = await Categorie.query()
-        .where('slug', slug_cat)
-        .select('id', 'name', 'description', 'view')
-        .firstOrFail()
+          .where('slug', slug_cat)
+          .select('id', 'name', 'description', 'view')
+          .firstOrFail()
         // console.log("🚀 ~ ProductsController ~ get_products ~ category:", category)
       }
 
@@ -230,7 +235,7 @@ export default class ProductsController {
         categories_id,
         barred_price,
         price,
-        currency, 
+        currency,
       } = request.body()
 
       if (!product_id) {
@@ -264,7 +269,7 @@ export default class ProductsController {
 
       const updates: Partial<Product> = {}
       if (name !== undefined) {
-        if (typeof name !== 'string' ||  name.replace(/\s+/g, ' ') === '') {
+        if (typeof name !== 'string' || name.replace(/\s+/g, ' ') === '') {
           return response.badRequest({ message: 'name must be a non-empty string' })
         }
         updates.name = name.replace(/\s+/g, ' ').substring(0, 56);
@@ -285,24 +290,21 @@ export default class ProductsController {
         }
         updates.price = priceNum
       }
-      else  updates.price = 0
+      else updates.price = 0
 
       if (currency !== undefined) {
         if (typeof currency !== 'string' || !['CFA', 'USD', 'EUR'].includes(currency)) {
           return response.badRequest({ message: 'currency must be  CFA, USD, EUR' })
         }
         updates.currency = currency
-      }else{
+      } else {
         //TODO add store.currency si le curency est undefined
       }
 
       product.merge(updates)
       await product.save()
 
-      return response.ok({
-        message: 'Product updated successfully',
-        data: product,
-      })
+      return response.ok(product)
     } catch (error) {
       if (error.name === 'ModelNotFoundException') {
         return response.notFound({ message: `Product with ID ${request.input('product_id')} not found` })
@@ -332,5 +334,7 @@ export default class ProductsController {
       return response.internalServerError({ message: 'Product not deleted', error: error.message })
     }
   }
+
+  
 
 }
