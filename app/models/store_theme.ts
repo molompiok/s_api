@@ -7,9 +7,6 @@ export default class StoreTheme extends BaseModel {
   declare id: string
 
   @column()
-  declare store_id: string
-
-  @column()
   declare theme_id: string
 
   @column.dateTime({ autoCreate: true })

@@ -1,62 +1,67 @@
 import Cart from '#models/cart'
 import CartItem from '#models/cart_item'
-import GroupProduct from '#models/group_product'
+import Product from '#models/product'
 import User from '#models/user'
+import { UpdateCartMessage, updateCartValidator } from '#validators/CartValidator'
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Session } from '@adonisjs/session'
+import { errors } from '@vinejs/vine'
 import { DateTime } from 'luxon'
 import { v4 } from 'uuid'
 
-interface UpdateCartParams {
-  group_product_id: string;
-  mode: 'increment' | 'decrement' | 'set' | 'clear' | 'max';
-  value?: number;
-  ignoreStock?: boolean;
-}
+
 
 interface UpdateCartResult {
   cart: Cart;
   updatedItem: CartItem | null;
   total: number;
-  action: 'added' | 'updated' | 'removed' | 'unchanged';    // Historique des changements
+  action: 'added' | 'updated' | 'removed' | 'unchanged';
+}
+interface UpdateCartParams {
+  product_id: string;
+  mode: 'increment' | 'decrement' | 'set' | 'clear' | 'max';
+  value?: number;
+  bind?: Record<string, any>;
+  ignoreStock?: boolean;
 }
 
-
-interface RemoveFromCartParams {
-  cart_item_id?: string;
-  removeAll?: boolean;
-}
 
 export default class CartsController {
   private async getCart({ user, session, trx }: { session: Session; user: User | null; trx?: TransactionClientContract }): Promise<Cart | null> {
+    let query = Cart.query({ client: trx });
+
     if (user) {
-      return await Cart.query({ client: trx })
-        .where('user_id', user.id)
-        .first();
+      query = query.where('user_id', user.id);
     } else {
       const cartIdFromSession = session.get('cart_id');
       if (cartIdFromSession) {
-        return await Cart.query({ client: trx })
-          .where('id', cartIdFromSession)
-          .whereNull('user_id')
-          .first();
+        query = query.where('id', cartIdFromSession).whereNull('user_id');
+      } else {
+        return null;
       }
     }
-    return null;
+    return await query.first();
   }
 
   private async createCart(user: User | null, session: Session, trx: TransactionClientContract): Promise<Cart> {
+    const cartData: Partial<Cart> = { id: v4() };
+
     if (user) {
-      return await Cart.create({ id: v4(), user_id: user.id }, { client: trx });
+      cartData.user_id = user.id;
+    } else {
+      cartData.expires_at = DateTime.now().plus({ weeks: 2 });
     }
-    const expiresAt = DateTime.now().plus({ weeks: 2 });
-    const cart = await Cart.create({ id: v4(), expires_at: expiresAt }, { client: trx });
-    session.put('cart_id', cart.id);
+
+    const cart = await Cart.create(cartData, { client: trx });
+
+    if (!user) {
+      session.put('cart_id', cart.id);
+    }
+
     return cart;
   }
-
   public async update_cart({ request, auth, response, session }: HttpContext): Promise<void> {
     let user: User | null = null;
     try {
@@ -65,15 +70,17 @@ export default class CartsController {
       // Utilisateur non authentifié
     }
 
-    let { group_product_id, mode, value = 1, ignoreStock = false } = request.body() as UpdateCartParams;
+    let { product_id, mode, value = 1, ignoreStock = false , bind = {} } = request.body() as UpdateCartParams;
 
 
     value = typeof value === 'string' ? parseInt(value, 10) : value
     ignoreStock = Boolean(ignoreStock)
-
-    console.log({ group_product_id, mode, value, ignoreStock })
-    if (!group_product_id || !['increment', 'decrement', 'set', 'clear', 'max'].includes(mode)) {
-      return response.status(400).json({ message: 'group_product_id et mode (increment, decrement, set, clear, max) requis' });
+    if (typeof bind !== 'object' || bind === null) {
+      return response.status(400).json({ message: 'Le paramètre bind doit être un objet' });
+    }
+    console.log({ product_id, mode, value, bind , ignoreStock })
+    if (!product_id || !['increment', 'decrement', 'set', 'clear', 'max'].includes(mode)) {
+      return response.status(400).json({ message: 'product_id et mode (increment, decrement, set, clear, max) requis' });
     }
     if (mode === 'set' && (value === undefined || value < 0 || !Number.isInteger(value))) {
       return response.status(400).json({ message: 'Pour mode "set", value doit être un entier positif' });
@@ -82,119 +89,144 @@ export default class CartsController {
       return response.status(400).json({ message: 'Pour increment/decrement, value doit être un entier positif' });
     }
 
+    const trx = await db.transaction();
+
     try {
-      const result = await db.transaction(async (trx): Promise<UpdateCartResult> => {
-        const groupProduct = await GroupProduct.query({ client: trx })
-          .where('id', group_product_id)
-          .forUpdate()
-          .preload('product')
-          .firstOrFail();
+      const product = await Product.find(product_id, { client: trx });
+      if (!product) {
+        return response.notFound({ message: 'Product Not Found' });
+      }
+      
+      let cart = await this.getCart({ user, session, trx });
+      if (!cart) {
+        cart = await this.createCart(user, session, trx);
+      }
 
-        let cart = await this.getCart({ user, session, trx });
-        if (!cart) {
-          cart = await this.createCart(user, session, trx);
-        }
+      let cartItem = await CartItem.query({ client: trx })
+        .forUpdate()
+        .where('cart_id', cart.id)
+        .where('product_id', product_id) 
+        .preload('product') 
+        .whereRaw('bind::jsonb = ?', [JSON.stringify(bind)])
+        .first();
 
-        let cartItem = await CartItem.query({ client: trx })
-          .where('cart_id', cart.id)
-          .where('group_product_id', group_product_id)
-          .first();
-        console.log(cartItem?.$attributes)
+      let newQuantity: number | null | undefined = undefined  ;
+      let action: UpdateCartResult['action'] = 'unchanged';
+   
 
-        let newQuantity: number | null = null;
-        let action: UpdateCartResult['action'] = 'unchanged';
-        await cart.load('items', (query) =>
-          query.preload('group_product', (groupQuery) => groupQuery.preload('product'))
-        );
-        console.log('Avant mise à jour:', cart.items.map(item => ({ id: item.group_product_id, qty: item.quantity })));
-        switch (mode) {
-          case 'increment':
-            if (!cartItem) {
-              newQuantity = value;
-              action = 'added';
-            } else {
-              newQuantity = cartItem.quantity + value;
-              action = 'updated';
-            }
-            break;
+      // console.log('Avant mise à jour:', cart.items.map(item => ({ id: item, qty: item.quantity })));
 
-          case 'decrement':
-            if (!cartItem) {
-              throw new Error('Impossible de décrémenter : article non présent');
-            }
-            newQuantity = cartItem.quantity - value;
-            if (newQuantity < 0) {
-              throw new Error(`Impossible de réduire en-dessous de 0 (actuel : ${cartItem.quantity})`);
-            }
-            action = newQuantity === 0 ? 'removed' : 'updated';
-            break;
-
-          case 'set':
-            if (!cartItem) {
-              newQuantity = value;
-              action = 'added';
-            } else {
-              newQuantity = value;
-              action = newQuantity === cartItem.quantity ? 'unchanged' : newQuantity === 0 ? 'removed' : 'updated';
-            }
-            if (newQuantity < 0) {
-              throw new Error('La quantité ne peut pas être négative');
-            }
-            break;
-
-          case 'clear':
-            if (cartItem) {
-              await cartItem.delete();
-              cartItem = null;
-              action = 'removed';
-            }
-            newQuantity = null;
-            break;
-
-          case 'max':
-            newQuantity = groupProduct.stock;
-            if (!cartItem) {
-              action = 'added';
-            } else {
-              action = newQuantity === cartItem.quantity ? 'unchanged' : 'updated';
-            }
-            break;
-        }
-
-        if (newQuantity !== null && !ignoreStock && newQuantity > groupProduct.stock) {
-          throw new Error(`Quantité (${newQuantity}) dépasse le stock (${groupProduct.stock})`);
-        }
-
-
-        if (newQuantity === 0 && cartItem) {
-          await cartItem.delete();
-          cartItem = null;
-          action = 'removed';
-        } else if (newQuantity !== null) {
-          if (cartItem) {
-            cartItem.quantity = newQuantity;
-            await cartItem.save();
+      const option = await CartItem.getBindOptionFrom(bind, {id : product_id})
+      switch (mode) {
+        case 'increment':
+          if (!cartItem) {
+            newQuantity = value;
+            action = 'added';
           } else {
-            cartItem = await CartItem.create(
-              {
-                id: v4(),
-                cart_id: cart.id,
-                group_product_id,
-                quantity: newQuantity,
-              },
-              { client: trx }
-            );
+            newQuantity = cartItem.quantity + value;
+            action = 'updated';
           }
+          break;
+
+        case 'decrement':
+          if (!cartItem) {
+            throw new Error('Impossible de décrémenter : article non présent');
+          }
+          newQuantity = cartItem.quantity - value;
+          if (newQuantity < 0) {
+            throw new Error(`Impossible de réduire en-dessous de 0 (actuel : ${cartItem.quantity})`);
+          }
+          action = newQuantity === 0 ? 'removed' : 'updated';
+          break;
+
+        case 'set':
+          if (!cartItem) {
+            newQuantity = value;
+            action = 'added';
+          } else {
+            newQuantity = value;
+            action = newQuantity === cartItem.quantity ? 'unchanged' : newQuantity === 0 ? 'removed' : 'updated';
+          }
+          if (newQuantity < 0) {
+            throw new Error('La quantité ne peut pas être négative');
+          }
+          break;
+
+        case 'clear':
+          if (cartItem) {
+            await cartItem.delete();
+            cartItem = null;
+            action = 'removed';
+          }
+          newQuantity = null;
+          break;
+
+        case 'max':
+          if (!option?.stock) {
+            throw new Error(`Ce produit n'a pas de stock maximun defini, vous devez specifier le stock que vous voulez`);
+          }
+          newQuantity = option?.stock;
+
+          if (!cartItem) {
+            action = 'added';
+          } else {
+            action = newQuantity === cartItem.quantity ? 'unchanged' : 'updated';
+          }
+          break;
+      }
+
+      if (
+        (newQuantity !== null && newQuantity !== undefined) && !ignoreStock &&
+        (
+          newQuantity >
+          (option?.stock ??
+            (option?.continue_selling ?
+              Infinity : 0
+            )
+          )
+        )) {
+        throw new Error(`Quantité (${newQuantity}) dépasse le stock (${option?.stock})`);
+      }
+
+      if (newQuantity === 0 && cartItem) {
+        await cartItem.useTransaction(trx).delete();
+        cartItem = null;
+        action = 'removed';
+      } else if (newQuantity !== null && newQuantity !== undefined) {
+        if (cartItem) {
+          cartItem.quantity = newQuantity;
+          await cartItem.save();
+        } else {
+          let _bin = '{}';
+          if (option?.realBind) {
+            try {
+              _bin = JSON.stringify(option.realBind);
+            } catch (error) {
+              throw new Error(`Le bind fourni est invalide : ${error.message}`);
+            }
+          }
+          cartItem = await CartItem.create(
+            {
+              id: v4(),
+              cart_id: cart.id,
+              bind:_bin,
+              quantity: newQuantity,
+              product_id: product.id
+            },
+            { client: trx }
+          );
         }
+      }
+  
+      await cart.load('items', (query) =>
+        query
+          .orderBy('created_at', 'asc')
+          .preload('product')
+      )
 
-        await cart.load('items', (query) =>
-          query
-            .orderBy('created_at', 'asc')
-            .preload('group_product', (groupQuery) => groupQuery.preload('product'))
-        )
+      const result = { cart, updatedItem: cartItem, total: await cart.getTotal(trx), action };
 
-        return { cart, updatedItem: cartItem, total: cart.getTotal(), action };
-      });
+      await trx.commit()
 
       return response.status(200).json({
         message: `Panier mis à jour avec succès (${mode})`,
@@ -204,6 +236,7 @@ export default class CartsController {
         action: result.action,
       });
     } catch (error) {
+      await trx.rollback()
       console.error('Erreur mise à jour panier:', error);
       return response.status(400).json({
         message: 'Erreur lors de la mise à jour du panier',
@@ -212,87 +245,45 @@ export default class CartsController {
     }
   }
 
-  public async remove_from_cart({ request, auth, response, session }: HttpContext): Promise<void> {
-    let user: User | null = null;
-    try {
-      user = await auth.authenticate();
-    } catch (e) {
-      // Utilisateur non authentifié
-    }
-
-    const { cart_item_id, removeAll = false } = request.body() as RemoveFromCartParams;
-
-    if (!cart_item_id && !removeAll) {
-      return response.status(400).json({ message: 'cart_item_id requis ou removeAll doit être true' });
-    }
-
-    try {
-      const result = await db.transaction(async (trx) => {
-        const cart = await this.getCart({ user, session, trx });
-        if (!cart) {
-          throw new Error('Panier non trouvé');
-        }
-
-        if (removeAll) {
-          await CartItem.query({ client: trx })
-            .where('cart_id', cart.id)
-            .delete();
-        } else {
-          const cartItem = await CartItem.query({ client: trx })
-            .where('id', cart_item_id!)
-            .where('cart_id', cart.id)
-            .firstOrFail();
-          await cartItem.delete();
-        }
-
-        await cart.load('items', (query) =>
-          query
-            .orderBy('created_at', 'asc')
-            .preload('group_product', (groupQuery) => groupQuery.preload('product'))
-        );
-
-        return { cart, total: cart.getTotal() };
-      });
-
-      return response.status(200).json({
-        message: 'Suppression réussie',
-        cart: result.cart,
-        total: result.total,
-      });
-    } catch (error) {
-      console.error('Erreur suppression:', error);
-      return response.status(404).json({
-        message: 'Erreur lors de la suppression',
-        error: error.message,
-      });
-    }
-  }
 
   public async view_cart({ auth, session, response }: HttpContext): Promise<void> {
     let user: User | null = null;
+  
+    // Vérification de l'authentification
     try {
       user = await auth.authenticate();
     } catch (e) {
-      // Utilisateur non authentifié
+     // authentification SILENCIEUSE 
     }
+  
     try {
       const cart = await this.getCart({ user, session });
       if (!cart) {
         return response.status(200).json({ cart: { items: [] }, total: 0 });
       }
-
+      
       await cart.load('items', (query) =>
         query
-          .orderBy('created_at', 'asc')
-          .preload('group_product', (groupQuery) => groupQuery.preload('product'))
+      .orderBy('created_at', 'asc')
+      .preload('product')
+    );
+    console.log("🚀 ~ CartsController ~ view_cart ~ cart:", cart.items)
+  
+      const items = await Promise.all(
+        cart.items.map(async (item) => {
+          // console.log("🚀 ~ CartsController ~ cart.items.map ~ item:", item)
+          // console.log("🚀 ~ CartsController ~ cart.items.map ~ item-get:", item.getBind())
+          const option =  (await CartItem.getBindOptionFrom(item.bind, {id : item.product_id}));
+          console.log("🚀 ~ CartsController ~ cart.items.map ~ option:", option?.realBind)
+          return { ...item.serialize(), realBind: option?.realBind };
+        })
       );
-
+  
       return response.status(200).json({
-        cart,
-        total: cart.getTotal(),
+        cart: { ...cart.serialize(), items },
+        total: await cart.getTotal(),
       });
     } catch (error) {
-      console.error('Erreur lors de la récupération du panier :', error);
       return response.status(500).json({
         message: 'Erreur lors de la récupération du panier',
         error: error.message,
@@ -308,71 +299,74 @@ export default class CartsController {
       return response.status(200).json({ message: 'Aucun panier temporaire à fusionner' });
     }
 
+    const trx = await db.transaction();
     try {
-      const result = await db.transaction(async (trx) => {
-        const tempCart = await Cart.query({ client: trx })
-          .where('id', cartIdFromSession)
-          .whereNull('user_id')
-          .preload('items', (query) => query.preload('group_product'))
-          .first();
 
-        if (!tempCart) {
-          return { message: 'Panier temporaire non trouvé', cart: null };
-        }
+      const tempCart = await Cart.query({ client: trx })
+        .where('id', cartIdFromSession)
+        .whereNull('user_id')
+        .preload('items')
+        .first();
 
-        let userCart = await Cart.query({ client: trx })
-          .where('user_id', user.id)
-          .preload('items')
-          .first();
-
-        if (!userCart) {
-          userCart = await Cart.create(
-            { id: v4(), user_id: user.id },
-            { client: trx }
-          );
-        }
-
-        for (const tempItem of tempCart.items) {
-          let userCartItem = userCart.items?.find(
-            (item) => item.group_product_id === tempItem.group_product_id
-          );
-
-          const totalQuantity = (userCartItem?.quantity || 0) + tempItem.quantity;
-          const newQuantity = Math.min(totalQuantity, tempItem.group_product.stock);
-
-          if (userCartItem) {
-            userCartItem.quantity = newQuantity;
-            await userCartItem.useTransaction(trx).save();
-          } else {
-            await CartItem.create(
-              {
-                id: v4(),
-                cart_id: userCart.id,
-                group_product_id: tempItem.group_product_id,
-                quantity: newQuantity,
-              },
-              { client: trx }
-            );
-          }
-        }
-
-        await tempCart.delete();
+      if (!tempCart || tempCart.items.length === 0) {
         session.forget('cart_id');
+        await trx.commit();
+        const userCart = await this.getCart({ user, session }); 
+         if (userCart) {
+            await userCart.load('items', q => q.orderBy('created_at', 'asc').preload('product'))
+        }
+        return response.status(200).json({
+            message: 'Temporary cart not found or empty.',
+            cart: userCart?.serialize() ?? null,
+            total: userCart ? await userCart.getTotal() : 0
+        });
+      }
 
-        await userCart.load('items', (query) =>
-          query
-            .orderBy('created_at', 'asc')
-            .preload('group_product', (groupQuery) => groupQuery.preload('product'))
+      let userCart = await Cart.query({ client: trx })
+        .where('user_id', user.id)
+        .preload('items')
+        .first();
+
+      if (!userCart) {
+        userCart = await this.createCart(user, session, trx);
+        await userCart.load('items');
+      }
+
+      for (const tempItem of tempCart.items) {
+        let userCartItem = userCart.items?.find(
+          (item) => item.compareBindTo(tempItem.getBind())
         );
-        return { message: 'Panier fusionné avec succès', cart: userCart };
-      });
+
+        if (userCartItem) {
+          userCartItem.quantity = tempItem.updated_at < userCart.updated_at ? userCartItem.quantity : tempItem.quantity;
+          await userCartItem.useTransaction(trx).save();
+        } else {
+          tempItem.cart_id = userCart.id;
+          await tempItem.useTransaction(trx).save(); 
+        }
+      }
+
+      session.forget('cart_id');
+      await tempCart.useTransaction(trx).delete();
+
+      await trx.commit()
+
+      await userCart.load('items', (query) =>
+        query
+          .orderBy('created_at', 'asc')
+          .preload('product')
+      );
+      const result = { message: 'Panier fusionné avec succès', cart: userCart };
+
+  
 
       return response.status(200).json({
         message: result.message,
         cart: result.cart || undefined,
-        total: result.cart?.getTotal() || undefined,
+        total: await result.cart?.getTotal() || undefined,
       });
     } catch (error) {
+      await trx.rollback()
       console.error('Erreur lors de la fusion des paniers :', error);
       return response.status(500).json({
         message: 'Erreur lors de la fusion des paniers',
@@ -381,3 +375,76 @@ export default class CartsController {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// public async remove_from_cart({ request, auth, response, session }: HttpContext): Promise<void> {
+//   let user: User | null = null;
+//   try {
+//     user = await auth.authenticate();
+//   } catch (e) {
+//     // Utilisateur non authentifié
+//   }
+
+//   const { cart_item_id, removeAll = false } = request.body() as RemoveFromCartParams;
+
+//   if (!cart_item_id && !removeAll) {
+//     return response.status(400).json({ message: 'cart_item_id requis ou removeAll doit être true' });
+//   }
+
+//   try {
+//     const result = await db.transaction(async (trx) => {
+//       const cart = await this.getCart({ user, session, trx });
+//       if (!cart) {
+//         throw new Error('Panier non trouvé');
+//       }
+
+//       if (removeAll) {
+//         await CartItem.query({ client: trx })
+//           .where('cart_id', cart.id)
+//           .delete();
+//       } else {
+//         const cartItem = await CartItem.query({ client: trx })
+//           .where('id', cart_item_id!)
+//           .where('cart_id', cart.id)
+//           .firstOrFail();
+//         await cartItem.delete();
+//       }
+
+//       await cart.load('items', (query) =>
+//         query
+//           .orderBy('created_at', 'asc')
+//           .preload('group_product', (groupQuery) => groupQuery.preload('product'))
+//       );
+
+//       return { cart, total: cart.getTotal(trx) };
+//     });
+
+//     return response.status(200).json({
+//       message: 'Suppression réussie',
+//       cart: result.cart,
+//       total: result.total,
+//     });
+//   } catch (error) {
+//     console.error('Erreur suppression:', error);
+//     return response.status(404).json({
+//       message: 'Erreur lors de la suppression',
+//       error: error.message,
+//     });
+//   }
+// }

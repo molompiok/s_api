@@ -2,121 +2,100 @@ import Product from '#models/product';
 import type { HttpContext } from '@adonisjs/core/http'
 import { v4 } from 'uuid';
 import { applyOrderBy } from './Utils/query.js';
-import { EXT_SUPPORTED, MEGA_OCTET, STORE_ID } from './Utils/ctrlManager.js';
-import Feature from '#models/feature';
+import { EXT_IMAGE, EXT_VIDEO, MEGA_OCTET } from './Utils/ctrlManager.js';
+import Feature, { FeatureType } from '#models/feature';
 import Value from '#models/value';
-import { createFiles } from './Utils/FileManager/CreateFiles.js';
-import GroupFeature from '#models/group_product';
+import { createFiles } from './Utils/media/CreateFiles.js';
 import Categorie from '#models/categorie';
 import { ModelPaginatorContract, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import db from '@adonisjs/lucid/services/db';
-import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
+import { CURRENCY } from '#models/user_order';
+import FeaturesController from './features_controller.js';
+import { MAX_PRICE } from './Utils/constants.js';
 
 
 export default class ProductsController {
-
-  async create_product(httpContext: HttpContext) {
-    const { request, response } = httpContext
-    const feature_id = v4()
-    const product_id = v4()
-    const value_id = v4()
-    const group_product_id = v4()
-
-    const { name, description, price, categories_id, barred_price, stock } = request.body()
-
-    console.log(request.all())
-
-    if (!name || !description || !price) {
-      return response.badRequest({ message: 'Missing required fields' })
-    }
-
+  async create_product({ request, response }: HttpContext) {
+    const trx = await db.transaction()
     try {
-      const result = await db.transaction(async (trx) => {
-        const fileOptions = {
-          request,
-          column_name: 'views',
-          table_id: value_id,
-          table_name: Value.table,
-          options: {
-            throwError: true,
-            min: 1,
-            max: 5,
-            extname: EXT_SUPPORTED,
-            maxSize: 12 * MEGA_OCTET,
-          },
-        }
-        const views = await createFiles(fileOptions)
+      let { name, description, price, categories_id, barred_price } = request.body()
 
-        if (views.length === 0) {
-          throw new Error('Product view required')
-        }
+      const feature_id = v4()
+      const product_id = v4()
+      const value_id = v4()
 
-        const product = await Product.create(
-          {
-            id: product_id,
-            name,
-            description,
-            price,
-            store_id: STORE_ID,
-            categories_id,
-            barred_price,
-            default_feature_id: feature_id,
-            currency: 'CFA',
-          },
-          { client: trx }
-        )
-
-        const feature = await Feature.create(
-          {
-            id: feature_id,
-            product_id,
-            name: 'default_feature',
-            required: false,
-            default_value: null,
-            icon: [],
-          },
-          { client: trx }
-        )
-
-        const newValue = await Value.create(
-          {
-            id: value_id,
-            feature_id,
-            views,
-          },
-          { client: trx }
-        )
-
-        const groupFeature = await GroupFeature.create(
-          {
-            stock,
-            product_id,
-            id: group_product_id,
-            bind: {},
-            additional_price: 0,
-          },
-          { client: trx }
-        )
-
-        const productData: any = product.toJSON()
-        productData.features = [{ ...feature.toJSON(), values: [newValue.toJSON()] }]
-        productData.groups = [groupFeature.toJSON()]
-
-        return { productData, views }
+      // Gestion des fichiers
+      const views = await createFiles({
+        request,
+        column_name: 'views',
+        table_id: value_id,
+        table_name: Value.table,
+        options: { throwError: true, min: 1, max: 5, extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET },
+      })
+      const icon = await createFiles({
+        request,
+        column_name: 'icon',
+        table_id: value_id,
+        table_name: Value.table,
+        options: { throwError: true, min: 0, max: 1, extname: EXT_IMAGE, maxSize: 2 * MEGA_OCTET },
       })
 
-      return response.created(result.productData)
+      if (!views.length) {
+        throw new Error('Product view required')
+      }
+
+      // Création en base de données
+      price = price && parseFloat(price);
+      barred_price = barred_price && parseFloat(barred_price);
+      if (Number.isNaN(price)) throw new Error('Le prix doit est un numbre');
+      if (Number.isNaN(barred_price)) barred_price = undefined;
+      if (price > MAX_PRICE) throw new Error('Le prix doit inferieur a ' + MAX_PRICE);
+      if (barred_price > MAX_PRICE) throw new Error('Le prix barré doit inferieur a ' + MAX_PRICE);
+      if (barred_price && (barred_price <= 0)) throw new Error('Le prix barré doit etre superieur a 0');
+      if (price <= 0) throw new Error('Le prix du produit doit etre superieur a 0');
+
+
+      const product = await Product.create({
+        id: product_id,
+        name: name.replace(/\s+/g, ' '),
+        description: description?.trim().substring(0, 1024) || null,
+        price: price,
+        categories_id: categories_id,
+        barred_price: barred_price,
+        default_feature_id: feature_id,
+        currency: CURRENCY.FCFA,
+      }, { client: trx })
+
+      const feature = await Feature.create({
+        id: feature_id,
+        product_id,
+
+        name: 'Les images de chaque variante du produit',
+        required: false,
+        type: FeatureType.ICON,
+        default_value: null,
+        icon: [],
+        is_default:true,
+      }, { client: trx })
+
+      const newValue = await Value.create({
+        id: value_id,
+        feature_id,
+        views,
+        icon: ( (!icon || icon.length ==0 )? views[0] && [views[0]] : icon)||[],
+      }, { client: trx })
+
+      // Commit transaction
+      await trx.commit()
+
+      return response.created({ ...product.toJSON(), features: [{ ...feature.toJSON(), values: [newValue.toJSON()] }] })
     } catch (error) {
+      await trx.rollback()
       console.error('Error in create_product:', error)
-
-      await deleteFiles(value_id)
-
-      return response.internalServerError({
-        message: 'Failed to create product',
-        error: error.message,
-      })
+      return response.internalServerError({ message: 'Failed to create product', error: error.message })
     }
   }
+
 
 
   private getPaginationParams(page: string = '1', limit: string = '20'): { pageNum: number; limitNum: number } {
@@ -141,33 +120,44 @@ export default class ProductsController {
 
   private applySearch(query: any, search?: string) {
     if (search) {
-      const searchTerm = `%${search.toLowerCase()}%`
+      const searchTerm = `%${search.toLowerCase().split(' ').join('%')}%`
       query.where((q: any) => {
-        q.whereRaw('LOWER(products.name) LIKE ?', [searchTerm])
-          .orWhereRaw('LOWER(products.description) LIKE ?', [searchTerm])
+        q.whereILike('products.name', searchTerm)
+          .orWhereILike('products.description', searchTerm)
       })
     }
     return query
   }
 
-  private applyFilters(query: ModelQueryBuilderContract<typeof Product>, filters: Record<string, string[]>) {
-    Object.entries(filters).forEach(([featureId, values]) => {
+  private applyFilters(query: ModelQueryBuilderContract<typeof Product>, filters: Record<string, {
+    text: string;
+    key: string | null;
+  }[]>) {
+    Object.entries(filters).forEach(([featureId, filterValues]) => {
       query.whereHas('features', (featureQuery: ModelQueryBuilderContract<typeof Feature>) => {
-        featureQuery
-          .where('id', featureId)
-          .whereHas('values', (valueQuery) => {
-            valueQuery.whereIn('text', values)
-          })
-      })
-    })
-    return query
+        featureQuery.where('id', featureId).whereHas('values', (valueQuery) => {
+          valueQuery.where((subQuery) => {
+            filterValues.forEach((filterValue) => {
+              subQuery.orWhere((clause) => {
+                clause.where('text', filterValue.text);
+                if (filterValue.key !== null) {
+                  clause.where('key', filterValue.key);
+                } else {
+                  clause.whereNull('key');
+                }
+              });
+            });
+          });
+        });
+      });
+    });
+    return query;
   }
 
   public async get_products({ request, response, auth }: HttpContext) {
     // await auth.authenticate();
     const {
       product_id,
-      store_id,
       search,
       order_by,
       categories_id,
@@ -175,8 +165,12 @@ export default class ProductsController {
       slug_product,
       filters = {},
       page,
-      limit
+      limit,
+      min_price,
+      max_price,
+      with_feature,
     } = request.qs()
+
 
     const { pageNum, limitNum } = this.getPaginationParams(page, limit)
 
@@ -184,18 +178,20 @@ export default class ProductsController {
       let products: ModelPaginatorContract<Product>
       let category: Categorie | null = null
 
-      
-      let query = Product.query().select('*').preload('features', (featureQuery) => {
-        featureQuery
-          .orderBy('features.created_at', 'desc') // 🔥 Trier les features par date de création
-          .preload('values', (valueQuery) => {
-            valueQuery.orderBy('values.created_at', 'desc') // 🔥 Trier les values par date de création
-          });
-      })
+
+      let query = Product.query().select('*')
+      if(with_feature == true || with_feature == 'true'){
+        query = query.preload('features', (featureQuery) => {
+          featureQuery
+            .orderBy('features.created_at', 'asc') // 🔥 Trier les features par date de création
+            .preload('values', (valueQuery) => {
+              valueQuery.orderBy('values.created_at', 'asc') // 🔥 Trier les values par date de création
+            });
+        })
+      }
 
       if (slug_cat) {
         const categoryIds = await Categorie.get_all_category_ids_by_slug(slug_cat)
-
         query = query.whereRaw('"categories_id"::jsonb \\?| ?', [categoryIds]);
         category = await Categorie.query()
           .where('slug', slug_cat)
@@ -204,13 +200,47 @@ export default class ProductsController {
         // console.log("🚀 ~ ProductsController ~ get_products ~ category:", category)
       }
 
-      if (store_id) query = query.where('store_id', store_id)
       if (slug_product) query = query.where('slug', slug_product)
       if (product_id) query = query.where('id', product_id)
-      if (categories_id) query = query.whereIn('categories_id', categories_id)
+      if (categories_id) {
+        let c: string[] = [];
+        if (typeof categories_id == 'string') {
+          try {
+            c = JSON.parse(categories_id);
 
-      query = this.applyFilters(query, filters)
+            if (!Array.isArray(c) || !c.every((id) => typeof id === 'string')) {
+              return response.badRequest({ message: 'categories_id doit être un tableau de UUIDs valides' });
+            }
+          } catch (error) {
+            return response.badRequest({ message: 'Format JSON invalide pour categories_id' });
+          }
+        } else {
+          c = categories_id
+        }
 
+        if (c.length > 0) {
+          query = query.whereRaw('"categories_id"::jsonb \\?| ?', [c]);
+        }
+      }
+      if (min_price || max_price) {
+        query = query.whereBetween('price', [
+          min_price ?? 0, // Si `min_price` est null, on met 0 par défaut
+          max_price ?? 1_000_000_000, // Si `max_price` est null, on met un max
+        ]);
+      }
+      
+      if (filters) {
+        const filtersTransformed: Record<string, { text: string; key: string | null }[]> = {};
+        Object.entries(filters).forEach(([featureId, values]) => {
+          filtersTransformed[featureId] = Object.values(values as Record<string, { text: string; key: string | null }>).map(
+            (val) => ({
+              text: val.text,
+              key: val.key === 'null' ? null : val.key,
+            })
+          );
+        });
+        query = this.applyFilters(query, filtersTransformed)
+      }
       query = this.applySearch(query, search)
 
       if (order_by) query = applyOrderBy(query, order_by, Product.table)
@@ -228,7 +258,7 @@ export default class ProductsController {
   }
   async update_product({ request, response }: HttpContext) {
     try {
-      const {
+      let {
         product_id,
         name,
         description,
@@ -238,10 +268,13 @@ export default class ProductsController {
         currency,
       } = request.body()
 
+      console.log({ ['update_product']: request.body() });
+
       if (!product_id) {
         return response.badRequest({ message: 'product_id is required' })
       }
       const product = await Product.findOrFail(product_id)
+
 
       let parsedCategoriesId: string[] | null = null
       if (categories_id !== undefined) {
@@ -274,14 +307,22 @@ export default class ProductsController {
         }
         updates.name = name.replace(/\s+/g, ' ').substring(0, 56);
       }
-      if (description !== undefined) updates.description = description?.replace(/\s+/g, ' ').substring(0, 1024) || null
-      if (parsedCategoriesId !== undefined) updates.categories_id = parsedCategoriesId!
+      if (description !== undefined) updates.description = description.trim().substring(0, 1024) || null
+      if (parsedCategoriesId !== undefined) updates.categories_id = parsedCategoriesId || []
       if (barred_price !== undefined) {
-        const barredPriceNum = Number(barred_price)
-        if (isNaN(barredPriceNum) || barredPriceNum < 0) {
-          return response.badRequest({ message: 'barred_price must be a positive number' })
+        if (barred_price == '' || barred_price == 'NaN') {
+          console.log('################  $$   barred_price   ##################');
+          
+          updates.barred_price = null
+        } else {
+          console.log('################  222  barred_price   ##################');
+          const barredPriceNum = Number(barred_price)
+          if (isNaN(barredPriceNum) || barredPriceNum < 0) {
+            return response.badRequest({ message: 'barred_price must be a positive number' })
+          }
+          updates.barred_price = barredPriceNum
         }
-        updates.barred_price = barredPriceNum
+
       }
       if (price !== undefined) {
         const priceNum = Number(price)
@@ -290,21 +331,25 @@ export default class ProductsController {
         }
         updates.price = priceNum
       }
-      else updates.price = 0
 
       if (currency !== undefined) {
-        if (typeof currency !== 'string' || !['CFA', 'USD', 'EUR'].includes(currency)) {
+        if (typeof currency !== 'string' || ![CURRENCY.FCFA, 'USD', 'EUR'].includes(currency)) {
           return response.badRequest({ message: 'currency must be  CFA, USD, EUR' })
         }
         updates.currency = currency
-      } else {
-        //TODO add store.currency si le curency est undefined
       }
+
+      console.log(updates);
 
       product.merge(updates)
       await product.save()
 
-      return response.ok(product)
+      // const features = await Feature.query().preload('values').where('product_id', product.id);
+      // const r = {...(product.$attributes),features:features.map(f=>f.toJSON())}
+      // console.log(r);
+      // return response.ok(r)
+
+      return response.ok(product.$attributes)
     } catch (error) {
       if (error.name === 'ModelNotFoundException') {
         return response.notFound({ message: `Product with ID ${request.input('product_id')} not found` })
@@ -319,22 +364,23 @@ export default class ProductsController {
 
   async delete_product({ request, response }: HttpContext) {
     const { id } = request.params()
-
+    const trx = await db.transaction();
     try {
-      const product = await Product.find(id)
+      const product = await Product.find(id, { client: trx })
       if (!product) {
-        return response.notFound({ message: 'Product not found' })
+        throw new Error('Product not found')
       }
+      const features = await Feature.query({ client: trx }).preload('values').where('product_id', product.id);
 
-      await product.delete()
-
+      await Promise.allSettled(features?.map(value => FeaturesController._delete_feature(value.id, trx)));
+      await product.useTransaction(trx).delete();
+      trx.commit();
       return response.ok({ message: 'Product deleted successfully' })
     } catch (error) {
+      trx.rollback()
       console.error('Error in delete_product:', error)
       return response.internalServerError({ message: 'Product not deleted', error: error.message })
     }
   }
-
-  
 
 }

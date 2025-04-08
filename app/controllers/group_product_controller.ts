@@ -1,12 +1,12 @@
-import type { HttpContext } from '@adonisjs/core/http'
-import GroupProduct from '#models/group_product'
-import { v4 } from 'uuid'
-import { applyOrderBy } from './Utils/query.js'
-import db from '@adonisjs/lucid/services/db'
-import Feature from '#models/feature'
-import Value from '#models/value'
+// import type { HttpContext } from '@adonisjs/core/http'
+// import GroupProduct from '#models/group_product'
+// import { v4 } from 'uuid'
+// import { applyOrderBy } from './Utils/query.js'
+// import db from '@adonisjs/lucid/services/db'
+// import Feature from '#models/feature'
+// import Value from '#models/value'
 
-export default class GroupProductController {
+// export default class GroupProductController {
 
   /*
   bind:{
@@ -306,4 +306,4 @@ export default class GroupProductController {
   // }
 
 
-}
+// }

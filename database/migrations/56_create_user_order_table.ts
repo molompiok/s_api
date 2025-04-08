@@ -1,19 +1,18 @@
-import { OrderStatus, PaymentMethod, PaymentStatus } from '#models/user_order'
+import { CURRENCY, OrderStatus, PaymentMethod, PaymentStatus } from '#models/user_order'
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'user_commands'
+  protected tableName = 'user_orders'
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
-      table.uuid('store_id').notNullable()
       table.uuid('user_id').notNullable().references('id').inTable('users')
       table.string('reference').notNullable()
       table.enu('status', Object.values(OrderStatus)).notNullable()
       table.enu('payment_status', Object.values(PaymentStatus)).notNullable()
       table.enu('payment_method', Object.values(PaymentMethod)).notNullable()
-      table.string('currency').defaultTo('CFA')
+      table.string('currency').defaultTo(CURRENCY.FCFA)
       table.integer('total_price').nullable()
       table.integer('delivery_price').nullable() 
       table.integer('return_delivery_price').nullable() 
@@ -35,7 +34,8 @@ export default class extends BaseSchema {
       table.string('pickup_address_name').nullable()
       table.string('delivery_address_name').nullable()
 
-
+      table.jsonb('events_status').defaultTo('[]')
+      table.integer('items_count').defaultTo(0).notNullable()
 
       table.timestamps(true,true) 
     })

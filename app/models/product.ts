@@ -9,11 +9,15 @@ export default class Product extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
 
-  @column()
-  declare store_id: string
-
   @column({
-    prepare: (value) => JSON.stringify(value),
+    prepare: (value) => {
+      console.log({value});
+      
+      return JSON.stringify(value);
+    },
+    consume:(value) => {
+      return Array.isArray(value)? value : []
+    }
   })
   declare categories_id: string[]
 
@@ -23,17 +27,33 @@ export default class Product extends BaseModel {
   @column()
   declare name: string
 
-  @column()
+
+  @column({
+    prepare: (value) =>{
+      const v = value.replaceAll("\n", "§");
+      return v
+    },
+    consume:(value) => {
+      const v = value.replaceAll("§", "\n");      
+      return v
+    }
+  })
   declare description: string
 
   @column()
   declare price: number
 
   @column()
-  declare barred_price: number
+  declare barred_price: number | null
 
   @column()
   declare currency: string
+
+  @column()
+  declare comment_count :number 
+  
+  @column()
+  declare rating: number
 
   @column()
   declare slug: string

@@ -13,9 +13,6 @@ export default class Favorite extends BaseModel {
   declare label: string
 
   @column()
-  declare store_id: string
-
-  @column()
   declare product_id: string
 
   @column.dateTime({ autoCreate: true })

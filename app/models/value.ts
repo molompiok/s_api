@@ -15,8 +15,10 @@ export default class Value extends BaseModel {
   })
   declare views: string[]
   
-  @column()
-  declare icon: string
+  @column({
+    prepare: (value) => JSON.stringify(value),
+  })
+  declare icon: string[]
 
 
   @column()

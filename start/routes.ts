@@ -10,22 +10,29 @@ import AuthController from '#controllers/auth_controller'
 import CartsController from '#controllers/carts_controller'
 import CategoriesController from '#controllers/categories_controller'
 import CommentsController from '#controllers/comments_controller'
+import DetailsController from '#controllers/details_controller'
 import FavoritesController from '#controllers/favorites_controller'
 import FeaturesController from '#controllers/features_controller'
-import GroupProductController from '#controllers/group_product_controller'
+import GlobaleServicesController from '#controllers/globale_services_controller'
 import ProductsController from '#controllers/products_controller'
 import RolesController from '#controllers/roles_controller'
+import StatisticsController from '#controllers/stats_controller'
 import UserAddressesController from '#controllers/user_addresses_controller'
 import UserOrdersController from '#controllers/user_order_controller'
 import UserPhonesController from '#controllers/user_phones_controller'
 import UsersController from '#controllers/users_controller'
 import ValuesController from '#controllers/values_controller'
-import Feature from '#models/feature'
-import { TestMessages, TestValidator, UpdateFeaturesValuesMessage, UpdateFeaturesValuesValidator } from '#validators/FeaturesValidator'
+import VisitesController from '#controllers/visites_controller'
+import { TestMessages, TestValidator} from '#validators/FeaturesValidator'
 
 import router from '@adonisjs/core/services/router'
-import db from '@adonisjs/lucid/services/db'
+import transmit from '@adonisjs/transmit/services/main'
 import { env } from 'process'
+
+
+transmit.registerRoutes()
+
+
 
 // Auth
 router.post('/register', [AuthController, 'register_mdp'])
@@ -49,13 +56,13 @@ router.get('/get_users', [UsersController, 'get_users'])
 
 // Cart
 router.post('/update_cart', [CartsController, 'update_cart'])
-router.delete('/remove_from_cart', [CartsController, 'remove_from_cart'])
 router.get('/view_cart', [CartsController, 'view_cart'])
 router.post('/merge_cart_on_login', [CartsController, 'merge_cart_on_login'])
 
 
 //Category
 router.post('/create_category', [CategoriesController, 'create_category'])
+router.get('/get_sub_categories', [CategoriesController, 'get_sub_categories'])
 router.get('/get_categories', [CategoriesController, 'get_categories'])
 router.get('/get_filters', [CategoriesController, 'get_filters'])
 router.put('/update_category', [CategoriesController, 'update_category'])
@@ -71,8 +78,9 @@ router.delete('/delete_category/:id', [CategoriesController, 'delete_category'])
 //CommmentForProduct
 router.post('/create_comment', [CommentsController, 'create_comment'])
 router.get('/get_comments', [CommentsController, 'get_comments'])
+router.get('/get_comment', [CommentsController, 'get_comment'])
 router.put('/update_comment', [CommentsController, 'update_comment'])
-router.delete('/delete/:id', [CommentsController, 'delete'])
+router.delete('/delete_comment/:id', [CommentsController, 'delete_comment'])
 
 //Favorites
 router.get('/get_favorites', [FavoritesController, 'get_favorites'])
@@ -84,8 +92,8 @@ router.delete('/delete_favorite/:id', [FavoritesController, 'delete_favorite'])
 router.get('/get_features', [FeaturesController, 'get_features'])
 router.get('/get_features_with_values', [FeaturesController, 'get_features_with_values'])
 router.post('/create_feature', [FeaturesController, 'create_feature'])
-router.put('/update_feature', [FeaturesController, 'update_feature'])
-router.post('/muptiple_update_features_values', [FeaturesController, 'muptiple_update_features_values'])
+router.put('/update_feature', [FeaturesController, 'update_feature']) 
+router.post('/muptiple_update_features_values', [FeaturesController, 'multiple_update_features_values'])
 router.delete('/delete_feature/:id', [FeaturesController, 'delete_feature'])
 
 //Product
@@ -126,18 +134,38 @@ router.post('/create_value', [ValuesController, 'create_value'])
 router.put('/update_value', [ValuesController, 'update_value'])
 router.delete('/delete_value/:id', [ValuesController, 'delete_value'])
 
-//group_product
-router.post('/create_group', [GroupProductController, 'create_group']) 
-router.put('/update_group', [GroupProductController, 'update_group']) 
-router.get('/get_group_products', [GroupProductController, 'get_group_product']) 
-router.delete('/delete_group/:id', [GroupProductController, 'delete_group']) 
+//values_feature
+router.post('/create_detail', [DetailsController, 'create_detail'])
+router.put('/update_detail', [DetailsController, 'update_detail'])
+router.get('/get_details', [DetailsController, 'get_details'])
+router.delete('/delete_detail/:id', [DetailsController, 'delete_detail'])
 
-router.get('/get_group_by_feature', [GroupProductController, 'get_group_by_feature'])
+//GlobaleServices
+router.get('/global_search', [GlobaleServicesController, 'global_search'])                
+router.post('/export_store', [GlobaleServicesController, 'export_store'])                
+router.post('/import_store', [GlobaleServicesController, 'import_store'])                
+
+//Visites
+router.post('/visite', [VisitesController, 'visite'])                
+router.get('/get_visites', [VisitesController, 'get_visites'])  
+
+//Stats
+router.get('/stats', [StatisticsController, 'index'])
+
+
 
 router.get('/',()=>{
-    return env
+  return env
 })
 
+router.get('/test_sse',()=>{
+  console.log('/test_sse');
+  
+    transmit.broadcast('test:sse',{
+      test: Date.now()
+    })
+    return {} 
+})
 
 router.get('/uploads/*',({request, response})=>{
 
@@ -158,4 +186,4 @@ router.post('/test-vine', async ({ request, response }) => {
       return response.badRequest({ message: 'Validation failed', errors: error.messages });
     }
   });
- 
+  

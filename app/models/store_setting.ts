@@ -10,9 +10,6 @@ export default class StoreSetting extends BaseModel {
   declare user_id: string
 
   @column()
-  declare store_id: string
-
-  @column()
   declare currency: string
 
   @column.dateTime({ autoCreate: true })

@@ -1,14 +1,13 @@
 import { DateTime } from 'luxon'
+import type { HttpContext } from '@adonisjs/core/http'
 import { column } from '@adonisjs/lucid/orm'
 import BaseModel from './base_model.js';
 import { OWNER_ID } from '#controllers/Utils/ctrlManager'
+import User from './user.js';
 
 export default class Role extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
-
-  @column()
-  declare store_id: string
 
   @column()
   declare user_id: string
@@ -58,7 +57,13 @@ export default class Role extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updated_at: DateTime
 
-  public static async isAuthorized(userId: string, permission: keyof Role): Promise<boolean> {
+  public static async  checkAuthorization(user: User, permission: keyof  TypeJsonRole, response:HttpContext['response']) {
+    if (!(await Role.isAuthorized(user.id, permission))) {
+      return response.unauthorized({ message: 'Unauthorized: not permitted' })
+    }
+  }
+
+  public static async isAuthorized(userId: string, permission: keyof TypeJsonRole): Promise<boolean> {
     console.log((userId === OWNER_ID) , userId , OWNER_ID);
     try {
       if (userId === OWNER_ID) {

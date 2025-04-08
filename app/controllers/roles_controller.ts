@@ -2,7 +2,7 @@ import Role from '#models/role'
 import User, { RoleType } from '#models/user'
 import type { HttpContext } from '@adonisjs/core/http'
 import { v4 } from 'uuid'
-import { OWNER_ID, STORE_ID } from './Utils/ctrlManager.js'
+import db from '@adonisjs/lucid/services/db'
 
 export default class RolesController {
 
@@ -11,32 +11,32 @@ export default class RolesController {
     const user = await auth.authenticate()
 
     const { user_id } = request.only(['user_id'])
-
+    const trx = await db.transaction()
     try {
-      if (!(await Role.isAuthorized(user.id, 'create_delete_collaborator'))) {
-        return response.unauthorized({ message: 'Unauthorized: not permitted' })
-      }
+      await Role.checkAuthorization(user, 'create_delete_collaborator', response)
 
-      const existUser = await User.find(user_id)
+      const existUser = await User.find(user_id, { client: trx })
       if (!existUser) {
+        await trx.rollback()
         return response.notFound({ message: 'User not found' })
       }
 
       const roleId = v4()
       existUser.merge({ role_id: roleId, role_type: RoleType.COLLABORATOR })
-      await existUser.save()
+      await existUser.useTransaction(trx).save()
 
       const role = await Role.create({
         id: roleId,
-        user_id,
-        store_id: STORE_ID,
+        user_id: user_id,
         chat_client: true,
         filter_client: true,
         filter_command: true,
-      })
+      }, { client: trx })
 
+      await trx.commit()
       return response.created(role)
     } catch (error) {
+      await trx.rollback()
       return response.internalServerError({ message: 'Internal server error', error: error.message })
     }
   }
@@ -87,27 +87,31 @@ export default class RolesController {
   public async remove_collaborator({ request, response, auth }: HttpContext) {
     const user = await auth.authenticate()
     const { id } = request.params()
-
+  
+    const trx = await db.transaction()
     try {
-      if (!(await Role.isAuthorized(user.id, 'create_delete_collaborator'))) {
-        return response.unauthorized({ message: 'Unauthorized: not permitted' })
+      await Role.checkAuthorization(user, 'create_delete_collaborator', response)
+  
+      const userToUpdate = await User.find(id, { client: trx })
+      if (!userToUpdate) {
+        await trx.rollback()
+        return response.notFound({ message: 'User not found' })
       }
-
-      const collaboratorRole = await Role.findBy('user_id', id)
+  
+      const collaboratorRole = await Role.findBy('user_id', id, { client: trx })
       if (!collaboratorRole) {
+        await trx.rollback()
         return response.notFound({ message: 'Role not found' })
       }
-
-      const userToUpdate = await User.find(id)
-      if (userToUpdate) {
-        userToUpdate.merge({ role_id: null, role_type: RoleType.CLIENT })
-        await userToUpdate.save()
-      }
-
-      await collaboratorRole.delete()
-
+  
+      userToUpdate.merge({ role_id: null, role_type: RoleType.CLIENT })
+      await userToUpdate.useTransaction(trx).save()
+      await collaboratorRole.useTransaction(trx).delete()
+  
+      await trx.commit()
       return response.ok({ isDeleted: true })
     } catch (error) {
+      await trx.rollback()
       return response.internalServerError({ message: 'Internal server error', error: error.message })
     }
   }

@@ -3,6 +3,7 @@ import { column, hasMany } from '@adonisjs/lucid/orm'
 import CartItem from './cart_item.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import BaseModel from './base_model.js';
+import { TransactionClientContract } from '@adonisjs/lucid/types/database';
 
 export default class Cart extends BaseModel {
   @column({ isPrimary: true })
@@ -27,10 +28,14 @@ export default class Cart extends BaseModel {
   })
   declare items: HasMany<typeof CartItem>
 
-  public getTotal() {
-    return this.items.reduce((sum, item) => {
-      const itemPrice = (item.group_product.additional_price || 0) + (item.group_product.product?.price || 0)
-      return sum + item.quantity * itemPrice
-    }, 0)
+   public async getTotal( _trx?: TransactionClientContract) {
+    let sum = 0;
+    for (const item of this.items) {
+      const product  = item.product
+      const option  = await CartItem.getBindOptionFrom(item.getBind(),product)
+      const itemPrice = (option?.additional_price || 0) + (product?.price || 0)
+      sum += item.quantity * itemPrice
+    }
+    return sum
   }
 }

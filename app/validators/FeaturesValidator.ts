@@ -1,18 +1,18 @@
 import vine from '@vinejs/vine'
-import { FeaturType } from '#models/feature'
+import { FeatureType } from '#models/feature'
 import { isValidArrayJSON, transformJSON } from './Utils/isValidArrayJSON.js'
 const Size = 12 * 1024 * 1024
 export const CreateFeatureValidator = vine.compile(
   vine.object({
     product_id: vine.string().uuid().trim(),
     name: vine.string().trim().minLength(1).maxLength(56),
-    type: vine.enum(Object.values(FeaturType)),
+    type: vine.enum(Object.values(FeatureType)),
     icon: vine.string()
       .use(isValidArrayJSON())
       .optional()
       .transform(transformJSON),
     default_value: vine.string().maxLength(52).optional(),
-    regex: vine.string().maxLength(1024).optional(),
+    regex_id: vine.string().maxLength(1024).optional(),
     index: vine.number().min(0).optional(),
     min: vine.number().optional(),
     max: vine.number().optional(),
@@ -24,6 +24,9 @@ export const CreateFeatureValidator = vine.compile(
   })
 )
 
+
+
+
 export const CreateFeatureMessage = {
   'product_id.required': 'Le champ  {{ field }} est obligatoire.',
   'product_id.uuid': 'Le champ  {{ field }} doit être un UUID valide.',
@@ -31,7 +34,7 @@ export const CreateFeatureMessage = {
   'name.minLength': 'Le champ  {{ field }} doit contenir au moins 1 caractère.',
   'name.maxLength': 'Le champ  {{ field }} ne peut pas dépasser 56 caractères.',
   'type.required': 'Le champ  {{ field }} est obligatoire.',
-  'type.enum': `Le champ {{ field }} doit être une valeur parmi : ${Object.values(FeaturType).join(', ')}`,
+  'type.enum': `Le champ {{ field }} doit être une valeur parmi : ${Object.values(FeatureType).join(', ')}`,
   // Ajoutez d'autres messages personnalisés ici si nécessaire
 }
 
@@ -39,7 +42,7 @@ export const UpdateFeatureValidator = vine.compile(
   vine.object({
     feature_id: vine.string().uuid().trim(),
     name: vine.string().trim().minLength(1).maxLength(56),
-    type: vine.enum(Object.values(FeaturType)).optional(),
+    type: vine.enum(Object.values(FeatureType)).optional(),
     icon: vine.string()
       .use(isValidArrayJSON())
       .optional()
@@ -64,7 +67,7 @@ export const UpdateFeatureMessage = {
   'name.minLength': 'Le champ  {{ field }} doit contenir au moins 1 caractère.',
   'name.maxLength': 'Le champ  {{ field }} ne peut pas dépasser 56 caractères.',
   'type.required': 'Le champ  {{ field }} est obligatoire.',
-  'type.enum': `Le champ type  {{ field }} être une valeur parmi : ${Object.values(FeaturType).join(', ')}`,
+  'type.enum': `Le champ type  {{ field }} être une valeur parmi : ${Object.values(FeatureType).join(', ')}`,
   // Ajoutez d'autres messages personnalisés ici si nécessaire
 }
 

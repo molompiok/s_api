@@ -7,45 +7,44 @@ export default class UserAddressesController {
     async create_user_address({ request, response , auth }: HttpContext) {
        const user = await auth.authenticate()
        const id = v4()
+       const payload = request.only(['name', 'longitude', 'latitude'])
+   
+       const trx = await db.transaction()
        try {
-        const { name, longitude, latitude } = request.only(['name', 'longitude', 'latitude'])
-
-       if(!user) return response.unauthorized({ message: 'Unauthorized' })
-
-       const user_address = await UserAddress.create({
-            id,
-            user_id: user.id,
-            name,
-            longitude,
-            latitude
-        })
-        return response.created(user_address)
+         const user_address = await UserAddress.create(
+           {
+             id,
+             user_id: user.id,
+             ...payload,
+           },
+           { client: trx }
+         )
+   
+         await trx.commit()
+         return response.created(user_address)
        } catch (error) {
-        console.error('Create user address error:', error)
-        return response.internalServerError({ message: 'Create failed', error: error.message })
+         await trx.rollback()
+         console.error('Create user address error:', error)
+         return response.internalServerError({ message: 'Create failed', error: error.message })
        }
-       
+     }
+    async get_user_address({ request, response, auth }: HttpContext) {
+    const user = await auth.authenticate()
+    const { id } = request.qs()
 
-       
+    try {
+      const query = UserAddress.query().where('user_id', user.id)
+
+      if (id) query.where('id', id)
+
+      const userAddresses = await query
+
+      return response.ok(userAddresses)
+    } catch (error) {
+      console.error('Get user address error:', error)
+      return response.internalServerError({ message: 'Get failed', error: error.message })
     }
-    async get_user_address({ request, response , auth }: HttpContext) {
-        const { id } = request.qs()
-        const user = await auth.authenticate()
-        try {
-        let query = db.from(UserAddress.table).select('*')
-
-        if(user.id) query.where('user_id', user.id)
-
-        if(id) query.where('id', id)
-
-        const userAddresses = await query
-
-        return response.ok(userAddresses)
-        } catch (error) {
-        console.error('Get user address error:', error)
-        return response.internalServerError({ message: 'Get failed', error: error.message })
-        }
-    }   
+  }
     
     async update_user_address({ request, response , auth }: HttpContext) {
         const user = await auth.authenticate()

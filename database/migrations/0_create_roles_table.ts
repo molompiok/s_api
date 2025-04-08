@@ -6,7 +6,6 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
-      table.uuid('store_id').notNullable()
       
       table.boolean('filter_client').defaultTo(false)
       table.boolean('ban_client').defaultTo(false)

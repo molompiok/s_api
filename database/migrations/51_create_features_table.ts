@@ -1,4 +1,4 @@
-import { FeaturType } from '#models/feature'
+import { FeatureType } from '#models/feature'
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
@@ -10,7 +10,7 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('product_id').notNullable().references('id').inTable('products').onDelete('CASCADE')
       table.string('name').notNullable()
-      table.enu('type', Object.values(FeaturType)).nullable()
+      table.enu('type', Object.values(FeatureType)).nullable()
       table.jsonb('icon').defaultTo('[]')
       table.boolean('required').defaultTo(false)
 
@@ -25,6 +25,7 @@ export default class extends BaseSchema {
       table.boolean('is_double').defaultTo(false)
 
       table.string('default_value').nullable()
+      table.boolean('is_default').nullable()
       
       table.timestamps(true, true)
 

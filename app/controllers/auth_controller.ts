@@ -2,7 +2,7 @@ import hash from '@adonisjs/core/services/hash';
 import User from '#models/user'
 import type { HttpContext } from '@adonisjs/core/http'
 import { v4 } from 'uuid';
-import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
+import { deleteFiles } from './Utils/media/DeleteFiles.js';
 import { GOOGLE_CLIENT_ID } from './Utils/ctrlManager.js';
 import { OAuth2Client } from 'google-auth-library';
 import UserAuthentification from '#models/user_authentification';
@@ -48,14 +48,14 @@ export default class AuthController {
         return response.unauthorized({ message: 'Token invalide' })
       }
 
-      const { email, name, sub } = payload
+      const { email, name, sub, picture } = payload
       let user = await User.findBy('email', email)
       if (!user) {
         user = await User.create({
           id : v4(),
           email,
           full_name: name,
-          photo: [],
+          photo: [picture],
           password: sub
         })
       }
@@ -86,6 +86,7 @@ export default class AuthController {
         full_name: vine.string().trim().minLength(3).maxLength(25).optional(),
         email: vine.string().trim().email(),
         password: vine.string().minLength(6),
+        photo:vine.string().optional()
       })
     )
 
@@ -119,7 +120,7 @@ export default class AuthController {
         id: v4(),
         full_name: payload.full_name,
         email: payload.email,
-        photo: [],
+        // photo: [payload.avatarUrl],
         password: payload.password, 
       })
 

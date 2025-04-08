@@ -7,9 +7,6 @@ export default class Inventory extends BaseModel {
   declare id: string
 
   @column()
-  declare store_id: string
-
-  @column()
   declare address_name: string
 
   @column()

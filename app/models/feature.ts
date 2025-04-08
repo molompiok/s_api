@@ -15,7 +15,7 @@ export default class Feature extends BaseModel {
   declare name: string
 
   @column()
-  declare type: FeaturType 
+  declare type: FeatureType 
 
   @column({
     prepare: (value) => JSON.stringify(value),
@@ -28,6 +28,9 @@ export default class Feature extends BaseModel {
   @column()
   declare default_value: string | null
 
+  @column()
+  declare is_default : boolean|null
+  
   @column()
   declare regex: string
     
@@ -63,7 +66,7 @@ export default class Feature extends BaseModel {
 }
 
 
-export enum FeaturType {
+export enum FeatureType {
 
   ICON_TEXT = 'icon_text',
   COLOR = 'color',

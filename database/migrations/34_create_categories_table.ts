@@ -7,11 +7,10 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().nullable()
       
-      table.uuid('store_id').notNullable()
       table.uuid('parent_category_id')
-      table.string('name')
+      table.string('name',52).notNullable()
       table.string('slug').notNullable().unique()
-      table.string('description')
+      table.string('description',1024).nullable()
       table.jsonb('view').defaultTo('[]')
       table.jsonb('icon').defaultTo('[]')
       

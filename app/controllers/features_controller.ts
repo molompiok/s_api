@@ -1,20 +1,19 @@
-import Feature, { FeaturType } from '#models/feature';
+import Feature, { FeatureType } from '#models/feature';
 import type { HttpContext } from '@adonisjs/core/http'
 import { v4 } from 'uuid'
-import { createFiles } from './Utils/FileManager/CreateFiles.js';
-import { EXT_SUPPORTED, MEGA_OCTET } from './Utils/ctrlManager.js';
+import { createFiles } from './Utils/media/CreateFiles.js';
+import { EXT_IMAGE, MEGA_OCTET } from './Utils/ctrlManager.js';
 import Product from '#models/product';
-import { updateFiles } from './Utils/FileManager/UpdateFiles.js';
-import { deleteFiles } from './Utils/FileManager/DeleteFiles.js';
+import { updateFiles } from './Utils/media/UpdateFiles.js';
+import { deleteFiles } from './Utils/media/DeleteFiles.js';
 import db from '@adonisjs/lucid/services/db';
-import { CreateFeatureMessage, CreateFeatureValidator, DeleteFeatureMessage, DeleteFeatureValidator, GetFeaturesMessage, GetFeaturesValidator, GetFeaturesWithValuesMessage, GetFeaturesWithValuesValidator, UpdateFeatureMessage, UpdateFeaturesValuesMessage, UpdateFeaturesValuesValidator, UpdateFeatureValidator } from '#validators/FeaturesValidator';
 import ValuesController from './values_controller.js';
 
 export interface ValueInterface {
     id?: string;
     feature_id?: string;
-    views?: string | null;
-    icon?: string | null;
+    views?: string[] | null;
+    icon?: string[] | null;
     text?: string | null;
     key?: string | null;
     stock?: number | null
@@ -29,7 +28,7 @@ export interface FeatureInterface {
     id?: string,
     product_id?: string,
     name?: string,
-    type?: string,
+    type?: FeatureType,
     icon?: string,
     required?: boolean,
     regex?: string,
@@ -53,20 +52,20 @@ export default class FeaturesController {
     private async _create_feature(request: HttpContext['request'], product_id: string, feature: Partial<FeatureInterface> & { id: string }, trx: any) {
         console.log('🔄 createFiles avant ', trx.isCompleted);
 
-        const icon = await createFiles({
-            request,
-            column_name: "icon",
-            table_id: feature.id,
-            table_name: Feature.table,
-            options: {
-                throwError: false,
-                compress: 'img',
-                min: 0,
-                max: 1,
-                extname: EXT_SUPPORTED,
-                maxSize: 1 * MEGA_OCTET,
-            },
-        });
+        // const icon = await createFiles({
+        //     request,
+        //     column_name: "icon",
+        //     table_id: feature.id,
+        //     table_name: Feature.table,
+        //     options: {
+        //         throwError: false,
+        //         compress: 'img',
+        //         min: 0,
+        //         max: 1,
+        //         extname: EXT_IMAGE,
+        //         maxSize: 1 * MEGA_OCTET,
+        //     },
+        // });
         console.log('🔄 createFiles pres ', trx.isCompleted);
 
         feature.min_size = parseInt(feature.min_size?.toString() || '0');
@@ -79,7 +78,7 @@ export default class FeaturesController {
             product_id: product_id,
             name: feature.name?.replace(/\s+/g, ' ').substring(0, 56),
             default_value: feature.default_value?.substring(0, 52),
-            type: Object.values(FeaturType).includes((feature as any).type) ? feature.type as any : FeaturType.TEXT,
+            type: Object.values(FeatureType).includes((feature as any).type) ? feature.type as any : FeatureType.TEXT,
             // icon,
             regex: feature.regex?.substring(0, 1024),
             min_size: isNaN(feature.min_size) ? 0 : feature.min_size,
@@ -138,7 +137,7 @@ export default class FeaturesController {
         console.log("🚀 ~ FeaturesController ~ get_features ~ payload:", payload)
         try {
             let query = db.from(Feature.table).select('*');
-            if (payload.feature_id) query.where('feature_id', payload.feature_id);
+            if (payload.feature_id) query.where('id', payload.feature_id);
             if (payload.product_id) query.where('product_id', payload.product_id);
             const valuesPaginate = await query.paginate(1, 50);
             return response.ok({ list: valuesPaginate.all(), meta: valuesPaginate.getMeta() });
@@ -147,32 +146,35 @@ export default class FeaturesController {
         }
     }
 
-    async get_features_with_values({ request, response }: HttpContext) {
-        // const payload = await GetFeaturesWithValuesValidator.validate({
-        //     data: request.qs(),
-        //     messages: GetFeaturesWithValuesMessage
-        // });
-        const payload = request.qs();
-        console.log("🚀 ~ FeaturesController ~ get_features_with_values ~ payload:", payload)
-        try {
-            const query = Feature.query().preload('values');
-            if (payload.feature_id) query.where('id', payload.feature_id);
-            if (payload.product_id) query.where('product_id', payload.product_id);
+ async get_features_with_values({ request, response }: HttpContext) {
+    try {
+        const { feature_id, product_id } = request.qs();
 
-            const features = await query;
-            if (!features || features.length === 0) {
-                return response.notFound({ message: 'Feature not found' });
-            }
-            return response.ok(features);
-        } catch (error) {
-            return response.internalServerError({
-                message: 'Server error',
-                error: error.message,
-            });
+        const query = Feature.query().preload('values');
+
+        if (feature_id) query.where('id', feature_id);
+        if (product_id) query.where('product_id', product_id);
+
+        const features = await query;
+
+        if (!features.length) {
+            return response.notFound({ message: 'Feature not found' });
         }
-    }
 
-    async _update_feature(response: HttpContext['response'], request: HttpContext['request'], feature_id: string, feature: Partial<FeatureInterface>, trx: any) {
+        return response.ok(features);
+    } catch (error) {
+        return response.internalServerError({
+            message: 'Server error',
+            error: error.message,
+        });
+    }
+}
+    async _update_feature(
+        request: HttpContext['request'],
+        feature_id: string,
+        feature: Partial<FeatureInterface>,
+        trx: any
+      ) {
         const f = await Feature.findOrFail(feature_id, { client: trx });
 
         feature.min_size = parseInt(feature.min_size?.toString() || '0');
@@ -180,33 +182,33 @@ export default class FeaturesController {
         feature.max = parseInt(feature.max?.toString() || '0');
         feature.min = parseInt(feature.min?.toString() || '0');
         feature.index = parseInt(feature.index?.toString() || '1');
+ 
 
-
-        // let urls = [];
-        // for (const i of ['icon'] as const) {
-        //     if (!feature[i]) continue;
-        //     urls = await updateFiles({
-        //         request,
-        //         table_name: Feature.table,
-        //         table_id: feature_id,
-        //         column_name: i,
-        //         lastUrls: f[i],
-        //         newPseudoUrls: feature[i],
-        //         options: {
-        //             throwError: true,
-        //             min: 1,
-        //             max: 1,
-        //             compress: 'img',
-        //             extname: EXT_SUPPORTED,
-        //             maxSize: 12 * MEGA_OCTET,
-        //         },
-        //     });
-        //     f[i] = urls;
-        // }
+        let urls = [];
+        for (const i of ['icon'] as const) {
+            if (!feature[i]) continue;
+            urls = await updateFiles({
+                request,
+                table_name: Feature.table,
+                table_id: feature_id,
+                column_name: i,
+                lastUrls: f[i],
+                newPseudoUrls: feature[i],
+                options: {
+                    throwError: true,
+                    min: 0,
+                    max: 1,
+                    compress: 'img',
+                    extname: EXT_IMAGE,
+                    maxSize: 12 * MEGA_OCTET,
+                },
+            });
+            f[i] = urls;
+        }
         f.useTransaction(trx).merge({
             name: feature.name?.replace(/\s+/g, ' ').substring(0, 56),
             default_value: feature.default_value?.substring(0, 52),
-            type: Object.values(FeaturType).includes((feature as any).type) ? feature.type as any : FeaturType.TEXT,
+            type: Object.values(FeatureType).includes((feature as any).type) ? feature.type as any : FeatureType.TEXT,
             regex: feature.regex?.substring(0, 1024),
             min_size: isNaN(feature.min_size) ? 0 : feature.min_size,
             max_size: isNaN(feature.max_size) ? 0 : feature.min_size,
@@ -218,202 +220,135 @@ export default class FeaturesController {
             is_double: !!feature.is_double,
         });
         await f.useTransaction(trx).save();
-        console.log('🔄 _update_feature save =>>', f.name, f.id);
 
         return f;
     }
 
     async update_feature({ request, response }: HttpContext) {
-        // const payload = await UpdateFeatureValidator.validate({
-        //     data: request.body(),
-        //     messages: UpdateFeatureMessage
-        // });
-
         const payload = request.body();
         const trx = await db.transaction();
         if (!payload.feature_id) return response.badRequest({ message: 'feature_id is required' });
         try {
 
-            const feature = await this._update_feature(response, request, payload.feature_id, payload, trx);
+            const feature = await this._update_feature( request, payload.feature_id, payload, trx);
 
             await trx.commit();
             return response.ok(feature);
         } catch (error) {
-            // await deleteFiles(payload.feature_id);
             await trx.rollback();
             return response.internalServerError({ message: 'Bad config or server error', error: error.message });
         }
     }
 
-    async muptiple_update_features_values({ request, response, auth }: HttpContext) {
-        // await auth.authenticate();
-        const payload = request.body() as { multiple_update_features?: string, product_id?: string };
-
-        // const payload = await UpdateFeaturesValuesValidator.validate({
-        //     data: request.body(),
-        //     messages: UpdateFeaturesValuesMessage
-        // });
-
-        console.log('🔄 muptiple_update_features_values', payload);
-
-        if (!payload.product_id || typeof payload.product_id !== 'string') {
-            return response.badRequest({ message: 'product_id is required and must be a string' });
+    async multiple_update_features_values({ request, response }: HttpContext) {
+        const { multiple_update_features, product_id } = request.body();
+        
+        if (!product_id || !multiple_update_features) {
+            return response.badRequest({ message: 'Missing required fields' });
         }
-        if (!payload.multiple_update_features || typeof payload.multiple_update_features !== 'string') {
-            return response.badRequest({ message: 'multiple_update_features is required and must be a string' });
-        }
+    
         const trx = await db.transaction();
         try {
-
-            type UpdateType = {
-                values: Record<string, {
-                    create_values: Partial<ValueInterface>[],
-                    update_values: Partial<ValueInterface>[],
-                    delete_values_id: string[],
-                }>,
-                create_features: FeatureInterface[],
-                update_features: FeatureInterface[],
-                delete_features_id: string[],
-            }
-
-            let features = JSON.parse(payload.multiple_update_features) as UpdateType
-            // const values = JSON.parse(payload.values) as UpdateValue
-            console.log(features);
-
-            const product = await Product.findOrFail(payload.product_id, { client: trx });
-
-            const localFeatures = await Feature.query({ client: trx }).preload('values').where('product_id', payload.product_id);
-
-            for (const feature of features.update_features) {
+            const Allfeatures = JSON.parse(multiple_update_features) as {
+                values: Record<string, { create_values: any[]; update_values: any[]; delete_values_id: string[] }>;
+                create_features: FeatureInterface[];
+                update_features: FeatureInterface[];
+                delete_features_id: string[];
+            };
+            console.log(request.allFiles());
+            
+            
+            const product = await Product.findOrFail(product_id, { client: trx });
+    
+            // Fetch all features in a single query
+            const localFeatures = await Feature.query({ client: trx }).preload('values').where('product_id', product_id);
+    
+            // Bulk update features
+            for (const feature of Allfeatures.update_features||[]) {
                 if (!feature.id) continue;
-                if (feature.id == product.default_feature_id) continue;
-                const f = localFeatures.find(f => f.id === feature.id);
-                if (!f) {
-                    console.log('🔄 le feature  not found ', { feature });
-                    continue
-                }
-
-                console.log('🔄 update Fearture, Name', feature.name, feature.id);
-                try {
-                    await this._update_feature(response, request, feature.id, feature, trx);
-                } catch (error) {
-                    console.log('❌ update Feature', error);
-                    // throw error;
-                }
+                const existingFeature = localFeatures.find(f => f.id === feature.id);
+                if (!existingFeature) continue;
+                await this._update_feature( request, feature.id, feature, trx);
             }
-            for (const feature of features.create_features) {
-                console.log('🔄 Create Fearture, Name', feature.name, feature.id);
+    
+            // Bulk create features and their values
+            for (const feature of Allfeatures.create_features||[]) {
+                feature.product_id = product_id;
                 const id = v4();
-                feature.id = id;
-                const values = feature.values;
-                feature.product_id = payload.product_id
-                delete feature.values;
-                try {
-                    await this._create_feature(request, product.id, feature as any, trx);
-                    if (!values) continue;
-
-                    for (let value of values) {
-                        const _id = v4();
-                        try {
-                            value.feature_id = id;
-                            await ValuesController._create_value(request, value, _id, trx)
-                        } catch (error) {
-                            console.log('❌ create Value', error);
-                            await deleteFiles(_id);
-                            // throw error;
-                        }
+                const createdFeature = await this._create_feature(request, product.id, {...feature, id}, trx);
+    
+                if (feature.values) {
+                    for (const value of feature.values) {
+                        console.log({createdFeature});
+                        
+                        await ValuesController._create_value(request, { ...value, feature_id: id }, v4(), trx);
                     }
-                } catch (error) {
-                    console.log('❌ Create Feature', error);
-                    await deleteFiles(id);
-                    // throw error;
                 }
             }
-            for (const feature_id of features.delete_features_id) {
-                if (feature_id == product.default_feature_id) continue;
-                const f = localFeatures.find(f => f.id === feature_id);
-                if (!f) {
-                    console.log('🔄 le feature  not found ', { feature_id });
-                    continue
+    
+            // Bulk delete features and their values
+            for (const feature_id of Allfeatures.delete_features_id||[]) {
+                if (feature_id === product.default_feature_id) continue;
+                const feature = localFeatures.find(f => f.id === feature_id);
+                if (!feature) continue;
+    
+                // Delete feature
+                await FeaturesController._delete_feature(feature_id, trx);
+            }
+    
+            // Bulk update feature values
+            for (const [feature_id, { create_values, update_values, delete_values_id }] of Object.entries(Allfeatures.values)) {
+                for (const value of create_values||[]) {
+                    const id = v4()
+                    console.log({feature_id});
+                    
+                    console.log('1##############');
+                    await ValuesController._create_value(request, { ...value, feature_id ,id}, id, trx);
+                    console.log('2##############');
                 }
-                console.log('####### values dans la feautre a delete #######=>>>>>>>>>>', f.values);
-
-                for (let value of f.values || []) {
+                for (const value of update_values||[]) {
+                    console.log('update_values',value);
+                    
+                    await ValuesController._update_value(request, value.id || value.value_id, value, trx);
+                }
+                for (const value_id of delete_values_id||[]) {
                     try {
-                        console.log('🔄 Delete Value, Name', value.id);
-                        await ValuesController._delete_value(value.id, trx)
-
+                        await ValuesController._delete_value(value_id, trx);
                     } catch (error) {
-                        console.log('❌ Delete Value', error);
-                        // throw error;
+                        console.log(error.message);
                     }
-                }
-                console.log('🔄 Delete Fearture, Name', feature_id);
-                try {
-                    await this._delete_feature(feature_id, trx);
-                } catch (error) {
-                    console.log('❌ delete Feature', error);
-                    // throw error;
-                }
-
+                } 
             }
-            // UPDATE VALUES dans les feature deja existant
-            for (const key in features.values) {
-                try {
-                    const feature = await Feature.findOrFail(key, { client: trx });
-                    if (!feature) continue;
-                    if (feature.values) console.error('❌❌❌❌❌❌❌❌❌❌❌ feature.values', feature.values);
-                    const values = features.values[key];
-                    if (!values) continue;
-                    for (const value of values.create_values) {
-                        const _id = v4();
-                        value.feature_id = key;
-                        try {
-                            await ValuesController._create_value(request, value, _id, trx);
-                        } catch (error) {
-                            console.error('❌ create Value', error);
-                            // throw error;
-                        }
-                    }
-                    for (const value of values.update_values) {
-                        try {
-                            console.log('#########################',value);
-                            
-                            await ValuesController._update_value(request,value.id||(value as any).value_id, value, trx);
-                        } catch (error) {
-                            console.error('❌ update Value', error);
-                            // throw error;
-                        }
-                    }
-                    for (const value_id of values.delete_values_id) {
-                        try {
-                            await ValuesController._delete_value(value_id, trx);
-                        } catch (error) {
-                            console.error('❌ delete Value', error);
-                            // throw error;
-                        }
-                    }
-                } catch (error) {
-
-                }
-            }
-
+    
             await trx.commit();
-
-            const p = await Product.query().select('*').where('id', payload.product_id).preload('features', (featureQuery) => {
-                featureQuery.preload('values')
-            }).first();
-            return response.ok(p);
+            console.log('3##############');
+            const updatedProduct = await Product.query().select('*').preload('features', (featureQuery) => {
+                featureQuery
+                  .orderBy('features.created_at', 'asc') // 🔥 Trier les features par date de création
+                  .preload('values', (valueQuery) => {
+                    valueQuery.orderBy('values.created_at', 'asc') // 🔥 Trier les values par date de création
+                  });
+              })
+                .where('id', product_id)
+                .first();
+                
+            return response.ok(updatedProduct?.toObject());
         } catch (error) {
+            console.log(error);
+            
             await trx.rollback();
-            return response.internalServerError({ message: 'Bad config or server error', error: error.message });
+            return response.internalServerError({ message: 'Failed to update features', error: error.message });
         }
     }
+    
 
-
-    async _delete_feature(feature_id: string, trx: any) {
-        const feature = await Feature.findOrFail(feature_id, { client: trx });
-        // if (!feature) return response.notFound({ message: 'Feature not found' });
+    public static async _delete_feature(feature_id: string, trx: any) {
+        const feature = await Feature.query({client:trx}).preload('values').where('id', feature_id).first();
+        if (!feature) throw new Error('Feature not found');
+        
+        // Delete feature values first
+        await Promise.allSettled(feature.values?.map(value => ValuesController._delete_value(value.id, trx)));
+        
         await feature.useTransaction(trx).delete();
         await deleteFiles(feature_id);
     }
@@ -428,7 +363,7 @@ export default class FeaturesController {
 
         const trx = await db.transaction();
         try {
-            this._delete_feature(payload.feature_id, trx);
+            FeaturesController._delete_feature(payload.feature_id, trx);
             await trx.commit();
             return response.ok({ message: 'Feature deleted successfully' });
         } catch (error) {
@@ -437,11 +372,4 @@ export default class FeaturesController {
         }
     }
 
-     async get_group_bind_has({request, response}:HttpContext){
-
-        const {bind, product_id} = request.qs();
-
-        
-        
-    }
 }
