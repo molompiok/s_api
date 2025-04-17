@@ -32,7 +32,7 @@ import { env } from 'process'
 
 transmit.registerRoutes()
 
-
+import './testScal.js'
 
 // Auth
 router.post('/register', [AuthController, 'register_mdp'])
