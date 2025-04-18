@@ -23,16 +23,16 @@ import UserPhonesController from '#controllers/user_phones_controller'
 import UsersController from '#controllers/users_controller'
 import ValuesController from '#controllers/values_controller'
 import VisitesController from '#controllers/visites_controller'
-import { TestMessages, TestValidator} from '#validators/FeaturesValidator'
+import { TestMessages, TestValidator } from '#validators/FeaturesValidator'
 
 import router from '@adonisjs/core/services/router'
 import transmit from '@adonisjs/transmit/services/main'
 import { env } from 'process'
 
+import { startBullMQWoker } from './StartBullMQWoker.js'
 
 transmit.registerRoutes()
 
-import './testScal.js'
 
 // Auth
 router.post('/register', [AuthController, 'register_mdp'])
@@ -40,15 +40,15 @@ router.post('/login', [AuthController, 'login'])
 router.post('/logout', [AuthController, 'logout'])
 
 // router.post('/update_account', [AuthController, 'update'])
-router.delete("/delete_account",[AuthController, 'delete_account'])
- 
+router.delete("/delete_account", [AuthController, 'delete_account'])
+
 
 // Authentification Google
-router.post('/google_callback', [AuthController, 'google_auth']) 
+router.post('/google_callback', [AuthController, 'google_auth'])
 
 // Gestion de compte
-router.get('/me', [AuthController, 'me'])                
-router.put('/update_user', [AuthController, 'update_user'])          
+router.get('/me', [AuthController, 'me'])
+router.put('/update_user', [AuthController, 'update_user'])
 router.delete('/delete', [AuthController, 'delete_account'])
 
 // Users
@@ -66,7 +66,7 @@ router.get('/get_sub_categories', [CategoriesController, 'get_sub_categories'])
 router.get('/get_categories', [CategoriesController, 'get_categories'])
 router.get('/get_filters', [CategoriesController, 'get_filters'])
 router.put('/update_category', [CategoriesController, 'update_category'])
-router.delete('/delete_category/:id', [CategoriesController, 'delete_category'])  
+router.delete('/delete_category/:id', [CategoriesController, 'delete_category'])
 // router.get('/get_products_by_category', [CategoriesController, 'get_products_by_category'])  
 
 //User_command_items
@@ -85,14 +85,14 @@ router.delete('/delete_comment/:id', [CommentsController, 'delete_comment'])
 //Favorites
 router.get('/get_favorites', [FavoritesController, 'get_favorites'])
 router.post('/create_favorite', [FavoritesController, 'create_favorite'])
-router.put('/update_favorites',[FavoritesController, 'update_favorites'])
+router.put('/update_favorites', [FavoritesController, 'update_favorites'])
 router.delete('/delete_favorite/:id', [FavoritesController, 'delete_favorite'])
 
 //Feature
 router.get('/get_features', [FeaturesController, 'get_features'])
 router.get('/get_features_with_values', [FeaturesController, 'get_features_with_values'])
 router.post('/create_feature', [FeaturesController, 'create_feature'])
-router.put('/update_feature', [FeaturesController, 'update_feature']) 
+router.put('/update_feature', [FeaturesController, 'update_feature'])
 router.post('/muptiple_update_features_values', [FeaturesController, 'multiple_update_features_values'])
 router.delete('/delete_feature/:id', [FeaturesController, 'delete_feature'])
 
@@ -141,49 +141,51 @@ router.get('/get_details', [DetailsController, 'get_details'])
 router.delete('/delete_detail/:id', [DetailsController, 'delete_detail'])
 
 //GlobaleServices
-router.get('/global_search', [GlobaleServicesController, 'global_search'])                
-router.post('/export_store', [GlobaleServicesController, 'export_store'])                
-router.post('/import_store', [GlobaleServicesController, 'import_store'])                
+router.get('/global_search', [GlobaleServicesController, 'global_search'])
+router.post('/export_store', [GlobaleServicesController, 'export_store'])
+router.post('/import_store', [GlobaleServicesController, 'import_store'])
 
 //Visites
-router.post('/visite', [VisitesController, 'visite'])                
-router.get('/get_visites', [VisitesController, 'get_visites'])  
+router.post('/visite', [VisitesController, 'visite'])
+router.get('/get_visites', [VisitesController, 'get_visites'])
 
 //Stats
 router.get('/stats', [StatisticsController, 'index'])
 
+router.get('/debug/request-scale-up', '#controllers/debug_controller.requestScaleUp')
 
-
-router.get('/',()=>{
+router.get('/', () => {
   return env
 })
 
-router.get('/test_sse',()=>{
+router.get('/test_sse', () => {
   console.log('/test_sse');
-  
-    transmit.broadcast('test:sse',{
-      test: Date.now()
-    })
-    return {} 
+
+  transmit.broadcast('test:sse', {
+    test: Date.now()
+  })
+  return {}
 })
 
-router.get('/uploads/*',({request, response})=>{
+router.get('/uploads/*', ({ request, response }) => {
 
-    return response.download('.'+request.url())
+  return response.download('.' + request.url())
 })
 
 router.post('/test-vine', async ({ request, response }) => {
-    const rawBody = request.body();
-    console.log('Raw body:', rawBody);
-  
-    try {
-      const payload = await TestValidator.validate({
-        data: rawBody,
-        messages: TestMessages,
-      });
-      return response.ok({ message: 'Validation succeeded', payload });
-    } catch (error) {
-      return response.badRequest({ message: 'Validation failed', errors: error.messages });
-    }
-  });
-  
+  const rawBody = request.body();
+  console.log('Raw body:', rawBody);
+
+  try {
+    const payload = await TestValidator.validate({
+      data: rawBody,
+      messages: TestMessages,
+    });
+    return response.ok({ message: 'Validation succeeded', payload });
+  } catch (error) {
+    return response.badRequest({ message: 'Validation failed', errors: error.messages });
+  }
+});
+
+
+await startBullMQWoker()
