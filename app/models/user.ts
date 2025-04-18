@@ -35,11 +35,10 @@ export default class User extends compose(BaseModel, AuthFinder) {
     prepare: (value) => JSON.stringify(value),
   })
   declare photo: string[]
-
-  @column()
-  declare role_id: string
-
-
+  
+  @column.dateTime({ autoCreate: false, autoUpdate: false }) // Pas de gestion auto par Lucid
+  declare email_verified_at: DateTime | null
+  
   @column.dateTime({ autoCreate: true })
   declare created_at: DateTime
 

@@ -13,6 +13,8 @@ export default class extends BaseSchema {
       table.string('email', 254).notNullable().unique()
       table.string('password').notNullable()
       table.jsonb('photo').defaultTo('[]')
+      table.timestamp('email_verified_at', { useTz: true }).nullable().defaultTo(null)
+      table.index(['email_verified_at'], 'users_email_verified_at_index')//pour rechercher rapidement les utilisateurs non vérifiés
 
       table.timestamps(true) 
     })
