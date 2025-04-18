@@ -154,6 +154,29 @@ router.get('/stats', [StatisticsController, 'index'])
 
 router.get('/debug/request-scale-up', '#controllers/debug_controller.requestScaleUp')
 
+
+router.group(() => {
+  router.post('/login', [AuthController, 'login'])
+  router.post('/register', [AuthController, 'register_mdp'])
+  router.get('/verify-email', [AuthController, 'verifyEmail']) 
+  router.post('/resend-verification', [AuthController, 'resendVerification'])
+  
+  router.post('/logout', [AuthController, 'logout'])
+  router.get('/me', [AuthController, 'me'])
+  router.put('/me', [AuthController, 'update_user']) 
+  router.delete('/me', [AuthController, 'delete_account']) 
+
+  //TODO utiliser un middleware spécifique qui vérifie un secret partagé ou une IP
+  router.post('/_internal/auth/social-callback', [AuthController, 'handleSocialCallbackInternal'])
+
+}).prefix('/api/auth') 
+
+
+
+
+
+
+
 router.get('/', () => {
   return env
 })

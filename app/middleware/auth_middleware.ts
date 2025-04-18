@@ -2,24 +2,46 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import type { Authenticators } from '@adonisjs/auth/types'
 
-/**
- * Auth middleware is used authenticate HTTP requests and deny
- * access to unauthenticated users.
- */
 export default class AuthMiddleware {
-  /**
-   * The URL to redirect to, when authentication fails
-   */
-  redirectTo = '/login'
+  redirectTo = '/login'  //TODO tous les theme doivent implemnter le chemin /login
 
   async handle(
     ctx: HttpContext,
     next: NextFn,
-    options: {
+    _options: {
       guards?: (keyof Authenticators)[]
     } = {}
   ) {
-    await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
-    return next()
+    // await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+    const tryAuth = async (guard: keyof Authenticators) => {
+      try {
+        if (await ctx.auth.use(guard).check()) {
+          await ctx.auth.use(guard).authenticate()
+          return true
+        }
+      } catch (_) { }
+      return false
+    }
+
+    const guards = _options.guards ?? ['api', 'web']
+
+    let isAuthenticated = false
+
+    for (const guard of guards) {
+      if (await tryAuth(guard)) {
+        isAuthenticated = true
+        break
+      }
+    }
+
+    if (!isAuthenticated) {
+      if (ctx.request.accepts(['html'])) {
+        return ctx.response.redirect(this.redirectTo)
+      }
+
+      return ctx.response.unauthorized({ message: 'Unauthorized access' })
+    }
+
+    await next()
   }
 }
