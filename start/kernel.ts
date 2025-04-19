@@ -43,7 +43,7 @@ router.use([() => import('@adonisjs/core/bodyparser_middleware'), () => import('
  */
 export const middleware = router.named({
   auth: () => import('#middleware/auth_middleware'),
-  visit: () => import('#middleware/log_visits')
+  visit: () => import('#middleware/log_visits'),
 })
 
 startScheduler()

@@ -27,11 +27,15 @@ import { TestMessages, TestValidator } from '#validators/FeaturesValidator'
 
 import router from '@adonisjs/core/services/router'
 import transmit from '@adonisjs/transmit/services/main'
-import { env } from 'process'
-
 import { startBullMQWoker } from './StartBullMQWoker.js'
+import User from '#models/user'
+import env from './env.js'
+import { DateTime } from 'luxon'
+import BullMQService from '#services/BullMQService'
+import logger from '@adonisjs/core/services/logger'
+import DebugController from '#controllers/debug_controller'
 
-transmit.registerRoutes()
+transmit.registerRoutes();
 
 
 // Auth
@@ -151,33 +155,70 @@ router.get('/get_visites', [VisitesController, 'get_visites'])
 
 //Stats
 router.get('/stats', [StatisticsController, 'index'])
-
-router.get('/debug/request-scale-up', '#controllers/debug_controller.requestScaleUp')
-
+router.group(() => {
+  router.get('/request-scale-up', [DebugController, 'requestScaleUp'])
+  router.get('/request-scale-down', [DebugController, 'requestScaleDown']) // <<< NOUVELLE ROUTE
+  // Ajouter d'autres routes de debug ici si besoin
+}).prefix('/api/debug') 
 
 router.group(() => {
   router.post('/login', [AuthController, 'login'])
   router.post('/register', [AuthController, 'register_mdp'])
-  router.get('/verify-email', [AuthController, 'verifyEmail']) 
+  router.get('/verify-email', [AuthController, 'verifyEmail'])
   router.post('/resend-verification', [AuthController, 'resendVerification'])
-  
+
   router.post('/logout', [AuthController, 'logout'])
+  router.post('/logout_all_devices', [AuthController, 'logoutAllDevices'])
   router.get('/me', [AuthController, 'me'])
-  router.put('/me', [AuthController, 'update_user']) 
-  router.delete('/me', [AuthController, 'delete_account']) 
+  router.put('/me', [AuthController, 'update_user'])
+  router.delete('/me', [AuthController, 'delete_account'])
 
   //TODO utiliser un middleware spécifique qui vérifie un secret partagé ou une IP
-  router.post('/_internal/auth/social-callback', [AuthController, 'handleSocialCallbackInternal'])
+  router.post('/_internal/social-callback', [AuthController, 'handleSocialCallbackInternal'])
 
-}).prefix('/api/auth') 
+}).prefix('/api/auth')
 
 
+router.get('/send_email', async ({ request }) => {
 
+  const user = await User.findByOrFail('email', request.qs().email)
+  const token = await User.accessTokens.create(
+    user,
+    ['*'],
+    {
+      name: `api_login_${user.id}_${DateTime.now().toMillis()}`,
+      expiresIn: '30 days' // Durée de vie du token
+    }
+  );
+  const verificationUrl = `${env.get('APP_URL')}/api/auth/verify-email?token=${token.value!.release()}`;
+
+  try {
+    const queue = BullMQService.getServerToServerQueue();
+    await queue.add('send_email', {
+      event: 'send_email',
+      data: {
+        to: user.email,
+        subject: 'Vérifiez votre adresse email - Sublymus',
+        template: 'emails/verify_email', // Le template doit exister dans s_server
+        context: {
+          userName: user.full_name,
+          verificationUrl: verificationUrl
+        }
+      }
+    }, { jobId: `verify-email-${user.id}-${Date.now()}` });
+    logger.info({ userId: user.id, email: user.email }, 'Verification email job sent to s_server');
+  } catch (queueError) {
+    logger.error({ userId: user.id, error: queueError.message }, 'Failed to send verification email job');
+  }
+  return
+})
 
 
 
 
 router.get('/', () => {
+  console.log('@@@@@@@@@@@@@@@@@@@@', env);
+
   return env
 })
 

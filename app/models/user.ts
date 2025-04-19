@@ -4,7 +4,7 @@ import { column, hasMany } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { TypeJsonRole } from './role.js'
 import db from '@adonisjs/lucid/services/db'
-import { OWNER_ID, STORE_ID } from '#controllers/Utils/ctrlManager'
+import { OWNER_ID } from '#controllers/Utils/ctrlManager'
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import hash from '@adonisjs/core/services/hash'
 import UserAddress from './user_address.js'

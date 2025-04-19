@@ -6,6 +6,7 @@ export async function startBullMQWoker() {
     // --- Initialiser les services critiques ---
     try {
         await BullMQService.initialize(); // Appel explicite !
+        await BullMQService.startWorker() // Démarrer le service BullMQ
         console.log("ApiBullMQService initialized successfully.");
 
         // Maintenant, tu peux démarrer le worker via Ace ou programmatiquement

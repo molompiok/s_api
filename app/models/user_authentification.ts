@@ -20,7 +20,8 @@ export default class UserAuthentification extends BaseModel {
   @column.dateTime({ autoCreate: true })
   declare created_at: DateTime
 
-
-    @belongsTo(() => User)
-    declare user: BelongsTo<typeof User>
+  @belongsTo(() => User, {
+    foreignKey: 'user_id',
+  })
+  declare user: BelongsTo<typeof User>
 }
