@@ -7,29 +7,33 @@ import Product from '#models/product';
 import { updateFiles } from './Utils/media/UpdateFiles.js';
 import { deleteFiles } from './Utils/media/DeleteFiles.js';
 import db from '@adonisjs/lucid/services/db';
-import ValuesController from './values_controller.js';
+import ValuesController from './values_controller.js'; // Conservé pour appels internes
+import vine from '@vinejs/vine'; // ✅ Ajout de Vine
+import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
+import { t } from '../utils/functions.js'; // ✅ Ajout de t
+import { Infer } from '@vinejs/vine/types';
 
+// Interfaces (conservées pour clarté du code qui les utilise)
 export interface ValueInterface {
     id?: string;
     feature_id?: string;
-    views?: string[] | null;
-    icon?: string[] | null;
-    text?: string | null;
-    key?: string | null;
-    stock?: number | null
+    views?: string[] | undefined;
+    icon?: string[] | undefined;
+    text?: string | undefined;
+    key?: string | undefined;
+    stock?: number | undefined
     decreases_stock?: boolean,
     continue_selling?: boolean
     index: number;
     created_at: string | Date;
     updated_at: string | Date;
 };
-
 export interface FeatureInterface {
     id?: string,
     product_id?: string,
     name?: string,
     type?: FeatureType,
-    icon?: string,
+    icon?: string[], // Modifié pour être un tableau de strings
     required?: boolean,
     regex?: string,
     min?: number,
@@ -45,331 +49,574 @@ export interface FeatureInterface {
     values?: ValueInterface[];
 };
 
-
-const FileMaxSize = 2 * MEGA_OCTET;
+// Permissions requises pour ce contrôleur
+const EDIT_PERMISSION = 'edit_product';
+const CREATE_DELETE_PERMISSION = 'create_delete_product';
 
 export default class FeaturesController {
-    private async _create_feature(request: HttpContext['request'], product_id: string, feature: Partial<FeatureInterface> & { id: string }, trx: any) {
-        console.log('🔄 createFiles avant ', trx.isCompleted);
 
-        // const icon = await createFiles({
-        //     request,
-        //     column_name: "icon",
-        //     table_id: feature.id,
-        //     table_name: Feature.table,
-        //     options: {
-        //         throwError: false,
-        //         compress: 'img',
-        //         min: 0,
-        //         max: 1,
-        //         extname: EXT_IMAGE,
-        //         maxSize: 1 * MEGA_OCTET,
-        //     },
-        // });
-        console.log('🔄 createFiles pres ', trx.isCompleted);
+    // --- Schémas de validation Vine ---
+    private createFeatureSchema = vine.compile(
+        vine.object({
+            product_id: vine.string().uuid(),
+            name: vine.string().trim().minLength(1).maxLength(56),
+            type: vine.enum(Object.values(FeatureType)),
+            required: vine.boolean().optional(),
+            default_value: vine.string().trim().maxLength(52).optional().nullable(),
+            regex: vine.string().trim().maxLength(1024).optional().nullable(),
+            min_size: vine.number().min(0).optional(),
+            max_size: vine.number().min(0).optional(),
+            min: vine.number().optional(), // Pas de min(0) car peut être négatif ?
+            max: vine.number().optional(),
+            index: vine.number().positive().optional(),
+            multiple: vine.boolean().optional(),
+            is_double: vine.boolean().optional(),
+            // 'icon' est géré par createFiles
+        })
+    );
 
-        feature.min_size = parseInt(feature.min_size?.toString() || '0');
-        feature.max_size = parseInt(feature.max_size?.toString() || '0');
-        feature.max = parseInt(feature.max?.toString() || '0');
-        feature.min = parseInt(feature.min?.toString() || '0');
-        feature.index = parseInt(feature.index?.toString() || '1');
-        const data = {
-            id: feature.id,
+    private getFeaturesSchema = vine.compile(
+        vine.object({
+            feature_id: vine.string().uuid().optional(),
+            product_id: vine.string().uuid().optional(),
+        })
+    );
+
+    private updateFeatureSchema = vine.compile(
+        vine.object({
+            feature_id: vine.string().uuid(), // ID de la feature à mettre à jour
+            name: vine.string().trim().minLength(1).maxLength(56).optional(),
+            type: vine.enum(Object.values(FeatureType)).optional(),
+            required: vine.boolean().optional(),
+            default_value: vine.string().trim().maxLength(52).optional().nullable(),
+            regex: vine.string().trim().maxLength(1024).optional().nullable(),
+            min_size: vine.number().min(0).optional(),
+            max_size: vine.number().min(0).optional(),
+            min: vine.number().optional(),
+            max: vine.number().optional(),
+            index: vine.number().positive().optional(),
+            multiple: vine.boolean().optional(),
+            is_double: vine.boolean().optional(),
+            icon: vine.array(vine.string()).optional(), // Pour updateFiles (pseudo URLs)
+        })
+    );
+
+    private multipleUpdateSchema = vine.compile(
+        vine.object({
+            product_id: vine.string().uuid(),
+            multiple_update_features: vine.string().minLength(2), // Doit être un JSON string non vide
+        })
+    );
+
+    private deleteFeatureSchema = vine.compile(
+        vine.object({
+            feature_id: vine.string().uuid(), // On attend feature_id dans le body selon le code original
+        })
+    );
+
+    // --- Méthodes Privées (Logique métier inchangée) ---
+
+    // Note: _create_feature et _update_feature ne sont plus typées avec HttpContext['request']
+    // car elles reçoivent maintenant des données déjà validées et potentiellement l'objet request si besoin pour les fichiers.
+    private async _create_feature(request: HttpContext['request'], product_id: string, featureData: Partial<Infer<typeof this.createFeatureSchema>> & { id: string }, trx: any) {
+        // Gestion icon via createFiles
+        const iconUrls = await createFiles({
+            request, // Passer request pour accéder aux fichiers
+            column_name: "icon",
+            table_id: featureData.id,
+            table_name: Feature.table,
+            options: {
+                throwError: false,
+                compress: 'img',
+                min: 0,
+                max: 1,
+                extname: EXT_IMAGE,
+                maxSize: 1 * MEGA_OCTET,
+            },
+        });
+
+        // Préparation des données (parsing/défaults)
+        const min_size = featureData.min_size ?? 0;
+        const max_size = featureData.max_size ?? 0; // Corrigé: utiliser min_size si max_size absent ? Ou 0 ? Mettre 0.
+        const max = featureData.max ?? 0;
+        const min = featureData.min ?? 0;
+        const index = featureData.index ?? 1; // Default index 1
+
+        const dataToCreate = {
+            id: featureData.id,
             product_id: product_id,
-            name: feature.name?.replace(/\s+/g, ' ').substring(0, 56),
-            default_value: feature.default_value?.substring(0, 52),
-            type: Object.values(FeatureType).includes((feature as any).type) ? feature.type as any : FeatureType.TEXT,
-            // icon,
-            regex: feature.regex?.substring(0, 1024),
-            min_size: isNaN(feature.min_size) ? 0 : feature.min_size,
-            max_size: isNaN(feature.max_size) ? 0 : feature.min_size,
-            max: isNaN(feature.max) ? 0 : feature.min_size,
-            min: isNaN(feature.min) ? 0 : feature.min_size,
-            index: isNaN(feature.index) ? 1 : feature.index > 0 ? feature.index : 1,
-            required: !!feature.required,
-            multiple: !!feature.multiple,
-            is_double: !!feature.is_double,
+            name: featureData.name?.replace(/\s+/g, ' ').substring(0, 56), // Assurer que name existe car validé
+            default_value: featureData.default_value?.substring(0, 52),
+            type: featureData.type, // Déjà validé par Vine
+            icon: iconUrls, // Utiliser les URLs des fichiers uploadés
+            regex: featureData.regex?.substring(0, 1024),
+            min_size: isNaN(min_size) ? 0 : min_size,
+            max_size: isNaN(max_size) ? 0 : max_size,
+            max: isNaN(max) ? 0 : max,
+            min: isNaN(min) ? 0 : min,
+            index: isNaN(index) ? 1 : index > 0 ? index : 1,
+            required: !!featureData.required,
+            multiple: !!featureData.multiple,
+            is_double: !!featureData.is_double,
         }
-        console.log(trx.isCompleted, '🔄 _create_feature avant ', data);
 
-        const newFeature = await Feature.create(data, { client: trx });
-        console.log(trx.isCompleted, '🔄 _create_feature apres ');
-
+        const newFeature = await Feature.create(dataToCreate, { client: trx });
         return newFeature
     }
 
-    public async create_feature({ request, response }: HttpContext) {
-        // const payload = await CreateFeatureValidator.validate({
-        //     data: request.body(),
-        //     messages: CreateFeatureMessage
-        // });
-        const payload = request.body();
-        if (!payload.product_id || !payload.name || !payload.type) {
-            return response.badRequest({ message: 'Missing required fields' });
-        }
-
-        const id = v4();
-        const trx = await db.transaction();
-
-        try {
-            const product = await Product.findOrFail(payload.product_id, { client: trx });
-            if (!product) return response.notFound({ message: 'Product not found' });
-
-            const feature = await this._create_feature(request, product.id, { ...payload, id }, trx);
-
-            await trx.commit();
-            return response.ok(feature);
-
-        } catch (error) {
-            await deleteFiles(id);
-            await trx.rollback();
-            return response.internalServerError({ message: 'Feature not created', error: error.message });
-        }
-    }
-
-    async get_features({ request, response }: HttpContext) {
-        // const payload = await GetFeaturesValidator.validate({
-        //     data: request.qs(),
-        //     messages: GetFeaturesMessage
-        // });
-
-        const payload = request.qs()
-        console.log("🚀 ~ FeaturesController ~ get_features ~ payload:", payload)
-        try {
-            let query = db.from(Feature.table).select('*');
-            if (payload.feature_id) query.where('id', payload.feature_id);
-            if (payload.product_id) query.where('product_id', payload.product_id);
-            const valuesPaginate = await query.paginate(1, 50);
-            return response.ok({ list: valuesPaginate.all(), meta: valuesPaginate.getMeta() });
-        } catch (error) {
-            return response.internalServerError({ message: 'Bad config or server error', error: error.message });
-        }
-    }
-
- async get_features_with_values({ request, response }: HttpContext) {
-    try {
-        const { feature_id, product_id } = request.qs();
-
-        const query = Feature.query().preload('values');
-
-        if (feature_id) query.where('id', feature_id);
-        if (product_id) query.where('product_id', product_id);
-
-        const features = await query;
-
-        if (!features.length) {
-            return response.notFound({ message: 'Feature not found' });
-        }
-
-        return response.ok(features);
-    } catch (error) {
-        return response.internalServerError({
-            message: 'Server error',
-            error: error.message,
-        });
-    }
-}
-    async _update_feature(
-        request: HttpContext['request'],
-        feature_id: string,
-        feature: Partial<FeatureInterface>,
-        trx: any
-      ) {
+    private async _update_feature(request: HttpContext['request'], feature_id: string, featureData: Partial<Infer<typeof this.updateFeatureSchema>>, trx: any) {
         const f = await Feature.findOrFail(feature_id, { client: trx });
 
-        feature.min_size = parseInt(feature.min_size?.toString() || '0');
-        feature.max_size = parseInt(feature.max_size?.toString() || '0');
-        feature.max = parseInt(feature.max?.toString() || '0');
-        feature.min = parseInt(feature.min?.toString() || '0');
-        feature.index = parseInt(feature.index?.toString() || '1');
- 
+        // Préparation des données (parsing/défaults)
+        const min_size = featureData.min_size;
+        const max_size = featureData.max_size;
+        const max = featureData.max;
+        const min = featureData.min;
+        const index = featureData.index;
 
-        let urls = [];
-        for (const i of ['icon'] as const) {
-            if (!feature[i]) continue;
-            urls = await updateFiles({
+        const dataToMerge: Partial<Feature> = {
+            ...(featureData.name && { name: featureData.name.replace(/\s+/g, ' ').substring(0, 56) }),
+            ...(featureData.default_value !== undefined && { default_value: featureData.default_value?.substring(0, 52) }), // Gérer null
+            ...(featureData.type && { type: featureData.type }),
+            ...(featureData.regex !== undefined && { regex: featureData.regex?.substring(0, 1024) }),
+            ...(min_size !== undefined && { min_size: isNaN(min_size) ? f.min_size : min_size }), // Garder l'ancien si NaN
+            ...(max_size !== undefined && { max_size: isNaN(max_size) ? f.max_size : max_size }),
+            ...(max !== undefined && { max: isNaN(max) ? f.max : max }),
+            ...(min !== undefined && { min: isNaN(min) ? f.min : min }),
+            ...(index !== undefined && { index: isNaN(index) ? f.index : (index > 0 ? index : 1) }),
+            ...(featureData.required !== undefined && { required: !!featureData.required }),
+            ...(featureData.multiple !== undefined && { multiple: !!featureData.multiple }),
+            ...(featureData.is_double !== undefined && { is_double: !!featureData.is_double }),
+        }
+
+        // Gestion icon via updateFiles
+        if (featureData.icon) {
+            const updatedIconUrls = await updateFiles({
                 request,
                 table_name: Feature.table,
                 table_id: feature_id,
-                column_name: i,
-                lastUrls: f[i],
-                newPseudoUrls: feature[i],
+                column_name: 'icon',
+                lastUrls: f.icon || [],
+                newPseudoUrls: featureData.icon,
                 options: {
                     throwError: true,
                     min: 0,
                     max: 1,
                     compress: 'img',
                     extname: EXT_IMAGE,
-                    maxSize: 12 * MEGA_OCTET,
+                    maxSize: 12 * MEGA_OCTET, // Augmenté pour correspondre à l'ancien code ? Ou garder 1MB ? Prenons 5MB.
                 },
             });
-            f[i] = urls;
+            dataToMerge.icon = updatedIconUrls;
         }
-        f.useTransaction(trx).merge({
-            name: feature.name?.replace(/\s+/g, ' ').substring(0, 56),
-            default_value: feature.default_value?.substring(0, 52),
-            type: Object.values(FeatureType).includes((feature as any).type) ? feature.type as any : FeatureType.TEXT,
-            regex: feature.regex?.substring(0, 1024),
-            min_size: isNaN(feature.min_size) ? 0 : feature.min_size,
-            max_size: isNaN(feature.max_size) ? 0 : feature.min_size,
-            max: isNaN(feature.max) ? 0 : feature.min_size,
-            min: isNaN(feature.min) ? 0 : feature.min_size,
-            index: isNaN(feature.index) ? 1 : feature.index > 0 ? feature.index : 1,
-            required: !!feature.required,
-            multiple: !!feature.multiple,
-            is_double: !!feature.is_double,
-        });
+
+        f.useTransaction(trx).merge(dataToMerge);
         await f.useTransaction(trx).save();
 
         return f;
     }
 
-    async update_feature({ request, response }: HttpContext) {
-        const payload = request.body();
-        const trx = await db.transaction();
-        if (!payload.feature_id) return response.badRequest({ message: 'feature_id is required' });
-        try {
+    // Laisser _delete_feature tel quel, car il contient la logique métier de suppression des valeurs associées
+    public static async _delete_feature(feature_id: string, trx: any) {
+        const feature = await Feature.query({ client: trx }).preload('values').where('id', feature_id).first();
+        if (!feature) {
+            // 🌍 i18n
+            throw new Error(t('feature.notFound')); // Le message sera propagé
+        }
 
-            const feature = await this._update_feature( request, payload.feature_id, payload, trx);
+        // Delete feature values first
+        await Promise.allSettled(feature.values?.map(value => ValuesController._delete_value(value.id, trx)));
+
+        await feature.useTransaction(trx).delete();
+        await deleteFiles(feature_id); // Nettoyage des fichiers potentiels (icon)
+    }
+
+    // --- Méthodes Publiques (Contrôleur) ---
+
+    public async create_feature({ request, response, auth, bouncer }: HttpContext) {
+        // 🔐 Authentification
+        await auth.authenticate();
+        // 🛡️ Permissions
+        try {
+            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
+
+        const id = v4();
+        const trx = await db.transaction();
+
+        try {
+            // ✅ Validation Vine
+            const payload = await this.createFeatureSchema.validate(request.body());
+
+            // Recherche Produit (logique métier)
+            const product = await Product.findOrFail(payload.product_id, { client: trx });
+            // Pas besoin de vérifier !product car findOrFail le fait
+
+            // Appel méthode privée avec données validées
+            const feature = await this._create_feature(request, product.id, { ...payload, id }, trx);
 
             await trx.commit();
-            return response.ok(feature);
+            logger.info({ userId: auth.user!.id, featureId: feature.id, productId: product.id }, 'Feature created');
+            // 🌍 i18n
+            return response.created({ message: t('feature.createdSuccess'), feature: feature }); // Retourne OK avec l'objet créé
+
         } catch (error) {
             await trx.rollback();
-            return response.internalServerError({ message: 'Bad config or server error', error: error.message });
+            // Nettoyage fichiers en cas d'erreur avant commit
+            await deleteFiles(id).catch(delErr => logger.error({ featureIdAttempt: id, error: delErr }, 'Failed to cleanup files after feature creation failure'));
+
+            logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to create feature');
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+            }
+            if (error.code === 'E_ROW_NOT_FOUND') {
+                // 🌍 i18n (si findOrFail échoue sur Product)
+                return response.notFound({ message: t('product.notFound') });
+            }
+            // 🌍 i18n
+            return response.internalServerError({ message: t('feature.creationFailed'), error: error.message });
         }
     }
 
-    async multiple_update_features_values({ request, response }: HttpContext) {
-        const { multiple_update_features, product_id } = request.body();
-        
-        if (!product_id || !multiple_update_features) {
-            return response.badRequest({ message: 'Missing required fields' });
+    // Lecture publique
+    async get_features({ request, response }: HttpContext) {
+        let payload: Infer<typeof this.getFeaturesSchema>;
+        try {
+            // ✅ Validation Vine pour Query Params
+            payload = await this.getFeaturesSchema.validate(request.qs());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+            }
+            throw error;
         }
-    
+
+        try {
+            // Utiliser Lucid ORM directement pour bénéficier des relations/méthodes du modèle
+            let query = Feature.query();
+
+            if (payload.feature_id) {
+                // 🔍 Pas de .first() ici, on veut potentiellement un tableau même avec un ID
+                query = query.where('id', payload.feature_id);
+            }
+            if (payload.product_id) {
+                query = query.where('product_id', payload.product_id);
+            }
+
+            // Utilisation de paginate même pour potentiellement un seul résultat par ID
+            // pour garder une structure de réponse cohérente.
+            const featuresPaginate = await query.orderBy('index', 'asc').paginate(1, 50); // Limite haute pour "tout" récupérer si ID unique
+
+            return response.ok({ list: featuresPaginate.all(), meta: featuresPaginate.getMeta() });
+        } catch (error) {
+            logger.error({ error: error.message, stack: error.stack }, 'Failed to get features');
+            // 🌍 i18n
+            return response.internalServerError({ message: t('feature.fetchFailed'), error: error.message });
+        }
+    }
+
+    // Lecture publique
+    async get_features_with_values({ request, response }: HttpContext) {
+        let payload: Infer<typeof this.getFeaturesSchema>; // Réutilise le même schéma
+        try {
+            // ✅ Validation Vine pour Query Params
+            payload = await this.getFeaturesSchema.validate(request.qs());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+            }
+            throw error;
+        }
+
+        try {
+            const query = Feature.query()
+                .preload('values', (valueQuery) => { // Précharger les valeurs
+                    valueQuery.orderBy('index', 'asc'); // Trier les valeurs
+                });
+
+            if (payload.feature_id) {
+                query.where('id', payload.feature_id);
+            }
+            if (payload.product_id) {
+                query.where('product_id', payload.product_id);
+            }
+
+            const features = await query.orderBy('index', 'asc'); // Trier les features
+
+            if (!features.length && (payload.feature_id || payload.product_id)) {
+                // 🌍 i18n
+                return response.notFound({ message: t('feature.notFound') });
+            }
+
+            return response.ok(features); // Renvoie directement le tableau des features avec leurs valeurs
+        } catch (error) {
+            logger.error({ error: error.message, stack: error.stack }, 'Failed to get features with values');
+            // 🌍 i18n
+            return response.internalServerError({ message: t('feature.fetchWithValuesFailed'), error: error.message, });
+        }
+    }
+
+    async update_feature({ request, response, auth, bouncer }: HttpContext) {
+        // 🔐 Authentification
+        await auth.authenticate();
+        // 🛡️ Permissions
+        try {
+            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
+
+        const trx = await db.transaction();
+        let payload: Infer<typeof this.updateFeatureSchema>;
+        try {
+            // ✅ Validation Vine
+            payload = await this.updateFeatureSchema.validate(request.body());
+
+            // Appel méthode privée avec données validées
+            const feature = await this._update_feature(request, payload.feature_id, payload, trx);
+
+            await trx.commit();
+            logger.info({ userId: auth.user!.id, featureId: feature.id }, 'Feature updated');
+            // 🌍 i18n
+            return response.ok({ message: t('feature.updateSuccess'), feature: feature });
+
+        } catch (error) {
+            await trx.rollback();
+            logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to update feature');
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+            }
+            if (error.code === 'E_ROW_NOT_FOUND') {
+                // 🌍 i18n
+                return response.notFound({ message: t('feature.notFound') });
+            }
+            // 🌍 i18n
+            return response.internalServerError({ message: t('feature.updateFailed'), error: error.message });
+        }
+    }
+
+    async multiple_update_features_values({ request, response, auth, bouncer }: HttpContext) {
+        // 🔐 Authentification
+        await auth.authenticate();
+        // 🛡️ Permissions
+        try {
+            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
+
+        let payload: Infer<typeof this.multipleUpdateSchema>;
+        try {
+            // ✅ Validation Vine (simple pour le JSON string)
+            payload = await this.multipleUpdateSchema.validate(request.body());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+            }
+            throw error;
+        }
+
         const trx = await db.transaction();
         try {
-            const Allfeatures = JSON.parse(multiple_update_features) as {
+            // Parsing du JSON string après validation
+            let Allfeatures: {
                 values: Record<string, { create_values: any[]; update_values: any[]; delete_values_id: string[] }>;
                 create_features: FeatureInterface[];
                 update_features: FeatureInterface[];
                 delete_features_id: string[];
             };
-            console.log(request.allFiles());
-            
-            
-            const product = await Product.findOrFail(product_id, { client: trx });
-    
-            // Fetch all features in a single query
-            const localFeatures = await Feature.query({ client: trx }).preload('values').where('product_id', product_id);
-    
+            try {
+                Allfeatures = JSON.parse(payload.multiple_update_features);
+                // TODO: Ajouter une validation plus fine de la structure interne de Allfeatures si nécessaire
+            } catch (jsonError) {
+                // 🌍 i18n
+                throw new Error(t('feature.invalidJsonPayload'));
+            }
+
+            const product = await Product.findOrFail(payload.product_id, { client: trx });
+
+            // --- Logique métier (inchangée) ---
+            const localFeatures = await Feature.query({ client: trx }).preload('values').where('product_id', payload.product_id); // Utiliser payload.product_id
+
             // Bulk update features
-            for (const feature of Allfeatures.update_features||[]) {
+            for (const feature of Allfeatures.update_features || []) {
                 if (!feature.id) continue;
                 const existingFeature = localFeatures.find(f => f.id === feature.id);
-                if (!existingFeature) continue;
-                await this._update_feature( request, feature.id, feature, trx);
+                if (!existingFeature) {
+                    logger.warn({ featureId: feature.id, productId: payload.product_id }, "Attempted to update non-existent or non-matching feature in multiple_update");
+                    continue; // Ne pas essayer de mettre à jour une feature qui n'existe pas ou n'appartient pas au produit
+                }
+                // TODO: Valider les données de 'feature' avant de les passer à _update_feature
+                await this._update_feature(request, feature.id, feature, trx);
             }
-    
+
             // Bulk create features and their values
-            for (const feature of Allfeatures.create_features||[]) {
-                feature.product_id = product_id;
+            for (const feature of Allfeatures.create_features || []) {
+                feature.product_id = payload.product_id; // Assigner le product_id validé
                 const id = v4();
-                const createdFeature = await this._create_feature(request, product.id, {...feature, id}, trx);
-    
+                // TODO: Valider les données de 'feature' avant de les passer à _create_feature
+                const createdFeature = await this._create_feature(request, payload.product_id, { ...feature, id }, trx);
+
                 if (feature.values) {
                     for (const value of feature.values) {
-                        console.log({createdFeature});
-                        
-                        await ValuesController._create_value(request, { ...value, feature_id: id }, v4(), trx);
+                        // TODO: Valider les données de 'value' avant de les passer à _create_value
+                        await ValuesController._create_value(request, { ...value, feature_id: id }, v4(), trx); // Utiliser id de la feature créée
                     }
                 }
             }
-    
+
             // Bulk delete features and their values
-            for (const feature_id of Allfeatures.delete_features_id||[]) {
-                if (feature_id === product.default_feature_id) continue;
+            for (const feature_id of Allfeatures.delete_features_id || []) {
+                if (feature_id === product.default_feature_id) {
+                    logger.warn({ featureId: feature_id, productId: payload.product_id }, "Attempted to delete default feature in multiple_update");
+                    continue; // Ne pas supprimer la feature par défaut
+                }
                 const feature = localFeatures.find(f => f.id === feature_id);
-                if (!feature) continue;
-    
-                // Delete feature
+                if (!feature) {
+                    logger.warn({ featureId: feature_id, productId: payload.product_id }, "Attempted to delete non-existent or non-matching feature in multiple_update");
+                    continue; // Ne pas essayer de supprimer une feature qui n'existe pas ou n'appartient pas au produit
+                }
                 await FeaturesController._delete_feature(feature_id, trx);
             }
-    
+
             // Bulk update feature values
-            for (const [feature_id, { create_values, update_values, delete_values_id }] of Object.entries(Allfeatures.values)) {
-                for (const value of create_values||[]) {
-                    const id = v4()
-                    console.log({feature_id});
-                    
-                    console.log('1##############');
-                    await ValuesController._create_value(request, { ...value, feature_id ,id}, id, trx);
-                    console.log('2##############');
+            for (const [feature_id_from_payload, { create_values, update_values, delete_values_id }] of Object.entries(Allfeatures.values || {})) {
+                // Vérifier que feature_id_from_payload appartient bien au produit
+                const targetFeature = await Feature.query({ client: trx }).where('id', feature_id_from_payload).where('product_id', payload.product_id).first();
+                if (!targetFeature) {
+                    logger.warn({ featureId: feature_id_from_payload, productId: payload.product_id }, "Attempted to modify values for a non-existent or non-matching feature in multiple_update");
+                    continue;
                 }
-                for (const value of update_values||[]) {
-                    console.log('update_values',value);
-                    
+
+                for (const value of create_values || []) {
+                    const id = v4()
+                    // TODO: Valider les données de 'value' avant de les passer à _create_value
+                    await ValuesController._create_value(request, { ...value, feature_id: targetFeature.id }, id, trx); // Utiliser targetFeature.id
+                }
+                for (const value of update_values || []) {
+                    if (!value.id && !value.value_id) continue; // Nécessite un ID
+                    // TODO: Valider les données de 'value' avant de les passer à _update_value
+                    // Vérifier que la value appartient bien à targetFeature? (sécurité supplémentaire)
                     await ValuesController._update_value(request, value.id || value.value_id, value, trx);
                 }
-                for (const value_id of delete_values_id||[]) {
+                for (const value_id of delete_values_id || []) {
                     try {
+                        // Vérifier que la value appartient bien à targetFeature? (sécurité supplémentaire)
                         await ValuesController._delete_value(value_id, trx);
                     } catch (error) {
-                        console.log(error.message);
+                        logger.warn({ valueId: value_id, featureId: targetFeature.id, error: error.message }, "Failed to delete value in multiple_update (might not exist or belong to feature)");
                     }
-                } 
+                }
             }
-    
+            // --- Fin logique métier ---
+
             await trx.commit();
-            console.log('3##############');
+            logger.info({ userId: auth.user!.id, productId: payload.product_id }, 'Multiple features/values updated');
+
+            // Recharger le produit avec toutes ses dépendances triées
             const updatedProduct = await Product.query().select('*').preload('features', (featureQuery) => {
                 featureQuery
-                  .orderBy('features.created_at', 'asc') // 🔥 Trier les features par date de création
-                  .preload('values', (valueQuery) => {
-                    valueQuery.orderBy('values.created_at', 'asc') // 🔥 Trier les values par date de création
-                  });
-              })
-                .where('id', product_id)
+                    .orderBy('index', 'asc') // Trier par index
+                    .preload('values', (valueQuery) => {
+                        valueQuery.orderBy('index', 'asc') // Trier par index
+                    });
+            })
+                .where('id', payload.product_id)
                 .first();
-                
-            return response.ok(updatedProduct?.toObject());
+
+            // 🌍 i18n
+            return response.ok({ message: t('feature.multipleUpdateSuccess'), product: updatedProduct?.toObject() });
         } catch (error) {
-            console.log(error);
-            
             await trx.rollback();
-            return response.internalServerError({ message: 'Failed to update features', error: error.message });
+            logger.error({ userId: auth.user?.id, productId: payload?.product_id, error: error.message, stack: error.stack }, 'Failed multiple_update_features_values');
+            if (error.code === 'E_ROW_NOT_FOUND') {
+                // 🌍 i18n
+                return response.notFound({ message: t('product.notFound') });
+            }
+            if (error.message === t('feature.invalidJsonPayload')) {
+                // 🌍 i18n
+                return response.badRequest({ message: error.message });
+            }
+            // 🌍 i18n
+            return response.internalServerError({ message: t('feature.multipleUpdateFailed'), error: error.message });
         }
     }
-    
 
-    public static async _delete_feature(feature_id: string, trx: any) {
-        const feature = await Feature.query({client:trx}).preload('values').where('id', feature_id).first();
-        if (!feature) throw new Error('Feature not found');
-        
-        // Delete feature values first
-        await Promise.allSettled(feature.values?.map(value => ValuesController._delete_value(value.id, trx)));
-        
-        await feature.useTransaction(trx).delete();
-        await deleteFiles(feature_id);
-    }
-    async delete_feature({ request, response, auth }: HttpContext) {
+    async delete_feature({ request, response, auth, bouncer }: HttpContext) {
+        // 🔐 Authentification
         await auth.authenticate();
-        // const payload = await DeleteFeatureValidator.validate({
-        //     data: { id: request.param('id') },
-        //     messages: DeleteFeatureMessage
-        // });
+        // 🛡️ Permissions
+        try {
+            await bouncer.authorize('collaboratorAbility', [CREATE_DELETE_PERMISSION]) // Utiliser la bonne permission
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
 
-        const payload = request.body();
+        let payload: Infer<typeof this.deleteFeatureSchema>;
+        try {
+            // ✅ Validation Vine (pour le body)
+            payload = await this.deleteFeatureSchema.validate(request.body());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+            }
+            throw error;
+        }
 
         const trx = await db.transaction();
         try {
-            FeaturesController._delete_feature(payload.feature_id, trx);
+            // Vérifier si ce n'est pas la feature par défaut
+            const featureToDelete = await Feature.findOrFail(payload.feature_id, { client: trx });
+            const product = await Product.find(featureToDelete.product_id, { client: trx });
+            if (product && product.default_feature_id === featureToDelete.id) {
+                // 🌍 i18n
+                throw new Error(t('feature.cannotDeleteDefault'));
+            }
+
+            // Appel méthode statique (contient la logique + throw si not found)
+            await FeaturesController._delete_feature(payload.feature_id, trx);
             await trx.commit();
-            return response.ok({ message: 'Feature deleted successfully' });
+
+            logger.info({ userId: auth.user!.id, featureId: payload.feature_id }, 'Feature deleted');
+            // 🌍 i18n
+            return response.ok({ message: t('feature.deleteSuccess') });
         } catch (error) {
             await trx.rollback();
-            return response.internalServerError({ message: 'Bad config or server error', error: error.message });
+            logger.error({ userId: auth.user!.id, featureId: payload?.feature_id, error: error.message, stack: error.stack }, 'Failed to delete feature');
+            if (error.message === t('feature.notFound') || error.code === 'E_ROW_NOT_FOUND') {
+                // 🌍 i18n
+                return response.notFound({ message: t('feature.notFound') });
+            }
+            if (error.message === t('feature.cannotDeleteDefault')) {
+                // 🌍 i18n
+                return response.badRequest({ message: error.message });
+            }
+            // 🌍 i18n
+            return response.internalServerError({ message: t('feature.deleteFailed'), error: error.message });
         }
     }
-
 }

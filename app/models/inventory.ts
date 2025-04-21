@@ -9,6 +9,11 @@ export default class Inventory extends BaseModel {
   @column()
   declare address_name: string
 
+  @column({
+    prepare: (value) => JSON.stringify(value)
+  })
+  declare views: string[]
+
   @column()
   declare email: string
 

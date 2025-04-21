@@ -11,6 +11,8 @@
 import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
 import './lucid.js'
+
+import '#contracts/context'
 import { Ignitor } from '@adonisjs/core'
 import { startScheduler } from './scheduler.js'
 import { createServer } from 'node:http'
@@ -35,7 +37,7 @@ server.use([
  * The router middleware stack runs middleware on all the HTTP
  * requests with a registered route.
  */
-router.use([() => import('@adonisjs/core/bodyparser_middleware'), () => import('@adonisjs/auth/initialize_auth_middleware'), () => import('@adonisjs/session/session_middleware')])
+router.use([() => import('@adonisjs/core/bodyparser_middleware'), () => import('@adonisjs/auth/initialize_auth_middleware'), () => import('@adonisjs/session/session_middleware'), () => import('#middleware/initialize_bouncer_middleware'), () => import('#middleware/detect_user_locale_middleware')])
 
 /**
  * Named middleware collection must be explicitly assigned to

@@ -59,21 +59,21 @@ export default class extends BaseSeeder {
     // }
 
     /********************   VISITE    **************************/
-    await VisiteFactory.createMany(300)
+    // await VisiteFactory.createMany(300)
 
     /*******************   USER_ORDER_ITEM    **************************/
-    const orders = await UserOrderFactory
-      .with('items', Math.trunc(Math.random()*5)+1) // Nombre aléatoire d'items
-      .createMany(300);
+    // const orders = await UserOrderFactory
+    //   .with('items', Math.trunc(Math.random()*5)+1) // Nombre aléatoire d'items
+    //   .createMany(300);
 
-    console.log(`✅ ${orders.length} commandes créées avec succès`)
+    // console.log(`✅ ${orders.length} commandes créées avec succès`)
 
-    orders.forEach((order, index) => {
-      console.log(`Commande ${index + 1} - ID: ${order.id}, Items: ${order.items_count}`)
-      order.items.forEach((item, itemIndex) => {
-        console.log(`  Item ${itemIndex + 1} - Order ID: ${item.order_id}`)
-      })
-    })
+    // orders.forEach((order, index) => {
+    //   console.log(`Commande ${index + 1} - ID: ${order.id}, Items: ${order.items_count}`)
+    //   order.items.forEach((item, itemIndex) => {
+    //     console.log(`  Item ${itemIndex + 1} - Order ID: ${item.order_id}`)
+    //   })
+    // })
 
 
   }

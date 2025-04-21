@@ -39,3 +39,18 @@ export default class EmailVerificationToken extends BaseModel {
     })
   declare user: BelongsTo<typeof User>
 }
+
+/*
+
+
+  if (!targetUser) {
+        await trx.rollback()
+        return response.notFound({ message: `Utilisateur avec l'email ${email} non trouvé.` })
+      }
+=> si l'utilisateur n'existe pas envoie un mail d'inviations, comme avec le confirm email,
+utilise l'event (invite-collaborator)  et passe les infos necessaires.
+
+un email sera envoyer avec l'url d'authentification de la boutique + ( un role ), le collaborateur initer va se connecter sur sublymus et le route /api/auth/_internal/social-callback sera appeler avec les info du user pour la ceation s'il et verification, 
+
+il va donc 
+*/

@@ -4,79 +4,116 @@ import { createFiles } from './Utils/media/CreateFiles.js';
 import { v4 } from 'uuid';
 import { EXT_IMAGE, MEGA_OCTET } from './Utils/ctrlManager.js';
 import db from '@adonisjs/lucid/services/db';
-import { applyOrderBy } from './Utils/query.js';
+import { applyOrderBy } from './Utils/query.js'; // Gardé tel quel
 import { updateFiles } from './Utils/media/UpdateFiles.js';
 import { deleteFiles } from './Utils/media/DeleteFiles.js';
 import Product from '#models/product';
 import transmit from '@adonisjs/transmit/services/main';
 import env from '#start/env';
 import UserOrderItem from '#models/user_order_item';
+import vine from '@vinejs/vine'; // ✅ Ajout de Vine
+import { t } from '../utils/functions.js'; // ✅ Ajout de t
+import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
+import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
+import { TypeJsonRole } from '#models/role'; // Pour type permissions
+import { normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajout de normalize
+
+// Permissions
+const DELETE_ANY_COMMENT_PERMISSION: keyof TypeJsonRole = 'manage_command'; // Exemple: modérateur/admin peut supprimer n'importe quel commentaire
 
 export default class CommentsController {
 
+    // --- Schémas de validation Vine ---
+    private createCommentSchema = vine.compile(
+        vine.object({
+            order_item_id: vine.string().uuid(),
+            title: vine.string().trim().minLength(3).maxLength(124),
+            description: vine.string().trim().maxLength(512).optional(), // Max length from original logic?
+            rating: vine.number().min(1).max(5),
+            // 'views' géré par createFiles
+        })
+    );
+
+    private getCommentSchema = vine.compile(
+        vine.object({
+            order_item_id: vine.string().uuid(),
+        })
+    );
+
+    private getCommentsSchema = vine.compile(
+        vine.object({
+            order_by: vine.string().trim().optional(),
+            page: vine.number().positive().optional(),
+            limit: vine.number().positive().optional(),
+            comment_id: vine.string().uuid().optional(),
+            product_id: vine.string().uuid().optional(),
+            with_users: vine.boolean().optional(),
+        })
+    );
+
+     private updateCommentSchema = vine.compile(
+       vine.object({
+         comment_id: vine.string().uuid(),
+         title: vine.string().trim().minLength(3).maxLength(124).optional(),
+         description: vine.string().trim().maxLength(512).optional().nullable(),
+         rating: vine.number().min(1).max(5).optional(),
+         views: vine.any().optional(), // ✅ Utiliser any pour Vine, sera normalisé
+       })
+     );
+
+     private deleteCommentParamsSchema = vine.compile(
+       vine.object({
+         id: vine.string().uuid(), // ID dans l'URL
+       })
+     );
+
+    // --- Méthodes du contrôleur ---
 
     public async create_comment({ request, response, auth }: HttpContext) {
-        const data = request.only(['title', 'description', 'rating', 'order_item_id']);
-        const user = await auth.authenticate();
+        // 🔐 Authentification (Seul un user connecté peut commenter un produit acheté)
+        await auth.authenticate();
+        const user = auth.user!; // Garanti non null
+
         const trx = await db.transaction();
+        const comment_id = v4();
+        let payload: Infer<typeof this.createCommentSchema> = {} as any;
         try {
-            const requiredFields = {
-                order_item_id: 'order_item_id is required',
-                title: 'title is required',
-                rating: 'rating is required'
-            };
+            // ✅ Validation Vine (Body)
+            // Utiliser request.all() car createFiles a besoin des fichiers
+            payload = await this.createCommentSchema.validate(request.all());
 
-            for (const [field, message] of Object.entries(requiredFields)) {
-                if (!data[field as keyof typeof requiredFields]) {
-                    return response.badRequest(message);
-                }
+            // --- Logique métier ---
+            const item = await UserOrderItem.find(payload.order_item_id);
+            if (!item) {
+                 // 🌍 i18n
+                 await trx.rollback();
+                 return response.notFound({ message: t('comment.orderItemNotFound') }); // Nouvelle clé
             }
-
-            if (typeof data.title !== 'string' || data.title.length < 3 || data.title.length > 124) {
-                return response.badRequest('Title must be between 3 and 124 characters');
+            // Vérifier que l'item appartient bien à l'utilisateur connecté
+            if (user.id !== item.user_id) {
+                 // 🌍 i18n
+                 await trx.rollback();
+                 return response.forbidden({ message: t('comment.cannotCommentOthersItem') }); // Nouvelle clé
             }
-
-            if (data.description !== undefined && typeof data.description === 'string') {
-                const len = data.description.trim().length;
-                console.log({len, data});
-                
-                // if (len > 0 && (len < 5 || len > 512)) {
-                //     return response.badRequest('Description must be either empty or between 5 and 512 characters');
-                // }
-            }
-
-            const ratingNum = parseFloat(data.rating);
-            if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
-                return response.badRequest('Rating must be a number between 1 and 5');
-            }
-
-
-            const item = await UserOrderItem.find(data.order_item_id);
-            console.log("🚀 ~ CommentsController ~ create_comment ~ item:", item)
-            if (!item) return response.notFound('Order Item not found')
-
-            if (user.id !== item.user_id) return response.unauthorized(`You can't comment this order item`)
-
-            const existingComment = await Comment.query().where('order_item_id', data.order_item_id).first();
-
+            // Vérifier si un commentaire existe déjà pour cet item
+            const existingComment = await Comment.query({ client: trx }) // Utiliser transaction
+                .where('order_item_id', payload.order_item_id)
+                .first();
             if (existingComment) {
-                return response.conflict('You have already commented on this product');
+                 // 🌍 i18n
+                 await trx.rollback();
+                 return response.conflict({ message: t('comment.alreadyCommented') }); // Nouvelle clé
             }
 
-            const comment_id = v4();
-
-            const views = await createFiles({
+            // Gestion fichiers 'views'
+            const viewsUrls = await createFiles({
                 request,
                 column_name: "views",
                 table_id: comment_id,
                 table_name: Comment.table,
                 options: {
-                    throwError: true,
-                    compress: 'img',
-                    min: 0,
-                    max: 3,
-                    extname: EXT_IMAGE,
-                    maxSize: 12 * MEGA_OCTET,
+                    throwError: true, compress: 'img', min: 0, max: 3,
+                    extname: EXT_IMAGE, maxSize: 12 * MEGA_OCTET,
                 },
             });
 
@@ -84,194 +121,342 @@ export default class CommentsController {
                 id: comment_id,
                 user_id: user.id,
                 order_item_id: item.id,
-                product_id: item.product_id,
-                title: data.title,
-                description: data.description,
-                rating: ratingNum,
-                bind_name: item.bind_name,
-                order_id: item.order_id,
-                views,
+                product_id: item.product_id, // Récupérer depuis l'item
+                title: payload.title,
+                description: payload.description ?? null, // Assurer null si absent
+                rating: payload.rating,
+                bind_name: item.bind_name, // Récupérer depuis l'item
+                order_id: item.order_id,   // Récupérer depuis l'item
+                views: viewsUrls,
             }, { client: trx });
-            
 
-            const product = await Product.query({ client: trx }).where('id', item.product_id).first();
-
+            // Mettre à jour la note moyenne du produit
+            const product = await Product.find(item.product_id, { client: trx });
             if (product) {
-                const avgRating = await Comment.query({ client: trx })
-                .where('product_id', item.product_id)
-                .avg('rating as average')
-                .count('* as comment_count')
-                .first();
+                 const avgRatingResult = await Comment.query({ client: trx })
+                     .where('product_id', item.product_id)
+                     .avg('rating as average')
+                     .count('* as comment_count')
+                     .first();
 
-                product.rating = avgRating?.$extras.average ?? 0 
-                product.comment_count = avgRating?.$extras.comment_count?? 0
-
-                await product.save();
+                 product.rating = avgRatingResult?.$extras.average ? parseFloat(avgRatingResult.$extras.average.toFixed(2)) : 0;
+                 product.comment_count = avgRatingResult?.$extras.comment_count ? parseInt(String(avgRatingResult.$extras.comment_count)) : 0;
+                 await product.useTransaction(trx).save(); // Sauver dans la transaction
+                 logger.debug({ productId: product.id, rating: product.rating, count: product.comment_count }, "Product rating updated");
+            } else {
+                 logger.warn({ productId: item.product_id, orderItemId: item.id }, "Product not found when updating rating after comment creation");
             }
 
             await trx.commit();
+            logger.info({ userId: user.id, commentId: newComment.id, productId: item.product_id }, 'Comment created');
+            // Diffusion SSE
+            transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event: 'create' });
 
-            transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event:'create'});
-            
-            return response.created(newComment);
-
+            // 🌍 i18n
+            return response.created({ message: t('comment.createdSuccess'), comment: newComment }); // Nouvelle clé
 
         } catch (error) {
-            trx.rollback()
-            console.error('Error creating comment:', {
-                message: error.message,
-                stack: error.stack,
-                order_item: data.order_item_id,
-            });
+            await trx.rollback();
+             // Nettoyage fichiers
+            await deleteFiles(comment_id).catch(delErr => logger.error({ commentIdAttempt: comment_id, error: delErr }, 'Failed to cleanup files after comment creation failure'));
 
-            return response.internalServerError({
-                success: false,
-                error: 'An unexpected error occurred',
-                ...(process.env.NODE_ENV === 'development' && { details: error.message })
-            });
+            logger.error({ userId: user?.id, payload: payload, error: error.message, stack: error.stack }, 'Failed to create comment');
+            if (error.code === 'E_VALIDATION_ERROR') {
+                 // 🌍 i18n
+                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            }
+             // 🌍 i18n
+            return response.internalServerError({ message: t('comment.creationFailed'), error: error.message }); // Nouvelle clé
         }
     }
 
+     // Récupérer le commentaire associé à un order_item (pour l'utilisateur qui a commandé)
     public async get_comment({ request, response, auth }: HttpContext) {
-        const { order_item_id } = request.qs();
-        try {
-            if (!order_item_id) {
-                return response.badRequest('Order Item ID is required');
+         // 🔐 Authentification (L'utilisateur doit être celui qui a passé la commande)
+         await auth.authenticate();
+         const user = auth.user!;
+
+         let payload: Infer<typeof this.getCommentSchema> = {} as any;
+         try {
+             // ✅ Validation Vine pour Query Params
+             payload = await this.getCommentSchema.validate(request.qs());
+         } catch (error) {
+              if (error.code === 'E_VALIDATION_ERROR') {
+                  // 🌍 i18n
+                  return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+              }
+              throw error;
+         }
+
+         try {
+            // --- Logique métier ---
+            const item = await UserOrderItem.find(payload.order_item_id);
+            if (!item) {
+                // 🌍 i18n
+                return response.notFound({ message: t('comment.orderItemNotFound') });
+            }
+            // Vérifier que l'utilisateur demande le commentaire de SON item
+            if (user.id !== item.user_id) {
+                 // 🌍 i18n
+                 // Retourner notFound plutôt que forbidden pour ne pas révéler l'existence de l'item
+                 return response.notFound({ message: t('comment.notFoundForItem') }); // Nouvelle clé
             }
 
-            const user = await auth.authenticate();
-
-            console.log("🚀 ~ CommentsController ~ get_comment ~ user:", user)
-
-            const item = await UserOrderItem.find(order_item_id);
-            console.log("🚀 ~ CommentsController ~ get_comment ~ item:", item)
-            if (!item) return response.notFound('Order Item not found')
-            // if (user.id !== item.user_id) return response.unauthorized(`You can't get this comment`)
-
+            // 🔍 GET par ID (order_item_id)
             const comment = await Comment.query()
                 .where('order_item_id', item.id)
-                .first();
+                .first(); // Utiliser .first()
 
-            return response.ok(comment || null);
-        } catch (error) {
-            console.error('Error getting comment:', error);
-            return response.internalServerError({
-                error: 'Server error occurred',
-                ...(process.env.NODE_ENV === 'development' && { details: error.message })
-            });
-        }
+             // Pas de message i18n car on retourne le commentaire ou null
+             // (Le code original retournait null si non trouvé, on garde ce comportement)
+             return response.ok(comment || null);
+
+         } catch (error) {
+             logger.error({ userId: user.id, orderItemId: payload?.order_item_id, error: error.message, stack: error.stack }, 'Failed to get single comment');
+              // 🌍 i18n
+             return response.internalServerError({ message: t('comment.fetchFailed'), error: error.message }); // Nouvelle clé
+         }
     }
 
+    // Récupérer une liste de commentaires (public ou filtré par produit)
     public async get_comments({ request, response }: HttpContext) {
-        const { order_by, page = 1, limit = 10, comment_id, product_id, with_users } = request.qs();
-        try {
-            if (comment_id) {
-                const comment = await Comment.find(comment_id);
-                if (!comment) throw new Error('Comment not found');
-                return response.ok(comment);
-            }
+         // Lecture publique, pas besoin d'authentification ou de permission ici
+         let payload: Infer<typeof this.getCommentsSchema>;
+         try {
+             // ✅ Validation Vine pour Query Params
+             payload = await this.getCommentsSchema.validate(request.qs());
+         } catch (error) {
+             if (error.code === 'E_VALIDATION_ERROR') {
+                  // 🌍 i18n
+                  return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+             }
+             throw error;
+         }
 
-            let query = Comment.query().select('*');
-            if (with_users == 'true' || with_users == true) {
-                query = query.preload('user');
-            }
-            if (product_id) query = query.where('product_id', product_id);
-            if (order_by) query = applyOrderBy(query, order_by, Comment.table);
+         try {
+             // --- Logique métier ---
+              // 🔍 GET par ID (comment_id)
+              if (payload.comment_id) {
+                  const comment = await Comment.query()
+                      .if(payload.with_users, (query) => query.preload('user')) // Précharger user si demandé
+                      .where('id', payload.comment_id)
+                      .first(); // Utiliser .first()
 
-            const commentsPaginate = await query.paginate(page, limit);
-            return response.ok({ list: commentsPaginate.all(), meta: commentsPaginate.getMeta() });
-        } catch (error) {
-            console.error('Error getting comments:', error);
-            return response.internalServerError({ error: 'Bad config or server error', details: error.message });
-        }
+                  if (!comment) {
+                       // 🌍 i18n
+                       return response.notFound({ message: t('comment.notFound') }); // Nouvelle clé
+                  }
+                  return response.ok(comment);
+              }
+
+             // Si pas de comment_id, lister et paginer
+             let query = Comment.query().select('*'); // Commencer avec Lucid Query Builder
+
+             if (payload.with_users) {
+                 query = query.preload('user');
+             }
+             if (payload.product_id) {
+                 query = query.where('product_id', payload.product_id);
+             }
+
+             const orderBy = payload.order_by || 'created_at_desc'; // Défaut
+             query = applyOrderBy(query, orderBy, Comment.table);
+
+             const page = payload.page ?? 1;
+             const limit = payload.limit ?? 10;
+             const commentsPaginate = await query.paginate(page, limit);
+
+              // Pas de message i18n car on retourne les données
+             return response.ok({ list: commentsPaginate.all(), meta: commentsPaginate.getMeta() });
+
+         } catch (error) {
+             logger.error({ params: payload, error: error.message, stack: error.stack }, 'Failed to get comments list');
+              // 🌍 i18n
+             return response.internalServerError({ message: t('comment.fetchListFailed'), error: error.message }); // Nouvelle clé
+         }
     }
 
     public async update_comment({ request, response, auth }: HttpContext) {
-        const user = await auth.authenticate();
-        const { title, description, rating, comment_id } = request.only(['title', 'description', 'rating', 'comment_id']);
-        const body = request.body();
+         // 🔐 Authentification (l'utilisateur doit être celui qui a posté le commentaire)
+         await auth.authenticate();
+         const user = auth.user!;
 
-        const trx = await db.transaction(); // 🔥 Démarrage transaction
-        try {
-            const comment = await Comment.find(comment_id);
-            if (!comment) throw new Error('Comment not found');
-            if (comment.user_id !== user.id) throw new Error('Unauthorized');
+         const trx = await db.transaction();
+         let payload: Infer<typeof this.updateCommentSchema> = {} as any;
+         try {
+             // ✅ Validation Vine (Body)
+             // Utiliser request.all() pour updateFiles
+             payload = await this.updateCommentSchema.validate(request.all());
+             const comment_id = payload.comment_id; // ID validé
 
-            comment.useTransaction(trx);
-            comment.merge({ title, rating, description });
+             // --- Logique métier ---
+             const comment = await Comment.find(comment_id, { client: trx });
+             if (!comment) {
+                  // 🌍 i18n
+                  await trx.rollback();
+                  return response.notFound({ message: t('comment.notFound') });
+             }
+             // Vérifier l'appartenance
+             if (comment.user_id !== user.id) {
+                  // 🌍 i18n
+                  await trx.rollback();
+                  return response.forbidden({ message: t('comment.cannotUpdateOthers') }); // Nouvelle clé
+             }
 
-            for (const f of ['views'] as const) {
-                if (!body[f]) continue;
-                const urls = await updateFiles({
-                    request,
-                    table_name: Comment.table,
-                    table_id: comment_id,
-                    column_name: f,
-                    lastUrls: comment[f],
-                    newPseudoUrls: body[f],
-                    options: {
-                        throwError: true,
-                        min: 1,
-                        max: 1,
-                        compress: 'img',
-                        extname: EXT_IMAGE,
-                        maxSize: 12 * MEGA_OCTET,
-                    },
-                });
-                comment[f] = urls;
-            }
+             // Gestion fichiers 'views'
+             let updatedViewsUrls: string[] | undefined = undefined;
+              if (payload.views !== undefined) { // Vérifier si clé existe
+                   let normalizedViews: string[] = [];
+                   try {
+                       normalizedViews = normalizeStringArrayInput({ views: payload.views }).views;
+                   } catch (error) {
+                       // 🌍 i18n
+                       await trx.rollback();
+                       return response.badRequest({ message: t('invalid_value', { key: 'views', value: payload.views }) });
+                   }
+                 updatedViewsUrls = await updateFiles({
+                     request, table_name: Comment.table, table_id: comment_id,
+                     column_name: 'views', lastUrls: comment.views || [],
+                     newPseudoUrls: normalizedViews,
+                     options: {
+                         throwError: true, min: 0, max: 3, compress: 'img', // Garder max=3?
+                         extname: EXT_IMAGE, maxSize: 12 * MEGA_OCTET,
+                     },
+                 });
+              }
 
-            await comment.save();
-            await trx.commit(); // ✅ Validation transaction
-            transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event:'update'});
 
-            return response.ok(comment);
-        } catch (error) {
-            await trx.rollback(); // ❌ Annulation transaction
-            console.error('Error updating comment:', error);
-            return response.internalServerError({ error: 'Bad config or server error', details: error.message });
-        }
+             comment.useTransaction(trx);
+             comment.merge({
+                 title: payload.title, // merge gère undefined
+                 rating: payload.rating,
+                 description: payload.description, // merge gère undefined/null
+                 ...(updatedViewsUrls !== undefined && { views: updatedViewsUrls }) // MAJ seulement si fourni
+             });
+             await comment.save();
+             // --- Fin logique métier ---
+
+             // Mettre à jour la note du produit si le rating a changé
+             if (payload.rating !== undefined && payload.rating !== comment.rating) {
+                 const product = await Product.find(comment.product_id, { client: trx });
+                 if (product) {
+                     const avgRatingResult = await Comment.query({ client: trx })
+                         .where('product_id', comment.product_id)
+                         .avg('rating as average')
+                         .count('* as comment_count')
+                         .first();
+                     product.rating = avgRatingResult?.$extras.average ? parseFloat(avgRatingResult.$extras.average.toFixed(2)) : 0;
+                     product.comment_count = avgRatingResult?.$extras.comment_count ? parseInt(String(avgRatingResult.$extras.comment_count)) : 0;
+                     await product.useTransaction(trx).save();
+                     logger.debug({ productId: product.id, rating: product.rating, count: product.comment_count }, "Product rating updated after comment update");
+                 }
+             }
+
+
+             await trx.commit();
+             logger.info({ userId: user.id, commentId: comment.id }, 'Comment updated');
+             // Diffusion SSE
+             transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event: 'update' });
+
+             // 🌍 i18n
+             return response.ok({ message: t('comment.updateSuccess'), comment: comment }); // Nouvelle clé
+
+         } catch (error) {
+             await trx.rollback();
+             logger.error({ userId: user.id, commentId: payload?.comment_id, error: error.message, stack: error.stack }, 'Failed to update comment');
+              if (error.code === 'E_VALIDATION_ERROR') {
+                  // 🌍 i18n
+                  return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+              }
+               // 🌍 i18n
+              return response.internalServerError({ message: t('comment.updateFailed'), error: error.message }); // Nouvelle clé
+         }
     }
 
-    public async delete_comment({ request, response, auth }: HttpContext) {
-        // const user = await auth.authenticate();
-        const comment_id = request.param('id');
+    // Supprimer un commentaire (soit l'auteur, soit un admin/modérateur)
+    public async delete_comment({ params, response, auth, bouncer }: HttpContext) {
+        // 🔐 Authentification (on a besoin de savoir qui demande la suppression)
+        await auth.authenticate();
+        const user = auth.user!;
 
-        if (!comment_id) throw new Error('Comment ID is required');
-
-        const trx = await db.transaction(); // 🔥 Démarrage transaction
+        let payload: Infer<typeof this.deleteCommentParamsSchema>;
         try {
-            const comment = await Comment.find(comment_id);
-            if (!comment) throw new Error('Comment not found');
-            // if (comment.user_id !== user.id) throw new Error('Unauthorized');
-
-            
-            await comment.useTransaction(trx).delete();
-            await deleteFiles(comment_id);
-
-            transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event:'delete'});
-            
-            
-            const product = (comment.$isDeleted||null)  && await Product.query({ client: trx }).where('id', comment.product_id).first();
-            if (product) {
-                const avgRating = await Comment.query({ client: trx })
-                .where('product_id', comment.product_id)
-                .avg('rating as average')
-                .count('* as comment_count')
-                .first();
-                
-                product.rating = avgRating?.$extras.average ?? 0 
-                product.comment_count = avgRating?.$extras.comment_count?? 0
-                console.log({product:product.$attributes});
-                
-                await product.useTransaction(trx).save();
-            }
-            await trx.commit(); // ✅ Validation transaction
-            return response.ok({ message: 'Comment deleted successfully' });
+             // ✅ Validation Vine pour Params
+            payload = await this.deleteCommentParamsSchema.validate(params);
         } catch (error) {
-            await trx.rollback(); // ❌ Annulation transaction
-            console.error('Error deleting comment:', error);
-            return response.internalServerError({ message: 'Comment not deleted', error: error.message });
+            if (error.code === 'E_VALIDATION_ERROR') {
+                 // 🌍 i18n
+                 return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            }
+            throw error;
+        }
+
+        const comment_id = payload.id;
+        const trx = await db.transaction();
+        try {
+            const comment = await Comment.find(comment_id, { client: trx });
+            if (!comment) {
+                 // 🌍 i18n
+                 await trx.rollback();
+                 return response.notFound({ message: t('comment.notFound') });
+            }
+
+            // 🛡️ Permissions : Vérifier si l'utilisateur est l'auteur OU a la permission de supprimer n'importe quel commentaire
+            const isAuthor = comment.user_id === user.id;
+            let canDelete = isAuthor; // L'auteur peut supprimer par défaut
+
+            if (!isAuthor) {
+                // Si pas l'auteur, vérifier la permission 'manage_command' (ou autre)
+                try {
+                    await bouncer.authorize('collaboratorAbility', [DELETE_ANY_COMMENT_PERMISSION]);
+                    canDelete = true; // Le modérateur peut supprimer
+                } catch (bouncerError) {
+                     if (bouncerError.code !== 'E_AUTHORIZATION_FAILURE') {
+                          throw bouncerError; // Relancer si autre erreur
+                     }
+                     // Si E_AUTHORIZATION_FAILURE, canDelete reste false
+                }
+            }
+
+            if (!canDelete) {
+                 // 🌍 i18n
+                 await trx.rollback();
+                 return response.forbidden({ message: t('comment.cannotDeleteOthers') }); // Nouvelle clé
+            }
+
+            // --- Logique métier ---
+            const productId = comment.product_id; // Sauvegarder avant suppression
+            await comment.useTransaction(trx).delete();
+            await deleteFiles(comment_id); // Nettoyer fichiers
+
+            // Mettre à jour la note du produit APRES suppression
+            const product = await Product.find(productId, { client: trx });
+            if (product) {
+                 const avgRatingResult = await Comment.query({ client: trx })
+                     .where('product_id', productId)
+                     .avg('rating as average')
+                     .count('* as comment_count')
+                     .first();
+                 product.rating = avgRatingResult?.$extras.average ? parseFloat(avgRatingResult.$extras.average.toFixed(2)) : 0;
+                 product.comment_count = avgRatingResult?.$extras.comment_count ? parseInt(String(avgRatingResult.$extras.comment_count)) : 0;
+                 await product.useTransaction(trx).save();
+                 logger.debug({ productId: product.id, rating: product.rating, count: product.comment_count }, "Product rating updated after comment deletion");
+            }
+            // --- Fin logique métier ---
+
+            await trx.commit();
+            logger.info({ actorId: user.id, commentId: comment_id }, 'Comment deleted');
+            // Diffusion SSE
+            transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event: 'delete' });
+
+            // 🌍 i18n
+            return response.ok({ message: t('comment.deleteSuccess') }); // Nouvelle clé
+
+        } catch (error) {
+            await trx.rollback();
+            logger.error({ actorId: user.id, commentId: comment_id, error: error.message, stack: error.stack }, 'Failed to delete comment');
+             // 🌍 i18n
+             return response.internalServerError({ message: t('comment.deleteFailed'), error: error.message }); // Nouvelle clé
         }
     }
 }

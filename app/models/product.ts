@@ -38,7 +38,7 @@ export default class Product extends BaseModel {
       return v
     }
   })
-  declare description: string
+  declare description: string |null
 
   @column()
   declare price: number

@@ -34,6 +34,7 @@ import { DateTime } from 'luxon'
 import BullMQService from '#services/BullMQService'
 import logger from '@adonisjs/core/services/logger'
 import DebugController from '#controllers/debug_controller'
+import InventoriesController from '#controllers/inventories_controller'
 
 transmit.registerRoutes();
 
@@ -45,10 +46,6 @@ router.post('/logout', [AuthController, 'logout'])
 
 // router.post('/update_account', [AuthController, 'update'])
 router.delete("/delete_account", [AuthController, 'delete_account'])
-
-
-// Authentification Google
-router.post('/google_callback', [AuthController, 'google_auth'])
 
 // Gestion de compte
 router.get('/me', [AuthController, 'me'])
@@ -112,7 +109,7 @@ router.post('/add_remove_permission', [RolesController, 'add_remove_permission']
 router.get('/list_role', [RolesController, 'list_role'])
 router.delete('/remove_collaborator/:id', [RolesController, 'remove_collaborator'])
 
-//User_addreses
+//User address
 router.get('/create_user_address', [UserAddressesController, 'create_user_address'])
 router.post('/create_user_address', [UserAddressesController, 'create_user_address'])
 router.put('/update_user_address', [UserAddressesController, 'update_user_address'])
@@ -153,8 +150,19 @@ router.post('/import_store', [GlobaleServicesController, 'import_store'])
 router.post('/visite', [VisitesController, 'visite'])
 router.get('/get_visites', [VisitesController, 'get_visites'])
 
+// Inventories
+router.group(() => {
+  router.post('/', [InventoriesController, 'create'])
+  router.get('/', [InventoriesController, 'get'])        // Pour lister
+  router.get('/:id', [InventoriesController, 'get'])     // Pour récupérer un spécifique
+  router.put('/:id', [InventoriesController, 'update'])
+  router.delete('/:id', [InventoriesController, 'delete'])
+})
+.prefix('/api/inventories') 
+
 //Stats
 router.get('/stats', [StatisticsController, 'index'])
+
 router.group(() => {
   router.get('/request-scale-up', [DebugController, 'requestScaleUp'])
   router.get('/request-scale-down', [DebugController, 'requestScaleDown']) // <<< NOUVELLE ROUTE

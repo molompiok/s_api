@@ -12,7 +12,6 @@ export default class InventorySocial extends BaseModel {
   @column()
   declare name: string
 
-
   @column({
     prepare: (value) => JSON.stringify(value), 
     // consume: (value) => JSON.parse(value),

@@ -4,124 +4,309 @@ import Product from '#models/product'
 import Value from '#models/value';
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db';
-import { features } from 'process';
+// import { features } from 'process'; // Supprimé car non utilisé et potentiellement conflictuel
+import vine from '@vinejs/vine'; // ✅ Ajout de Vine
+import { t } from '../utils/functions.js'; // ✅ Ajout de t
+import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
+import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
+import { TypeJsonRole } from '#models/role'; // Pour type permissions
+import User from '#models/user'; // Importer User pour la recherche future
+import UserOrder from '#models/user_order'; // Importer UserOrder pour la recherche future
+import { v4 } from 'uuid';
+
+// Permissions requises (à définir - exemple)
+const SEARCH_PERMISSION: keyof TypeJsonRole = 'filter_product'; // Ou une permission plus globale?
+const IMPORT_EXPORT_PERMISSION: keyof TypeJsonRole = 'manage_interface'; // Permission pour import/export
 
 export default class GlobaleServicesController {
-    async global_search({ request }: HttpContext) {
-        const { text } = request.qs();
 
-        console.log({ text });
+    // --- Schémas de validation Vine ---
+    private globalSearchSchema = vine.compile(
+        vine.object({
+            text: vine.string().trim().minLength(1).optional(), // Recherche optionnelle pour retourner un objet vide si absent
+        })
+    );
 
+    private importStoreSchema = vine.compile(
+        vine.object({
+            products: vine.array(vine.any()).optional(), // Validation simple du tableau
+            categories: vine.array(vine.any()).optional(), // Validation simple du tableau
+        })
+    );
+
+    // Pas de schéma pour l'export car il ne prend pas de paramètres dans le body/query
+
+    // --- Méthodes du contrôleur ---
+
+    async global_search({ request, response, auth, bouncer }: HttpContext) {
+        // 🔐 Authentification (requis pour rechercher)
+        await auth.authenticate();
+        // 🛡️ Permissions (requis pour utiliser la recherche globale)
+        try {
+            await bouncer.authorize('collaboratorAbility', [SEARCH_PERMISSION]) // Permission à définir
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
+
+        let payload: Infer<typeof this.globalSearchSchema>;
+        try {
+            // ✅ Validation Vine pour Query Params
+            payload = await this.globalSearchSchema.validate(request.qs());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+            }
+            throw error;
+        }
+
+        const text = payload.text; // Peut être undefined si non fourni
+
+        // Retourner un objet vide si pas de texte de recherche
         if (!text) {
-            return {
+            return response.ok({
                 products: [],
-                clients: [],
-                commands: [],
                 categories: [],
-            };
+                clients: [], // Garder la structure même si vide
+                commands: [], // Garder la structure même si vide
+            });
         }
 
-        let productsQuery, categoriesQuery;
+        try {
+            let productsQuery: Promise<any>; // Utiliser Promise<any> pour flexibilité entre .first() et .limit()
+            let categoriesQuery: Promise<any>;
+            let clientsQuery: Promise<any>;
+            let commandsQuery: Promise<any>;
 
-        if (text.startsWith('#')) {
-            // 🔍 Recherche par ID (ex: "#12345")
-            const searchTerm = text.substring(1) + "%";
+            const searchLimit = 5; // Limite de résultats par type
 
-            productsQuery = Product.query().where('id', 'ILIKE', searchTerm).first();
-            categoriesQuery = Categorie.query().where('id', 'ILIKE', searchTerm).first();
-        } else {
-            // 🔍 Recherche par nom/description (ex: "chaise bois")
-            const searchTerm = `%${text.toLowerCase().split(' ').join('%')}%`;
+            if (text.startsWith('#')) {
+                // 🔍 Recherche par ID
+                const searchTerm = text.substring(1).toLowerCase(); // Retirer '#' et mettre en minuscule pour UUID
+                const searchPattern = `${searchTerm}%`; // Ajouter wildcard pour ILIKE
 
-            productsQuery = Product.query()
-                .whereILike('name', searchTerm)
-                .orWhereILike('description', searchTerm).preload('features', (featureQuery) => {
-                    featureQuery
-                        .orderBy('features.created_at', 'asc') // 🔥 Trier les features par date de création
-                        .preload('values', (valueQuery) => {
-                            valueQuery.orderBy('values.created_at', 'asc') // 🔥 Trier les values par date de création
-                        });
-                })
-                .limit(5);
+                // Utiliser whereRaw pour caster en TEXT avant ILIKE pour les UUIDs
+                productsQuery = Product.query()
+                    .whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
+                    // 🔍 GET par ID -> .first()
+                    .first();
 
-            categoriesQuery = Categorie.query()
-                .whereILike('name', searchTerm)
-                .orWhereILike('description', searchTerm)
-                .limit(5);
+                categoriesQuery = Categorie.query()
+                     .whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
+                     // 🔍 GET par ID -> .first()
+                     .first();
+
+                // Recherche Client par ID (UUID)
+                clientsQuery = User.query()
+                    .where('role_type', 'client') // Assurer qu'on cherche bien un client
+                    .whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
+                     // 🔍 GET par ID -> .first()
+                    .first();
+
+                 // Recherche Commande par ID (UUID) ou Reference
+                 commandsQuery = UserOrder.query()
+                    .where((query) => {
+                        query.whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
+                             .orWhereILike('reference', searchPattern); // La référence est peut-être déjà text
+                    })
+                    // 🔍 GET par ID -> .first()
+                    .first();
+
+            } else {
+                // 🔍 Recherche par nom/description/email etc.
+                const searchTerm = `%${text.toLowerCase().split(' ').join('%')}%`;
+
+                productsQuery = Product.query()
+                    .where((query) => {
+                        query.whereILike('name', searchTerm)
+                             .orWhereILike('description', searchTerm);
+                    })
+                    // Pas de preload ici pour la recherche rapide, le front fera un appel détaillé si besoin
+                    // .preload('features', ...)
+                    .limit(searchLimit)
+                    .exec(); // Utiliser exec() pour obtenir le tableau directement
+
+                categoriesQuery = Categorie.query()
+                    .where((query) => {
+                         query.whereILike('name', searchTerm)
+                              .orWhereILike('description', searchTerm);
+                    })
+                    .limit(searchLimit)
+                    .exec();
+
+                 // Recherche Client par Nom/Email
+                 clientsQuery = User.query()
+                    .where('role_type', 'client')
+                    .where((query) => {
+                         query.whereILike('full_name', searchTerm)
+                              .orWhereILike('email', searchTerm);
+                    })
+                    .limit(searchLimit)
+                    .exec();
+
+                 // Recherche Commande par infos client ou référence
+                 commandsQuery = UserOrder.query()
+                     .whereILike('reference', searchTerm)
+                     // Peut-être ajouter recherche par nom/email du client associé?
+                     .orWhereHas('user', (userQuery) => {
+                          userQuery.whereILike('full_name', searchTerm)
+                                   .orWhereILike('email', searchTerm);
+                     })
+                    .preload('user', (userQuery) => userQuery.select(['id', 'full_name', 'email'])) // Preload user pour affichage
+                    .limit(searchLimit)
+                    .exec();
+            }
+
+            // Exécuter les requêtes en parallèle
+            const [productsRes, categoriesRes, clientsRes, commandsRes] = await Promise.all([
+                productsQuery,
+                categoriesQuery,
+                clientsQuery,
+                commandsQuery,
+            ]);
+
+            // Formater la réponse (mettre dans un tableau même si .first() a retourné un seul objet ou null)
+            return response.ok({
+                products: productsRes ? (Array.isArray(productsRes) ? productsRes : [productsRes]) : [],
+                categories: categoriesRes ? (Array.isArray(categoriesRes) ? categoriesRes : [categoriesRes]) : [],
+                clients: clientsRes ? (Array.isArray(clientsRes) ? clientsRes : [clientsRes]) : [],
+                commands: commandsRes ? (Array.isArray(commandsRes) ? commandsRes : [commandsRes]) : [],
+            });
+
+        } catch (error) {
+            logger.error({ userId: auth.user!.id, searchText: text, error: error.message, stack: error.stack }, 'Global search failed');
+            // 🌍 i18n
+            return response.internalServerError({ message: t('globalSearch.searchFailed'), error: error.message }); // Nouvelle clé
         }
-
-        // 🔥 Exécuter les requêtes en parallèle pour gagner du temps
-        const [products, categories] = await Promise.all([
-            productsQuery,
-            categoriesQuery,
-        ]);
-
-        return {
-            products: products || [],
-            clients: [], // À implémenter
-            commands: [], // À implémenter
-            categories: categories || [],
-        };
     }
 
-    async import_store({ request }: HttpContext) {
-
-        const { products, categories } = request.body();
-        const trx = await db.transaction()
+    async import_store({ request, response, auth, bouncer }: HttpContext) {
+         // 🔐 Authentification
+        await auth.authenticate();
+        // 🛡️ Permissions
         try {
+            await bouncer.authorize('collaboratorAbility', [IMPORT_EXPORT_PERMISSION])
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                 // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
+
+        let payload: Infer<typeof this.importStoreSchema>;
+        try {
+            // ✅ Validation Vine (simple, pourrait être plus stricte sur la structure interne)
+            payload = await this.importStoreSchema.validate(request.body());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                 // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+            }
+            throw error;
+        }
+
+        const { products, categories } = payload; // Utiliser payload validé
+
+        if (!products && !categories) {
+             // 🌍 i18n
+             return response.badRequest({ message: t('importExport.noDataToImport') }); // Nouvelle clé
+        }
+
+        const trx = await db.transaction();
+        try {
+            // --- Logique métier (inchangée, mais nécessite une validation plus poussée des données importées) ---
+             // TODO: Ajouter une validation BEAUCOUP plus stricte des objets 'product' et 'category'
+             // avant de tenter de les insérer pour éviter les erreurs DB.
+             // Utiliser des schémas Vine complexes ou une librairie comme Zod.
+
             if (Array.isArray(products)) {
-                for (const product of products) {
-                    const p = await Product.create({
-                        ...product
-                    }, { client: trx })
-                    if (Array.isArray(product.features)) {
-                        for (const feature of product.features) {
-                            const f = await Feature.create({
-                                ...feature
-                            }, { client: trx })
-                            if (Array.isArray(feature.values)) {
-                                for (const value of feature.values) {
-                                    const v = await Value.create({
-                                        ...value
-                                    }, { client: trx })
+                for (const productData of products) {
+                     // **Validation Stricte de productData ici**
+                     // Créer Product
+                    const newProduct = await Product.create({ ...productData, id: v4() }, { client: trx }); // Générer nouvel ID
+
+                    if (Array.isArray(productData.features)) {
+                        for (const featureData of productData.features) {
+                            // **Validation Stricte de featureData ici**
+                             // Créer Feature
+                            const newFeature = await Feature.create({ ...featureData, id: v4(), product_id: newProduct.id }, { client: trx }); // Lier au nouveau produit
+
+                            if (Array.isArray(featureData.values)) {
+                                for (const valueData of featureData.values) {
+                                     // **Validation Stricte de valueData ici**
+                                     // Créer Value
+                                     await Value.create({ ...valueData, id: v4(), feature_id: newFeature.id }, { client: trx }); // Lier à la nouvelle feature
                                 }
                             }
                         }
                     }
                 }
             }
+
             if (Array.isArray(categories)) {
-                for (const category of categories) {
-                    const c = await Categorie.create({
-                        ...category
-                    }, { client: trx })
+                for (const categoryData of categories) {
+                    // **Validation Stricte de categoryData ici**
+                     // Créer Category
+                    await Categorie.create({ ...categoryData, id: v4() }, { client: trx }); // Générer nouvel ID
                 }
             }
-            trx.commit();
-            return {
-                ok:true
-            }
+            // --- Fin logique métier ---
+
+            await trx.commit();
+            logger.info({ userId: auth.user!.id }, 'Store data imported successfully');
+            // 🌍 i18n
+            return response.ok({ message: t('importExport.importSuccess') }); // Nouvelle clé
+
         } catch (error) {
-            trx.rollback();
-            console.log(error);
-            
+            await trx.rollback();
+            logger.error({ userId: auth.user!.id, error: error.message, stack: error.stack }, 'Store import failed');
+             // 🌍 i18n
+            return response.internalServerError({ message: t('importExport.importFailed'), error: error.message }); // Nouvelle clé
         }
     }
 
-    async export_store({ request }: HttpContext){
-        const {} = request.body();
-        const  categories = await Categorie.all();
-        const  products = await Product.query().select('*').preload('features', (featureQuery) => {
-            featureQuery
-              .orderBy('features.created_at', 'asc') // 🔥 Trier les features par date de création
-              .preload('values', (valueQuery) => {
-                valueQuery.orderBy('values.created_at', 'asc') // 🔥 Trier les values par date de création
-              });
-          })
-          return{
-            categories,
-            products
-          }
-    }
+    async export_store({ response, auth, bouncer }: HttpContext){
+        // 🔐 Authentification
+        await auth.authenticate();
+         // 🛡️ Permissions
+         try {
+             await bouncer.authorize('collaboratorAbility', [IMPORT_EXPORT_PERMISSION])
+         } catch (error) {
+             if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                  // 🌍 i18n
+                 return response.forbidden({ message: t('unauthorized_action') })
+             }
+             throw error;
+         }
 
+        try {
+            // --- Logique métier (inchangée) ---
+            const categories = await Categorie.all();
+            const products = await Product.query().select('*').preload('features', (featureQuery) => {
+                featureQuery
+                  .orderBy('created_at', 'asc')
+                  .preload('values', (valueQuery) => {
+                    valueQuery.orderBy('created_at', 'asc')
+                  });
+              }).exec(); // Utiliser exec() pour obtenir directement le tableau
+              // --- Fin logique métier ---
+
+             logger.info({ userId: auth.user!.id }, 'Store data exported successfully');
+             // Pas besoin de message i18n ici car on retourne directement les données
+            return response.ok({
+                categories: categories.map(c => c.toJSON()), // Assurer la sérialisation propre
+                products: products.map(p => p.toJSON())   // Assurer la sérialisation propre
+            });
+
+        } catch(error) {
+            logger.error({ userId: auth.user!.id, error: error.message, stack: error.stack }, 'Store export failed');
+             // 🌍 i18n
+             return response.internalServerError({ message: t('importExport.exportFailed'), error: error.message }); // Nouvelle clé
+        }
+    }
 }

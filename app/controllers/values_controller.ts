@@ -7,257 +7,463 @@ import { EXT_IMAGE, EXT_VIDEO, MEGA_OCTET } from './Utils/ctrlManager.js'
 import { createFiles } from './Utils/media/CreateFiles.js'
 import { deleteFiles } from './Utils/media/DeleteFiles.js'
 import { MAX_PRICE } from './Utils/constants.js'
-import { FeatureInterface, ValueInterface } from './features_controller.js'
 import Feature, { FeatureType } from '#models/feature'
+import vine from '@vinejs/vine' // ✅ Ajout de Vine
+import { t } from '../utils/functions.js'; // ✅ Ajout de t
+import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
+import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
+import { TypeJsonRole } from '#models/role' // Pour type permissions
 
-const checkValidValue = (feature: FeatureInterface, value: Partial<ValueInterface>) => {
-  if (feature.type == FeatureType.COLOR) {
-    if (!value.key) {
-      /* is valide css color */
-      const isColor = /^#[0-9A-Fa-f]{6}$/i.test(value?.key || '');
-      if (!isColor) throw new Error(`L\'option(value) couleur doit contenir une key valide, expemle value.key = #00ff00. La value.key (${value.key}) n'est pas valide, dans la value ${JSON.stringify(value)}`)
+// Interfaces (conservées pour la méthode checkValidValue)
+export interface ValueInterface {
+    id?: string;
+    feature_id?: string;
+    views?: string[] | null;
+    icon?: string[] | null;
+    text?: string | null;
+    key?: string | null;
+    stock?: number | null
+    decreases_stock?: boolean,
+    continue_selling?: boolean
+    index: number;
+    created_at: string | Date;
+    updated_at: string | Date;
+};
+export interface FeatureInterface {
+    id?: string,
+    product_id?: string,
+    name?: string,
+    type?: FeatureType,
+    icon?: string[],
+    required?: boolean,
+    regex?: string,
+    min?: number,
+    max?: number,
+    min_size?: number,
+    max_size?: number,
+    index?: number,
+    multiple?: boolean,
+    is_double?: boolean,
+    default_value?: string|null,
+    created_at: string,
+    updated_at: string,
+    values?: ValueInterface[];
+};
+// Fin Interfaces
+
+// Permissions requises pour ce contrôleur (assumant les mêmes que pour les produits)
+const EDIT_PERMISSION: keyof TypeJsonRole = 'edit_product';
+const CREATE_DELETE_PERMISSION: keyof TypeJsonRole = 'create_delete_product';
+
+
+// --- Fonction de validation métier (gardée car spécifique à Value/Feature) ---
+const checkValidValue = (feature: FeatureInterface | null, value: Partial<ValueInterface>) => {
+  if (!feature) {
+    // 🌍 i18n
+    throw new Error(t('feature.notFound')); // Impossible de valider sans la feature parente
+  }
+  if (feature.type === FeatureType.COLOR) {
+    if (!value.key || !/^#[0-9A-Fa-f]{6}$/i.test(value.key)) {
+      // 🌍 i18n
+      throw new Error(t('value.invalidColorKey', { key: value.key, value: JSON.stringify(value) }));
     }
-    if (!value.text || value.text.length < 1) {
-      throw new Error(`value.text doit contelir au moins 1 caractere`)
+    if (!value.text || value.text.trim().length < 1) {
+      // 🌍 i18n
+      throw new Error(t('value.textRequired'));
+    }
+  } else if (feature.type && [FeatureType.ICON_TEXT, FeatureType.TEXT, FeatureType.ICON].includes(feature.type)) {
+    if (!value.text || value.text.trim().length < 1) {
+      // 🌍 i18n
+      throw new Error(t('value.textRequired'));
     }
   }
-  else if (feature.type == FeatureType.ICON_TEXT || feature.type == FeatureType.TEXT || feature.type == FeatureType.ICON) {
-    if (!value.text || value.text.length < 1) {
-      throw new Error(`value.text doit contelir au moins 1 caractere`)
-    }
-  }
+  // Ajouter d'autres validations métier si nécessaire pour d'autres FeatureType
 }
+// --- Fin fonction validation métier ---
 
 
 export default class ValuesController {
-  public static async _create_value(request: HttpContext['request'], payload: any, id: string, trx: any) {
-    console.log('_create_value ===>', id, payload);
 
-    const feature = await Feature.find(payload.feature_id);
-    console.log('a##############');
-    checkValidValue((feature as any).$attributes, payload);
-    console.log('b##############');
-    let distinct = ([...(payload.views || []), ...(payload.icon || [])])?.find(f => f.includes(':'))
-    distinct = distinct?.substring(0, distinct.indexOf(':'));
+    // --- Schémas de validation Vine ---
+    private createValueSchema = vine.compile(
+      vine.object({
+        feature_id: vine.string().uuid(),
+        additional_price: vine.number().min(0).max(MAX_PRICE).optional(),
+        currency: vine.string().optional(), // Pourrait être un enum si plus de devises sont gérées
+        text: vine.string().trim().minLength(1).maxLength(255).optional(), // Optionnel car peut être déduit ou non requis
+        key: vine.string().trim().maxLength(255).optional().nullable(), // Peut être null
+        stock: vine.number().min(0).optional().nullable(),
+        decreases_stock: vine.boolean().optional(),
+        continue_selling: vine.boolean().optional(),
+        index: vine.number().positive().optional(),
+        // 'views' et 'icon' gérés par createFiles
+      })
+    );
 
-    let views =  await createFiles({
-      request,
-      column_name: "views",
-      table_id: id,
-      table_name: Value.table,
-      distinct,
-      options: {
-        throwError: true,
-        compress: 'img',
-        min: 0,
-        max: 5,
-        extname: [...EXT_IMAGE, ...EXT_VIDEO],
-        maxSize: 12 * MEGA_OCTET,
-      },
-    });
-    let icon = await createFiles({
-      request,
-      column_name: "icon",
-      table_id: id,
-      table_name: Value.table,
-      distinct,
-      options: {
-        throwError: true,
-        compress: 'img',
-        min: 0,
-        max: 1,
-        extname: EXT_IMAGE,
-        maxSize: 5 * MEGA_OCTET,
-      },
-    });
-    
-    payload.stock = payload.stock && parseInt(payload.stock)
-    payload.index = payload.index && parseInt(payload.index || '1')
-    payload.index = payload.index <= 0 ? 1 : payload.index
-    payload.additional_price = payload.additional_price && parseFloat(payload.additional_price)
-    const newValue = await Value.create({
-      stock: payload.stock,
-      decreases_stock: !!payload.decreases_stock,
-      continue_selling: !!payload.continue_selling,
-      index: payload.index,
-      additional_price: payload.additional_price,
-      currency: payload.currency,
-      text: payload.text,
-      key: payload.key,
-      icon: ((!icon || icon.length ==0 )? views[0] && [views[0]] : icon)||[],
-      views,
-      feature_id: payload.feature_id,
-      id
-    }, { client: trx })
-    console.log(trx.isCompleted, '🔄 _create_value apres ');
-    return newValue
-  }
+    private getValuesSchema = vine.compile(
+        vine.object({
+            feature_id: vine.string().uuid().optional(),
+            value_id: vine.string().uuid().optional(),
+            text: vine.string().trim().optional(),
+            page: vine.number().positive().optional(),
+            limit: vine.number().positive().optional(),
+        })
+    );
 
-  async create_value({ request, response }: HttpContext) {
-    const data = request.only([
-      'feature_id',
-      'additional_price',
-      'currency',
-      'icon',
-      'text',
-      'key',
-      'stock',
-      'decreases_stock',
-      'continue_selling',
-      'index'
-    ])
+    private updateValueSchema = vine.compile(
+        vine.object({
+            value_id: vine.string().uuid(), // ID de la value à mettre à jour (dans le body)
+            id: vine.string().uuid().optional(), // Accepter 'id' comme alias
+            feature_id: vine.string().uuid(), // Toujours requis pour checkValidValue
+            additional_price: vine.number().min(0).max(MAX_PRICE).optional(),
+            currency: vine.string().optional(),
+            text: vine.string().trim().minLength(1).maxLength(255).optional(),
+            key: vine.string().trim().maxLength(255).optional().nullable(),
+            stock: vine.number().min(0).optional().nullable(),
+            decreases_stock: vine.boolean().optional(),
+            continue_selling: vine.boolean().optional(),
+            index: vine.number().positive().optional(),
+            views: vine.array(vine.string()).optional(), // Pour updateFiles (pseudo URLs)
+            icon: vine.array(vine.string()).optional(), // Pour updateFiles (pseudo URLs)
+        })
+    );
 
-    const id = v4()
-    const trx = await db.transaction();
-    try {
-      if (!data.feature_id && !data.text && !data.additional_price) {
-        return response.badRequest({ message: 'Missing required fields' })
-      }
-      console.log(data);
-      //TODO l'offre freemium ne permettra d'ajouter plus de 3 iamges
+    private deleteValueParamsSchema = vine.compile(
+        vine.object({
+            id: vine.string().uuid(), // ID dans l'URL
+        })
+    );
 
-      const newValue = await ValuesController._create_value(request, data, id, trx)
-      await trx.commit()
-      return response.created(newValue)
+    // --- Méthodes Statiques (appelées par d'autres contrôleurs) ---
+    // Ces méthodes ne gèrent PAS l'authentification/autorisation car elles sont appelées
+    // dans le contexte d'une action déjà autorisée (ex: multiple_update).
+    // Elles ne renvoient pas de réponse HTTP mais l'objet créé/mis à jour ou lèvent une erreur.
+    public static async _create_value(request: HttpContext['request'], payload: Infer<typeof ValuesController.prototype.createValueSchema>, id: string, trx: any) {
+        logger.debug({ payload, id }, '_create_value called');
 
-    } catch (error) {
-      await trx.rollback()
-      console.error('Error in create_value:', error)
-      return response.internalServerError({ message: 'Value not created', error: error.message })
-    }
-  }
-
-
-  async get_values({ request, response }: HttpContext) {
-    try {
-      const { feature_id, value_id, text, page=1,limit=20 } = request.qs()
-
-      const query = Value.query()
-      if (value_id) query.where('id', value_id)
-      if (feature_id) query.where('feature_id', feature_id)
-      if (text) query.whereLike('text', `%${text}%`)
-
-      const valuesPaginate = await query.paginate(1, 50)
-
-      return response.ok({ list: valuesPaginate.all(), meta: valuesPaginate.getMeta() })
-    } catch (error) {
-      console.error('Error in get_values:', error)
-      return response.internalServerError({ message: 'Error fetching values', error: error.message })
-    }
-  }
-  public static async _update_value(request: HttpContext['request'], value_id: string, payload: any, trx: any) {
-    console.log('_update_value ===>', value_id, payload);
-
-    const feature = await Feature.findOrFail(payload.feature_id);
-
-    checkValidValue((feature as any).$attributes, payload);
-
-    let distinct = ([...(payload.views || []), ...(payload.icon || [])])?.find(f => f.includes(':'))
-    distinct = distinct?.substring(0, distinct.indexOf(':'));
-
-    const value = await Value.findOrFail(value_id, { client: trx })
-    payload.stock = payload.stock && parseInt(payload.stock)
-    payload.index = payload.index && parseInt(payload.index || '1')
-    payload.additional_price = payload.additional_price && parseFloat(payload.additional_price)
-    value.merge({
-      stock: payload.stock > MAX_PRICE ? MAX_PRICE : (payload.stock < 0 ? 0 : payload.stock),
-      decreases_stock: !!payload.decreases_stock,
-      continue_selling: !!payload.continue_selling,
-      index: payload.index,
-      additional_price: payload.additional_price > MAX_PRICE ? MAX_PRICE : (payload.additional_price < 0 ? 0 : payload.additional_price),
-      currency: payload.currency,
-      text: payload.text,
-      key: payload.key,
-    })
-    let urls = [];
-
-    for (const f of ['views', 'icon'] as const) {
-      console.log('#############',payload[f]);
-      
-      if (!payload[f]) continue;
-      let v: string[] = []
-      try {
-        v = typeof value[f] == 'string' ? JSON.parse(value[f]) : v
-        if (!Array.isArray(v)) {
-          continue
+        const feature = await Feature.find(payload.feature_id); // Pas findOrFail ici, gérer l'erreur
+        if (!feature) {
+             // 🌍 i18n
+             throw new Error(t('feature.notFound'));
         }
-      } catch (error) { }
-      
-      urls = await updateFiles({
-        request,
-        table_name: Value.table,
-        table_id: value_id,
-        column_name: f,
-        lastUrls: v,
-        distinct,
-        newPseudoUrls: payload[f],
-        options: {
-          throwError: true,
-          min: 0,
-          max: f == 'views' ? 7 : 1,
-          compress: f == 'views' ? 'img' : 'img',
-          extname: f == 'views' ? [...EXT_IMAGE, ...EXT_VIDEO] : EXT_IMAGE,
-          maxSize: 12 * MEGA_OCTET,
-        },
-      });
-      value[f] = urls.length > 0 ? urls:undefined as any;
+
+        checkValidValue(feature as any, payload); // Validation métier
+
+        // Gestion Fichiers
+        let distinct = ([...(request.input('views', [])), ...(request.input('icon', []))])?.find(f => f.includes(':'))
+        distinct = distinct?.substring(0, distinct.indexOf(':'));
+
+        let viewsUrls = await createFiles({
+          request,
+          column_name: "views", // Nom du champ dans la requête form-data
+          table_id: id,
+          table_name: Value.table,
+          distinct,
+          options: { throwError: true, compress: 'img', min: 0, max: 5, extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
+        });
+        let iconUrls = await createFiles({
+          request,
+          column_name: "icon", // Nom du champ dans la requête form-data
+          table_id: id,
+          table_name: Value.table,
+          distinct,
+          options: { throwError: true, compress: 'img', min: 0, max: 1, extname: EXT_IMAGE, maxSize: 5 * MEGA_OCTET, },
+        });
+
+        // Préparation données (défaults)
+        const stock = payload.stock;
+        const index = payload.index ?? 1; // Default index 1
+        const additional_price = payload.additional_price;
+
+        const newValue = await Value.create({
+          id: id,
+          feature_id: payload.feature_id,
+          stock: stock?? undefined,
+          decreases_stock: !!payload.decreases_stock,
+          continue_selling: !!payload.continue_selling,
+          index: index <= 0 ? 1 : index, // Assurer positif
+          additional_price: additional_price,
+          currency: payload.currency,
+          text: payload.text, // Utiliser directement car validé
+          key: payload.key??undefined,   // Utiliser directement car validé
+          icon: ((!iconUrls || iconUrls.length === 0) ? (viewsUrls[0] ? [viewsUrls[0]] : []) : iconUrls),
+          views: viewsUrls,
+        }, { client: trx })
+
+        logger.debug({ valueId: newValue.id }, '_create_value successful');
+        return newValue
     }
-    value.icon =( (!value.icon || value.icon.length ==0 )? value.views?.[0] && [value.views?.[0]] : value.icon)||[],
-    await value.useTransaction(trx).save()
-    return value
-  }
-  async update_value({ request, response }: HttpContext) {
-    const payload = request.only([
-      'value_id',
-      'id',
-      'feature_id',
-      'additional_price',
-      'currency',
-      'icon',
-      'views',
-      'text',
-      'key',
-      'stock',
-      'decreases_stock',
-      'continue_selling',
-      'index'
-    ]);
-    if (!payload.value_id) {
-      return response.badRequest({ message: 'Value ID is required' })
+
+    public static async _update_value(request: HttpContext['request'], value_id: string, payload: Partial<Infer<typeof ValuesController.prototype.updateValueSchema>>, trx: any) {
+        logger.debug({ value_id, payload }, '_update_value called');
+
+        const value = await Value.findOrFail(value_id, { client: trx });
+
+        // Récupérer la feature associée pour la validation métier
+        const feature = await Feature.findOrFail(payload.feature_id || value.feature_id); // Utiliser l'ID du payload ou celui existant
+        checkValidValue(feature as any, payload); // Validation métier
+
+        // Préparation données (défaults/parsing)
+        const stock = payload.stock??undefined;
+        const index = payload.index;
+        const additional_price = payload.additional_price;
+
+        const dataToMerge: Partial<Value> = {
+          ...(payload.text !== undefined && { text: payload.text }),
+          ...(payload.key !== undefined && { key: payload.key??undefined }),
+          ...(stock !== undefined && { stock: stock > MAX_PRICE ? MAX_PRICE : (stock < 0 ? 0 : stock) }),
+          ...(payload.decreases_stock !== undefined && { decreases_stock: !!payload.decreases_stock }),
+          ...(payload.continue_selling !== undefined && { continue_selling: !!payload.continue_selling }),
+          ...(index !== undefined && { index: index <= 0 ? value.index : index }), // Garder l'ancien si invalide? Ou mettre 1?
+          ...(additional_price !== undefined && { additional_price: additional_price > MAX_PRICE ? MAX_PRICE : (additional_price < 0 ? 0 : additional_price) }),
+          ...(payload.currency !== undefined && { currency: payload.currency }),
+        }
+
+        // Gestion Fichiers
+        let distinct = ([...(payload.views || []), ...(payload.icon || [])])?.find(f => f.includes(':'))
+        distinct = distinct?.substring(0, distinct.indexOf(':'));
+
+        if (payload.views) {
+            const updatedViewsUrls = await updateFiles({
+                request, table_name: Value.table, table_id: value_id, column_name: 'views',
+                lastUrls: value.views || [], newPseudoUrls: payload.views, distinct,
+                options: { throwError: true, min: 0, max: 7, compress: 'img', extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
+            });
+             if (updatedViewsUrls.length >= 0) dataToMerge.views = updatedViewsUrls; // Gérer suppression complète
+        }
+        if (payload.icon) {
+            const updatedIconUrls = await updateFiles({
+                request, table_name: Value.table, table_id: value_id, column_name: 'icon',
+                lastUrls: value.icon || [], newPseudoUrls: payload.icon, distinct,
+                options: { throwError: true, min: 0, max: 1, compress: 'img', extname: EXT_IMAGE, maxSize: 5 * MEGA_OCTET, },
+            });
+            if (updatedIconUrls.length >= 0) dataToMerge.icon = updatedIconUrls; // Gérer suppression complète
+        }
+
+        // Assurer qu'il y a une icône si possible après MAJ des vues/icônes
+        const finalIcon = dataToMerge.icon ?? value.icon;
+        const finalViews = dataToMerge.views ?? value.views;
+        dataToMerge.icon = ((!finalIcon || finalIcon.length === 0) ? (finalViews?.[0] ? [finalViews[0]] : []) : finalIcon);
+
+
+        value.useTransaction(trx).merge(dataToMerge);
+        await value.save();
+
+        logger.debug({ valueId: value.id }, '_update_value successful');
+        return value;
     }
-    const trx = await db.transaction();
-    try {
 
-      const value = await ValuesController._update_value(request, payload.value_id || payload.id, payload, trx)
-
-      await trx.commit()
-      response.ok(value)
-    } catch (error) {
-      await trx.rollback();
-      console.error('Error in update_value:', error)
-      return response.internalServerError({ message: 'Update failed', error: error.message })
+    public static async _delete_value(value_id: string, trx: any) {
+        logger.debug({ value_id }, '_delete_value called');
+        const value = await Value.findOrFail(value_id, { client: trx }); // Throw si non trouvé
+        await value.useTransaction(trx).delete();
+        await deleteFiles(value_id); // Nettoyage fichiers
+        logger.debug({ valueId: value.id }, '_delete_value successful');
     }
-  }
-  public static async _delete_value(value_id: string, trx: any) {
-    const value = await Value.findOrFail(value_id, { client: trx })
-    await value.useTransaction(trx).delete();
-    console.log('$$$$$$$$$$', value_id);
+    // --- Fin Méthodes Statiques ---
 
-    await deleteFiles(value_id)
-  }
-  async delete_value({ params, response }: HttpContext) {
-    const trx = await db.transaction();
-    try {
 
-      await ValuesController._delete_value(params.id, trx)
-      await trx.commit()
+    // --- Méthodes Publiques (Contrôleur) ---
+    async create_value({ request, response, auth, bouncer }: HttpContext) {
+         // 🔐 Authentification
+        await auth.authenticate();
+        // 🛡️ Permissions
+        try {
+            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Utiliser edit_product pour les valeurs aussi?
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
 
-      return response.noContent()
-    } catch (error) {
-      await trx.rollback() 
-      // await deleteFiles(payload.feature_id);
-      console.error('Error in delete_value:', error)
-      return response.internalServerError({ message: 'Value not deleted', error: error.message })
+        const id = v4()
+        const trx = await db.transaction();
+        try {
+            // ✅ Validation Vine
+            // Utiliser request.all() car createFiles a besoin d'accéder aux fichiers
+            const payload = await this.createValueSchema.validate(request.all());
+
+            // Appel méthode statique
+            const newValue = await ValuesController._create_value(request, payload, id, trx)
+            await trx.commit()
+
+            logger.info({ userId: auth.user!.id, valueId: newValue.id, featureId: newValue.feature_id }, 'Value created');
+            // 🌍 i18n
+            return response.created({ message: t('value.createdSuccess'), value: newValue });
+
+        } catch (error) {
+            await trx.rollback()
+            // Nettoyage fichiers
+            await deleteFiles(id).catch(delErr => logger.error({ valueIdAttempt: id, error: delErr }, 'Failed to cleanup files after value creation failure'));
+
+            logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to create value');
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+            }
+             if (error.message === t('feature.notFound')) {
+                 // 🌍 i18n
+                 return response.badRequest({ message: error.message }); // Erreur métier (Feature non trouvée)
+             }
+             if (error.message?.includes(t('value.invalidColorKey', { key: '', value: '' }).substring(0, 10)) || // Check début des messages métier
+                 error.message?.includes(t('value.textRequired').substring(0, 10))) {
+                 // 🌍 i18n
+                 return response.badRequest({ message: error.message }); // Erreur métier de checkValidValue
+             }
+            // 🌍 i18n
+            return response.internalServerError({ message: t('value.creationFailed'), error: error.message })
+        }
     }
-  }
+
+    // Lecture publique
+    async get_values({ request, response }: HttpContext) {
+        let payload: Infer<typeof this.getValuesSchema>;
+        try {
+             // ✅ Validation Vine pour Query Params
+             payload = await this.getValuesSchema.validate(request.qs());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                 // 🌍 i18n
+                 return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+            }
+            throw error;
+        }
+
+        try {
+            const query = Value.query();
+             // 🔍 GET par ID doit retourner le premier trouvé
+            if (payload.value_id) {
+                 const value = await query.where('id', payload.value_id).first();
+                 if (!value) {
+                      // 🌍 i18n
+                      return response.notFound({ message: t('value.notFound') });
+                 }
+                 return response.ok(value); // Retourner l'objet unique
+            }
+
+            // Si pas d'ID spécifique, appliquer les autres filtres et paginer
+            if (payload.feature_id) query.where('feature_id', payload.feature_id);
+            if (payload.text) query.whereLike('text', `%${payload.text}%`);
+
+            const page = payload.page ?? 1;
+            const limit = payload.limit ?? 50; // Limite par défaut
+
+            const valuesPaginate = await query.orderBy('index', 'asc').paginate(page, limit);
+
+            return response.ok({ list: valuesPaginate.all(), meta: valuesPaginate.getMeta() });
+        } catch (error) {
+            logger.error({ error: error.message, stack: error.stack }, 'Failed to get values');
+             // 🌍 i18n
+            return response.internalServerError({ message: t('value.fetchFailed'), error: error.message });
+        }
+    }
+
+    async update_value({ request, response, auth, bouncer }: HttpContext) {
+         // 🔐 Authentification
+         await auth.authenticate();
+         // 🛡️ Permissions
+         try {
+             await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+         } catch (error) {
+             if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                  // 🌍 i18n
+                 return response.forbidden({ message: t('unauthorized_action') })
+             }
+             throw error;
+         }
+
+        const trx = await db.transaction();
+        let payload: Infer<typeof this.updateValueSchema>;
+        try {
+             // ✅ Validation Vine
+             // Utiliser request.all() pour récupérer les pseudo URLs et les fichiers potentiels
+             payload = await this.updateValueSchema.validate(request.all());
+             const valueId = payload.value_id || payload.id; // Utiliser value_id ou id
+
+             if (!valueId) {
+                // 🌍 i18n
+                 throw new Error(t('value.idRequired')); // Devrait être attrapé par Vine, mais sécurité
+             }
+
+            // Appel méthode statique
+            const value = await ValuesController._update_value(request, valueId, payload, trx);
+
+            await trx.commit();
+            logger.info({ userId: auth.user!.id, valueId: value.id }, 'Value updated');
+             // 🌍 i18n
+            return response.ok({ message: t('value.updateSuccess'), value: value });
+
+        } catch (error) {
+            await trx.rollback();
+            logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to update value');
+             if (error.code === 'E_VALIDATION_ERROR') {
+                 // 🌍 i18n
+                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+             }
+             if (error.code === 'E_ROW_NOT_FOUND' || error.message === t('feature.notFound')) {
+                  // 🌍 i18n (Erreur de findOrFail sur Value ou Feature)
+                 return response.notFound({ message: t('value.orFeatureNotFound') }); // Nouvelle clé
+             }
+             if (error.message === t('value.idRequired') ||
+                 error.message?.includes(t('value.invalidColorKey', { key: '', value: '' }).substring(0, 10)) ||
+                 error.message?.includes(t('value.textRequired').substring(0, 10))) {
+                  // 🌍 i18n (Erreurs métier)
+                 return response.badRequest({ message: error.message });
+             }
+            // 🌍 i18n
+            return response.internalServerError({ message: t('value.updateFailed'), error: error.message });
+        }
+    }
+
+    async delete_value({ params, response, auth, bouncer }: HttpContext) {
+         // 🔐 Authentification
+         await auth.authenticate();
+         // 🛡️ Permissions
+         try {
+            // Utiliser la permission de suppression produit ? Ou une plus spécifique ?
+             await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Ou CREATE_DELETE_PERMISSION
+         } catch (error) {
+             if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                  // 🌍 i18n
+                 return response.forbidden({ message: t('unauthorized_action') })
+             }
+             throw error;
+         }
+
+        let payload: Infer<typeof this.deleteValueParamsSchema>;
+        try {
+             // ✅ Validation Vine pour Params
+            payload = await this.deleteValueParamsSchema.validate(params);
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+            }
+            throw error;
+        }
+
+        const trx = await db.transaction();
+        try {
+            // Appel méthode statique
+            await ValuesController._delete_value(payload.id, trx);
+            await trx.commit();
+
+            logger.info({ userId: auth.user!.id, valueId: payload.id }, 'Value deleted');
+            // 🌍 i18n
+            // Le standard pour DELETE succès est 204 No Content sans body
+            return response.noContent(); // Changé de response.ok()
+
+        } catch (error) {
+            await trx.rollback();
+            logger.error({ userId: auth.user!.id, valueId: payload?.id, error: error.message, stack: error.stack }, 'Failed to delete value');
+             if (error.code === 'E_ROW_NOT_FOUND') {
+                  // 🌍 i18n
+                 return response.notFound({ message: t('value.notFound') });
+             }
+            // 🌍 i18n
+            return response.internalServerError({ message: t('value.deleteFailed'), error: error.message });
+        }
+    }
 }

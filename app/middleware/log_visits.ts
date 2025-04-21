@@ -36,14 +36,16 @@ export default class LogVisit {
         const deviceType = uaResult.device.type || 'desktop' // "mobile", "tablet", ou "desktop" par défaut
         visit.device_type = deviceType
 
-        visit.browser = uaResult.browser.name || 'unknown'
+        visit.browser_name = uaResult.browser.name || 'unknown'
+        visit.browser_version = uaResult.browser.version || 'unknown'
         
-        visit.os = uaResult.os.name || 'unknown'
+        visit.os_name = uaResult.os.name || 'unknown'
+        visit.os_version = uaResult.os.version || 'unknown'
         
         const referrer = request.header('Referer') || null
         visit.referrer = referrer
         
-        visit.page_url = request.url() // Chemin uniquement (ex. : "/dashboard")
+        visit.landing_page = request.url() // Chemin uniquement (ex. : "/dashboard")
         
         
         await visit.save()

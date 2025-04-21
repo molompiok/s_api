@@ -6,7 +6,13 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
-      
+      table
+        .uuid('user_id')
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE')
+        .notNullable()
+        
       table.boolean('filter_client').defaultTo(false)
       table.boolean('ban_client').defaultTo(false)
       table.boolean('filter_collaborator').defaultTo(false)

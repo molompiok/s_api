@@ -27,7 +27,7 @@ export default class Comment extends BaseModel {
   declare title: string
 
   @column()
-  declare description: string
+  declare description: string | null
 
   @column()
   declare rating: number

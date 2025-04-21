@@ -27,7 +27,7 @@ export async function updateFiles({
   newPseudoUrls,
 }: {
   lastUrls: string[];
-  newPseudoUrls: string | undefined;
+  newPseudoUrls: string[]| string | undefined;
   request: HttpContext["request"];
   table_id: string;
   table_name: string;

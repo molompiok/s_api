@@ -23,7 +23,7 @@ export default class User  extends compose(BaseModel, AuthFinder)  {
     // Tu peux personnaliser ici si besoin :
      table: 'auth_access_tokens',
      type: 'api_token', 
-     expiresIn: '30 days', 
+     expiresIn: '1 days', 
 })
   @column({ isPrimary: true })
   declare id: string
@@ -37,6 +37,9 @@ export default class User  extends compose(BaseModel, AuthFinder)  {
   @column()
   declare email: string
 
+  @column()
+  declare locale: string | null
+  
   @column({ serializeAs: null })
   declare password: string
 

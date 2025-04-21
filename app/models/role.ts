@@ -1,9 +1,10 @@
 import { DateTime } from 'luxon'
 import type { HttpContext } from '@adonisjs/core/http'
-import { column } from '@adonisjs/lucid/orm'
+import { belongsTo, column } from '@adonisjs/lucid/orm'
 import BaseModel from './base_model.js';
 import { OWNER_ID } from '#controllers/Utils/ctrlManager'
 import User from './user.js';
+import {type BelongsTo } from '@adonisjs/lucid/types/relations';
 
 export default class Role extends BaseModel {
   @column({ isPrimary: true })
@@ -62,6 +63,11 @@ export default class Role extends BaseModel {
       return response.unauthorized({ message: 'Unauthorized: not permitted' })
     }
   }
+    @belongsTo(() => User, {
+      foreignKey: 'user_id',
+    })
+    declare user: BelongsTo<typeof User>
+  
 
   public static async isAuthorized(userId: string, permission: keyof TypeJsonRole): Promise<boolean> {
     console.log((userId === OWNER_ID) , userId , OWNER_ID);

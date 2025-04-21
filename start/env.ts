@@ -37,16 +37,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   INTERNAL_API_SECRET: Env.schema.string(),
-  FILE_STORAGE_PATH:Env.schema.string(),
+  FILE_STORAGE_PATH: Env.schema.string(),
   FILE_STORAGE_URL: Env.schema.string(),
-  /*
-  |----------------------------------------------------------
-  | Variables for configuring ally package
-  |----------------------------------------------------------
-  */
-  GOOGLE_CLIENT_ID: Env.schema.string(),
-  GOOGLE_CLIENT_SECRET: Env.schema.string(),
-  GOOGLE_CALLBACK_URL: Env.schema.string(),
 
   /*
   |----------------------------------------------------------
@@ -54,11 +46,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory'] as const),
-    /*
-  |----------------------------------------------------------
-  | Redis configuration
-  |----------------------------------------------------------
-  */
+  /*
+|----------------------------------------------------------
+| Redis configuration
+|----------------------------------------------------------
+*/
   REDIS_HOST: Env.schema.string({ format: 'host' }),
   REDIS_PORT: Env.schema.number(),
   REDIS_PASSWORD: Env.schema.string.optional(),
