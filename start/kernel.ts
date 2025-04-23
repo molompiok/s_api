@@ -12,7 +12,7 @@ import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
 import './lucid.js'
 
-import '#contracts/context'
+import '../contracts/context.js'
 import { Ignitor } from '@adonisjs/core'
 import { startScheduler } from './scheduler.js'
 import { createServer } from 'node:http'

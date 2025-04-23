@@ -105,17 +105,19 @@ export default class CategoriesController {
             // Utiliser Lucid ORM pour plus de flexibilité
             let query = Categorie.query();
 
+            console.log(payload);
+            
             // Appliquer les filtres
-            if (payload.with_product_count) {
-                query
-                    .select(
-                        db.raw(`COALESCE(
-                            (SELECT COUNT(*) 
-                            FROM products 
-                            WHERE products.categories_id @> jsonb_build_array(categories.id)), 0) 
-                            AS product_count`)
-                    )
-            }
+            // if (payload.with_product_count) {
+            //     query
+            //         .select(
+            //             db.raw(`COALESCE(
+            //                 (SELECT COUNT(*) 
+            //                 FROM products 
+            //                 WHERE products.categories_id @> jsonb_build_array(categories.id)), 0) 
+            //                 AS product_count`)
+            //         )
+            // }
 
             if (normalizedCategoriesIds && normalizedCategoriesIds.length > 0) {
                 query.whereIn('id', normalizedCategoriesIds);
@@ -167,8 +169,11 @@ export default class CategoriesController {
             // }));
 
             // Pas de message i18n car on retourne les données
+            const list = categoriesPaginate.all().map(c=>c.$attributes)
+            console.log(list);
+            
             return response.ok({
-                list: categoriesPaginate.all(), // Renvoyer directement les objets sérialisés
+                list, // Renvoyer directement les objets sérialisés
                 meta: categoriesPaginate.getMeta()
             });
 

@@ -25,7 +25,7 @@ export default class ProductsController {
       name: vine.string().trim().minLength(1),
       description: vine.string().trim().optional(),
       price: vine.number().positive(),
-      categories_id: vine.any(), // Sera normalisé plus tard
+      categories_id: vine.any().optional(), // Sera normalisé plus tard
       barred_price: vine.number().positive().optional().nullable(),
       // 'views' et 'icon' sont gérés par createFiles
     })

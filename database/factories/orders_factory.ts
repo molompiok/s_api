@@ -4,12 +4,12 @@ import UserOrderItem from '#models/user_order_item'
 import UserOrder, { OrderStatus, PaymentMethod, PaymentStatus } from '#models/user_order'
 
 export const USER_IDS = [
-    'd932455d-6ad2-415f-9b32-a41496797bfd',
-    '3bc9bcfb-8446-4fd6-9bc0-f6e9656ed9eb',
-    'dfbbb0cc-15b5-44f9-954d-4356de30c5b9',
-    '57fd53cb-30a8-43a2-90fb-bfab5e10ae1d',
+    '1162e904-2fb5-421b-bade-cc3d03daffe0',
+    'ca230d53-a3e1-43bf-89a9-14e596f977d3',
+    // 'dfbbb0cc-15b5-44f9-954d-4356de30c5b9',
+    // '57fd53cb-30a8-43a2-90fb-bfab5e10ae1d',
 ]
-export const PRODUCT_ID = 'f662e091-1aa3-4622-82b6-ab5ea29577ed'
+export const PRODUCT_ID = '890d0dbc-ef10-4fac-a53c-140a4a9be935'
 function getRandomDateBetween() {
 
     const start = DateTime.fromISO('2025-01-01') // Date de début
