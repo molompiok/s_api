@@ -1,8 +1,6 @@
 // database/factories/product_factory.ts
 import Factory from '@adonisjs/lucid/factories'
 import Product from '#models/product'
-import { FeatureFactory } from './feature_factory.js'
-
   
 let i = 0
 export const ProductFactory = Factory
@@ -16,6 +14,7 @@ export const ProductFactory = Factory
             price: faker.number.int({ min: 100, max: 10000 }),
             barred_price: faker.datatype.boolean() ? faker.number.int({ min: 1000, max: 15000 }) : null,
             currency: 'USD',
+            is_visible:Math.random()<0.5,
             comment_count: faker.number.int({ min: 0, max: 1000 }),
             rating: faker.number.float({ min: 0, max: 5, fractionDigits: 3 }),
         }

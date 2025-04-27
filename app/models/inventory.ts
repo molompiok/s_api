@@ -23,6 +23,9 @@ export default class Inventory extends BaseModel {
   @column()
   declare longitude: number
 
+  @column()
+  declare is_visible: boolean
+
   @column.dateTime({ autoCreate: true })
   declare created_at: DateTime
 

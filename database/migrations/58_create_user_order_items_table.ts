@@ -7,9 +7,9 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
-      table.uuid('user_id').nullable().references('id').inTable('users').onDelete('CASCADE')
-      table.uuid('order_id').nullable().references('id').inTable('user_orders').onDelete('CASCADE')
-      table.uuid('product_id').references('id').inTable('products') 
+      table.uuid('user_id').notNullable()
+      table.uuid('order_id').notNullable()
+      table.uuid('product_id').notNullable()
       table.jsonb('bind') 
       table.jsonb('bind_name') 
        table.enu('status', Object.values(OrderStatus)).nullable()

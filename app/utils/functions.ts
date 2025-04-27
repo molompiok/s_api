@@ -1,8 +1,5 @@
 //app/utils/functions.ts
 import i18nService from '@adonisjs/i18n/services/main'
-import logger from '@adonisjs/core/services/logger'
-import { objectToFlatArray } from 'bullmq'
-
 /**
  * Fonction de traduction globale (pour usage hors contexte HttpContext si nécessaire).
  * Préférer ctx.i18n.formatMessage dans les contrôleurs/middlewares.
@@ -38,10 +35,10 @@ export function normalizeStringArrayInput<T extends Record<string, any>>(data: T
                     dataParsed[key] = parsed
                 }
             } catch (error) {
-                throw new Error(t('invalid_value',{key,value}))
+                dataParsed[key] = [value]
             }
-        }else{
-            throw new Error(t('invalid_value',{key,value}))
+        }else if(Array.isArray(value)){
+            dataParsed[key] = value
         }
     }
     return dataParsed as {

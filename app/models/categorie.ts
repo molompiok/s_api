@@ -1,8 +1,7 @@
 import limax from 'limax';
 import { DateTime } from 'luxon'
-import { beforeCreate, beforeSave, beforeUpdate, column, hasMany } from '@adonisjs/lucid/orm'
+import { beforeCreate, beforeSave, column } from '@adonisjs/lucid/orm'
 import Product from './product.js';
-import type { HasMany } from '@adonisjs/lucid/types/relations';
 import db from '@adonisjs/lucid/services/db';
 import { applyOrderBy } from '#controllers/Utils/query';
 import BaseModel from './base_model.js';
@@ -17,7 +16,16 @@ export default class Categorie extends BaseModel {
   @column()
   declare name: string
 
-  @column()
+  @column({
+    prepare: (value) =>{
+      const v = value.replaceAll("\n", "§");
+      return v
+    },
+    consume:(value) => {
+      const v = value.replaceAll("§", "\n");      
+      return v
+    }
+  })
   declare description: string
 
   @column({
@@ -29,6 +37,9 @@ export default class Categorie extends BaseModel {
     prepare: (value) => JSON.stringify(value),
   })
   declare icon: string[]
+
+  @column()
+  declare is_visible: boolean
 
   @column()
   declare slug: string

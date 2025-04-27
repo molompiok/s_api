@@ -94,14 +94,10 @@ export async function updateFiles({
         );
       } else {
         // 📌 Vérification des fichiers existants
-        const fileStorageUrl = env.get("FILE_STORAGE_URL") || "";
-        const filePath = `${env.get("FILE_STORAGE_PATH")}${pseudoUrl.replace(fileStorageUrl, "")}`;
+        // const fileStorageUrl = env.get("FILE_STORAGE_URL") || "";
+        // const filePath = `${env.get("FILE_STORAGE_PATH")}${pseudoUrl.replace(fileStorageUrl, "")}`;
 
-        promisesAdd.push(
-          fs.access(filePath)
-            .then(() => pseudoUrl)
-            .catch(() => null)
-        );
+        promisesAdd.push(Promise.resolve(pseudoUrl));
       }
     } catch (error) {
       console.error("⚠️ Erreur lors de la gestion d'un fichier :", error);

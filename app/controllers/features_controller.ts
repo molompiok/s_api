@@ -424,6 +424,8 @@ export default class FeaturesController {
         }
 
         let payload: Infer<typeof this.multipleUpdateSchema>;
+
+        
         try {
             // ✅ Validation Vine (simple pour le JSON string)
             payload = await this.multipleUpdateSchema.validate(request.body());
@@ -434,7 +436,9 @@ export default class FeaturesController {
             }
             throw error;
         }
-
+        
+        console.log(payload);
+        
         const trx = await db.transaction();
         try {
             // Parsing du JSON string après validation
@@ -452,6 +456,8 @@ export default class FeaturesController {
                 throw new Error(t('feature.invalidJsonPayload'));
             }
 
+            console.log(Allfeatures);
+            
             const product = await Product.findOrFail(payload.product_id, { client: trx });
 
             // --- Logique métier (inchangée) ---

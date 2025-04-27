@@ -27,6 +27,9 @@ export default class Product extends BaseModel {
   @column()
   declare name: string
 
+  @column()
+  declare is_visible: boolean
+
 
   @column({
     prepare: (value) =>{

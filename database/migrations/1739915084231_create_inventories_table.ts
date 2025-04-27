@@ -10,7 +10,8 @@ export default class extends BaseSchema {
       table.string('email')
       table.double('latitude')
       table.double('longitude')
-      
+      table.boolean('is_visible').nullable()
+
       table.timestamps(true) 
     })
   }

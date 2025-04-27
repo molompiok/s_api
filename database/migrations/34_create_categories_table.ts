@@ -8,9 +8,10 @@ export default class extends BaseSchema {
       table.uuid('id').primary().nullable()
       
       table.uuid('parent_category_id')
-      table.string('name',52).notNullable()
+      table.string('name',255).notNullable()
       table.string('slug').notNullable().unique()
-      table.string('description',1024).nullable()
+      table.string('description',1000).nullable()
+      table.boolean('is_visible').nullable()
       table.jsonb('view').defaultTo('[]')
       table.jsonb('icon').defaultTo('[]')
       

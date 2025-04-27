@@ -12,6 +12,7 @@ export const CategorieFactory = Factory
       parent_category_id: null, // Peut être modifié via un state si besoin
       name: faker.commerce.department()+Number(i++).toString(32),
       description: faker.lorem.paragraph(),
+      is_visible:Math.random()<0.5,
       view:[faker.helpers.arrayElement(PRODUCT_IMAGES)],
       icon: [faker.helpers.arrayElement(PRODUCT_IMAGES)],
     }

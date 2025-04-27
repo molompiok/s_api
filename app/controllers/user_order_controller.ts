@@ -13,7 +13,7 @@ import transmit from '@adonisjs/transmit/services/main'
 import env from '#start/env'
 import { DateTime } from 'luxon'
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+import { normalizeStringArrayInput, t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
@@ -57,8 +57,8 @@ export default class UserOrdersController {
         })
     );
 
-     private getUsersOrdersSchema = vine.compile(
-         vine.object({
+    private getUsersOrdersSchema = vine.compile(
+        vine.object({
             command_id: vine.string().uuid().optional(),
             id: vine.string().uuid().optional(), // alias pour command_id
             user_id: vine.string().uuid().optional(),
@@ -73,17 +73,17 @@ export default class UserOrdersController {
             max_date: vine.string().optional(),
             with_items: vine.boolean().optional(),
             search: vine.string().trim().optional(),
-         })
-     );
+        })
+    );
 
-     private updateOrderSchema = vine.compile(
-         vine.object({
-             user_order_id: vine.string().uuid(),
-             status: vine.enum(Object.values(OrderStatus)), // Valider contre l'enum
-             message: vine.string().trim().maxLength(500).optional(),
-             estimated_duration: vine.number().min(0).optional(), // en minutes? jours?
-         })
-     );
+    private updateOrderSchema = vine.compile(
+        vine.object({
+            user_order_id: vine.string().uuid(),
+            status: vine.enum(Object.values(OrderStatus)), // Valider contre l'enum
+            message: vine.string().trim().maxLength(500).optional(),
+            estimated_duration: vine.number().min(0).optional(), // en minutes? jours?
+        })
+    );
 
     private deleteOrderParamsSchema = vine.compile(
         vine.object({
@@ -117,7 +117,7 @@ export default class UserOrdersController {
             }
 
             const itemsTotalPrice = await cart.getTotal(trx); // Utiliser transaction
-             // Utiliser le prix validé ou 0 par défaut
+            // Utiliser le prix validé ou 0 par défaut
             const deliveryPrice = payload.delivery_price ?? 0;
             const totalPrice = itemsTotalPrice + deliveryPrice;
 
@@ -151,62 +151,62 @@ export default class UserOrdersController {
                     user_role: 'client' // L'utilisateur qui passe la commande est 'client'
                 } as EventStatus], // Cast pour type safety
                 ...(isDelivery
-                  ? { // Champs pour livraison
-                      delivery_address: payload.delivery_address,
-                      delivery_address_name: payload.delivery_address_name,
-                      delivery_date: payload.delivery_date ? DateTime.fromISO(payload.delivery_date) : undefined, // Convertir en DateTime
-                      delivery_latitude: payload.delivery_latitude,
-                      delivery_longitude: payload.delivery_longitude,
-                      pickup_address: undefined, pickup_address_name: undefined, pickup_date: undefined,
-                      pickup_latitude: undefined, pickup_longitude: undefined,
+                    ? { // Champs pour livraison
+                        delivery_address: payload.delivery_address,
+                        delivery_address_name: payload.delivery_address_name,
+                        delivery_date: payload.delivery_date ? DateTime.fromISO(payload.delivery_date) : undefined, // Convertir en DateTime
+                        delivery_latitude: payload.delivery_latitude,
+                        delivery_longitude: payload.delivery_longitude,
+                        pickup_address: undefined, pickup_address_name: undefined, pickup_date: undefined,
+                        pickup_latitude: undefined, pickup_longitude: undefined,
                     }
-                  : { // Champs pour retrait
-                      delivery_address: undefined, delivery_address_name: undefined, delivery_date: undefined,
-                      delivery_latitude: undefined, delivery_longitude: undefined,
-                      pickup_address: payload.pickup_address,
-                      pickup_address_name: payload.pickup_address_name,
-                      pickup_date: payload.pickup_date ? DateTime.fromISO(payload.pickup_date) : undefined, // Convertir en DateTime
-                      pickup_latitude: payload.pickup_latitude,
-                      pickup_longitude: payload.pickup_longitude,
+                    : { // Champs pour retrait
+                        delivery_address: undefined, delivery_address_name: undefined, delivery_date: undefined,
+                        delivery_latitude: undefined, delivery_longitude: undefined,
+                        pickup_address: payload.pickup_address,
+                        pickup_address_name: payload.pickup_address_name,
+                        pickup_date: payload.pickup_date ? DateTime.fromISO(payload.pickup_date) : undefined, // Convertir en DateTime
+                        pickup_latitude: payload.pickup_latitude,
+                        pickup_longitude: payload.pickup_longitude,
                     }),
             }, { client: trx });
 
             // Création des items de la commande (logique inchangée)
             const orderItems = await Promise.all(cart.items.map(async (item) => {
-                 const option = item.product ? await CartItem.getBindOptionFrom(item.bind, { id: item.product_id }) : null;
-                 let bindJson = '{}';
-                 let bindNameJson = '{}';
-                 try { bindJson = JSON.stringify(option?.realBind || {}); } catch (e) { logger.warn({ cartItemId: item.id, error: e }, "Failed to stringify realBind"); }
-                 const b: any = {};
-                 try {
-                   if (option?.bindName) {
-                     for (const [f_name, value] of Object.entries(option.bindName)) {
-                         const type = f_name.split(':')[1];
-                         if (type && [FeatureType.ICON, FeatureType.ICON_TEXT].includes(type as any)) {
-                             try {
-                                 const icon = value.icon?.[0] ? [await resizeImageToBase64('.' + value.icon[0])] : [];
-                                 b[f_name] = { ...value, icon };
-                             } catch (resizeError) {
-                                 logger.warn({ cartItemId: item.id, valueIcon: value.icon?.[0], error: resizeError }, "Failed to resize image for bind_name");
-                                 b[f_name] = value; // Garder l'original sans image base64
-                             }
-                         } else {
-                             b[f_name] = value;
-                         }
-                         // Retirer les champs inutiles pour bind_name
-                         delete b?.views;
-                         delete b?.index;
-                     }
-                   }
-                   bindNameJson = JSON.stringify(b || {});
-                 } catch (e) { logger.warn({ cartItemId: item.id, error: e }, "Failed to stringify bindName"); }
+                const option = item.product ? await CartItem.getBindOptionFrom(item.bind, { id: item.product_id }) : null;
+                let bindJson = '{}';
+                let bindNameJson = '{}';
+                try { bindJson = JSON.stringify(option?.realBind || {}); } catch (e) { logger.warn({ cartItemId: item.id, error: e }, "Failed to stringify realBind"); }
+                const b: any = {};
+                try {
+                    if (option?.bindName) {
+                        for (const [f_name, value] of Object.entries(option.bindName)) {
+                            const type = f_name.split(':')[1];
+                            if (type && [FeatureType.ICON, FeatureType.ICON_TEXT].includes(type as any)) {
+                                try {
+                                    const icon = value.icon?.[0] ? [await resizeImageToBase64('.' + value.icon[0])] : [];
+                                    b[f_name] = { ...value, icon };
+                                } catch (resizeError) {
+                                    logger.warn({ cartItemId: item.id, valueIcon: value.icon?.[0], error: resizeError }, "Failed to resize image for bind_name");
+                                    b[f_name] = value; // Garder l'original sans image base64
+                                }
+                            } else {
+                                b[f_name] = value;
+                            }
+                            // Retirer les champs inutiles pour bind_name
+                            delete b?.views;
+                            delete b?.index;
+                        }
+                    }
+                    bindNameJson = JSON.stringify(b || {});
+                } catch (e) { logger.warn({ cartItemId: item.id, error: e }, "Failed to stringify bindName"); }
 
-                 return {
-                   id: v4(), order_id: userOrder.id, user_id: user.id, product_id: item.product_id,
-                   bind: bindJson, bind_name: bindNameJson, status: OrderStatus.PENDING, quantity: item.quantity,
-                   price_unit: (option?.additional_price ?? 0) + (item.product?.price ?? 0),
-                   currency: CURRENCY.FCFA, // Utiliser devise de la commande?
-                 };
+                return {
+                    id: v4(), order_id: userOrder.id, user_id: user.id, product_id: item.product_id,
+                    bind: bindJson, bind_name: bindNameJson, status: OrderStatus.PENDING, quantity: item.quantity,
+                    price_unit: (option?.additional_price ?? 0) + (item.product?.price ?? 0),
+                    currency: CURRENCY.FCFA, // Utiliser devise de la commande?
+                };
             }));
 
             await UserOrderItem.createMany(orderItems, { client: trx });
@@ -225,13 +225,13 @@ export default class UserOrdersController {
             await trx.rollback();
             logger.error({ userId: user?.id, error: error.message, stack: error.stack }, 'Failed to create order');
             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
             }
-             if (error.code === 'E_ROW_NOT_FOUND') { // Si firstOrFail échoue sur Cart
-                  // 🌍 i18n
-                  return response.notFound({ message: t('order.cartNotFound') }); // Nouvelle clé
-             }
+            if (error.code === 'E_ROW_NOT_FOUND') { // Si firstOrFail échoue sur Cart
+                // 🌍 i18n
+                return response.notFound({ message: t('order.cartNotFound') }); // Nouvelle clé
+            }
             // 🌍 i18n
             return response.internalServerError({ message: t('order.creationFailed'), error: error.message }); // Nouvelle clé
         }
@@ -248,24 +248,24 @@ export default class UserOrdersController {
             // ✅ Validation Vine pour Query Params
             payload = await this.getOrdersSchema.validate(request.qs());
         } catch (error) {
-             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.badRequest({ message: t('validationFailed'), errors: error.messages });
-             }
-             throw error;
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            }
+            throw error;
         }
 
         try {
             // --- Logique métier ---
-             const page = payload.page ?? 1;
-             const limit = payload.limit ?? 10; // Limite plus raisonnable par défaut
+            const page = payload.page ?? 1;
+            const limit = payload.limit ?? 10; // Limite plus raisonnable par défaut
 
             let query = UserOrder.query()
                 .where('user_id', user.id) // Filtrer par utilisateur authentifié
                 .preload('items', (itemQuery) => itemQuery.preload('product')); // Précharger items et produits
 
             const orderBy = payload.order_by || 'created_at_desc'; // Défaut à created_at desc
-             query = applyOrderBy(query, orderBy, UserOrder.table);
+            query = applyOrderBy(query, orderBy, UserOrder.table);
 
             const orders = await query.paginate(page, limit);
 
@@ -287,11 +287,16 @@ export default class UserOrdersController {
     async _get_users_orders(params: Infer<typeof this.getUsersOrdersSchema>) { // Utiliser le type validé
 
         const { command_id, id: paramId, user_id, order_by = 'created_at_desc', page, product_id,
-                limit, status: statusInput, min_price, max_price, min_date, max_date,
-                with_items, search } = params;
+            limit, status: statusInput, min_price, max_price, min_date, max_date,
+            with_items, search } = params;
 
         const id = paramId ?? command_id; // Utiliser alias
-
+        let normalizedStatusInput: string[] | undefined = undefined;
+        if (statusInput) {
+            try {
+                normalizedStatusInput = normalizeStringArrayInput({ statusInput}).statusInput;
+            } catch (error) {}
+        }
         let query = UserOrder.query().preload('user'); // Précharger user par défaut
 
         if (with_items) {
@@ -301,9 +306,9 @@ export default class UserOrdersController {
         // Filtrages
         if (user_id) query = query.where('user_id', user_id);
         if (id) query = query.where('id', id);
-        if (statusInput) {
+        if (normalizedStatusInput) {
             try {
-                let statusArray = typeof statusInput === 'string' ? JSON.parse(statusInput) : statusInput;
+                let statusArray = typeof normalizedStatusInput === 'string' ? JSON.parse(normalizedStatusInput) : normalizedStatusInput;
                 if (Array.isArray(statusArray) && statusArray.length > 0) {
                     // Filtrer pour ne garder que les statuts valides de l'enum OrderStatus
                     const validStatuses = statusArray
@@ -311,14 +316,14 @@ export default class UserOrdersController {
                         .filter(s => Object.values(OrderStatus).includes(s as OrderStatus));
 
                     if (validStatuses.length > 0) {
-                       logger.debug({ validStatuses }, 'Filtering orders by status');
-                       query = query.whereIn('status', validStatuses);
+                        logger.debug({ validStatuses }, 'Filtering orders by status');
+                        query = query.whereIn('status', validStatuses);
                     } else {
-                        logger.warn({ statusInput }, "Invalid or empty status filter provided");
+                        logger.warn({ normalizedStatusInput }, "Invalid or empty status filter provided");
                     }
                 }
             } catch (error) {
-                logger.warn({ statusInput, error: error.message }, 'Failed to parse status filter');
+                logger.warn({ normalizedStatusInput, error: error.message }, 'Failed to parse status filter');
             }
         }
         if (product_id) query.whereHas('items', (q) => q.where('product_id', product_id));
@@ -331,21 +336,21 @@ export default class UserOrdersController {
         if (search) {
             if (search.startsWith('#')) {
                 let s = search.substring(1).toLowerCase() + '%';
-                 query = query.where((q) => {
-                     q.whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [s])
-                      .orWhereRaw('LOWER(CAST(user_id AS TEXT)) LIKE ?', [s])
-                      .orWhereILike('reference', s); // Ajouter référence
-                 });
+                query = query.where((q) => {
+                    q.whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [s])
+                        .orWhereRaw('LOWER(CAST(user_id AS TEXT)) LIKE ?', [s])
+                        .orWhereILike('reference', s); // Ajouter référence
+                });
             } else {
                 let s = `%${search.toLowerCase()}%`;
-                 query = query.where((q) => {
-                     // Recherche sur nom/email/téléphone client OU référence commande
-                     q.whereILike('reference', s)
-                      .orWhereILike('phone_number', s) // Ajouter téléphone
-                      .orWhereHas('user', (u) => {
-                           u.whereILike('full_name', s).orWhereILike('email', s);
-                      });
-                 });
+                query = query.where((q) => {
+                    // Recherche sur nom/email/téléphone client OU référence commande
+                    q.whereILike('reference', s)
+                        .orWhereILike('phone_number', s) // Ajouter téléphone
+                        .orWhereHas('user', (u) => {
+                            u.whereILike('full_name', s).orWhereILike('email', s);
+                        });
+                });
             }
         }
 
@@ -363,35 +368,35 @@ export default class UserOrdersController {
 
     // Récupérer les commandes (vue admin/collaborateur)
     async get_users_orders({ response, auth, request, bouncer }: HttpContext) {
-         // 🔐 Authentification
-         await auth.authenticate();
-         // 🛡️ Permissions
-         try {
-             await bouncer.authorize('collaboratorAbility', [VIEW_ALL_ORDERS_PERMISSION]);
-         } catch (error) {
-             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                  // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') });
-             }
-             throw error;
-         }
+        // 🔐 Authentification
+        await auth.authenticate();
+        // 🛡️ Permissions
+        try {
+            await bouncer.authorize('collaboratorAbility', [VIEW_ALL_ORDERS_PERMISSION]);
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') });
+            }
+            throw error;
+        }
 
         let payload: Infer<typeof this.getUsersOrdersSchema>;
         try {
             // ✅ Validation Vine pour Query Params
             payload = await this.getUsersOrdersSchema.validate(request.qs());
         } catch (error) {
-             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.badRequest({ message: t('validationFailed'), errors: error.messages });
-             }
-             throw error;
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            }
+            throw error;
         }
 
         try {
             // Appel méthode privée avec params validés
             const commands = await this._get_users_orders(payload);
-             // Pas de message i18n car on retourne les données
+            // Pas de message i18n car on retourne les données
             return response.ok(commands);
 
         } catch (error) {
@@ -403,30 +408,30 @@ export default class UserOrdersController {
 
     // Mettre à jour le statut d'une commande (admin/collaborateur)
     async update_user_order({ response, auth, request, bouncer }: HttpContext) {
-         // 🔐 Authentification
-         await auth.authenticate();
-         const user = auth.user!; // Utilisateur effectuant l'action
-         // 🛡️ Permissions
-         try {
-             await bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
-         } catch (error) {
-             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                  // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') });
-             }
-             throw error;
-         }
+        // 🔐 Authentification
+        await auth.authenticate();
+        const user = auth.user!; // Utilisateur effectuant l'action
+        // 🛡️ Permissions
+        try {
+            await bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') });
+            }
+            throw error;
+        }
 
         let payload: Infer<typeof this.updateOrderSchema>;
         try {
             // ✅ Validation Vine (Body)
             payload = await this.updateOrderSchema.validate(request.body());
         } catch (error) {
-             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
-             }
-             throw error;
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            }
+            throw error;
         }
 
         const trx = await db.transaction(); // Transaction pour MAJ atomique
@@ -435,8 +440,8 @@ export default class UserOrdersController {
 
             if (!order) {
                 await trx.rollback();
-                 // 🌍 i18n
-                 return response.notFound({ message: t('order.notFound') }); // Nouvelle clé
+                // 🌍 i18n
+                return response.notFound({ message: t('order.notFound') }); // Nouvelle clé
             }
 
             // --- Logique métier ---
@@ -444,22 +449,22 @@ export default class UserOrdersController {
             // Exemple simple: Ne pas permettre de revenir en arrière depuis 'delivered' ou 'canceled'
             const currentStatus = order.status;
             const newStatus = payload.status;
-             if ([OrderStatus.DELIVERED, OrderStatus.CANCELED, OrderStatus.RETURNED].includes(currentStatus) && currentStatus !== newStatus) {
-                  if (!(currentStatus === OrderStatus.DELIVERED && newStatus === OrderStatus.RETURNED)) { // Exception: livré peut devenir retourné
+            if ([OrderStatus.DELIVERED, OrderStatus.CANCELED, OrderStatus.RETURNED].includes(currentStatus) && currentStatus !== newStatus) {
+                if (!(currentStatus === OrderStatus.DELIVERED && newStatus === OrderStatus.RETURNED)) { // Exception: livré peut devenir retourné
                     await trx.rollback();
-                     // 🌍 i18n
-                     return response.badRequest({ message: t('order.invalidStatusTransition', { from: currentStatus, to: newStatus }) }); // Nouvelle clé
-                  }
-             }
+                    // 🌍 i18n
+                    return response.badRequest({ message: t('order.invalidStatusTransition', { from: currentStatus, to: newStatus }) }); // Nouvelle clé
+                }
+            }
 
             // Déterminer le rôle de l'acteur
-             let actorRole: EventStatus['user_role'] = 'collaborator'; // Défaut
-             if (user.id === env.get('OWNER_ID')) {
-                 actorRole = 'owner';
-             } else if (user.id === order.user_id) {
-                 actorRole = 'client'; // Théoriquement pas possible ici car protégé par Bouncer, mais sécurité
-             }
-             // Ajouter logique pour 'admin' ou 'supervisor' si nécessaire
+            let actorRole: EventStatus['user_role'] = 'collaborator'; // Défaut
+            if (user.id === env.get('OWNER_ID')) {
+                actorRole = 'owner';
+            } else if (user.id === order.user_id) {
+                actorRole = 'client'; // Théoriquement pas possible ici car protégé par Bouncer, mais sécurité
+            }
+            // Ajouter logique pour 'admin' ou 'supervisor' si nécessaire
 
             // Ajouter le nouvel événement de statut
             const newEvent: EventStatus = {
@@ -493,37 +498,37 @@ export default class UserOrdersController {
         } catch (error) {
             await trx.rollback();
             logger.error({ actorId: user.id, orderId: payload?.user_order_id, error: error.message, stack: error.stack }, 'Failed to update order status');
-             // 🌍 i18n
-             return response.internalServerError({ message: t('order.updateFailed'), error: error.message }); // Nouvelle clé
+            // 🌍 i18n
+            return response.internalServerError({ message: t('order.updateFailed'), error: error.message }); // Nouvelle clé
         }
     }
 
     // Supprimer une commande (admin/collaborateur)
     async delete_user_order({ params, response, auth, bouncer }: HttpContext) {
-         // 🔐 Authentification
-         await auth.authenticate();
-          // 🛡️ Permissions
-          try {
-              // Utiliser la même permission que pour gérer les commandes?
-              await bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
-          } catch (error) {
-              if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                   // 🌍 i18n
-                  return response.forbidden({ message: t('unauthorized_action') });
-              }
-              throw error;
-          }
+        // 🔐 Authentification
+        await auth.authenticate();
+        // 🛡️ Permissions
+        try {
+            // Utiliser la même permission que pour gérer les commandes?
+            await bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') });
+            }
+            throw error;
+        }
 
         let payload: Infer<typeof this.deleteOrderParamsSchema>;
         try {
             // ✅ Validation Vine pour Params
             payload = await this.deleteOrderParamsSchema.validate(params);
         } catch (error) {
-             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.badRequest({ message: t('validationFailed'), errors: error.messages });
-             }
-             throw error;
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            }
+            throw error;
         }
 
         const user_order_id = payload.id;
@@ -533,8 +538,8 @@ export default class UserOrdersController {
 
             if (!order) {
                 await trx.rollback();
-                 // 🌍 i18n
-                 return response.notFound({ message: t('order.notFound') });
+                // 🌍 i18n
+                return response.notFound({ message: t('order.notFound') });
             }
 
             // Supprimer d'abord les items associés (bonne pratique, ou utiliser cascade DB)
@@ -544,14 +549,14 @@ export default class UserOrdersController {
 
             await trx.commit();
             logger.info({ actorId: auth.user!.id, orderId: user_order_id }, 'Order deleted');
-             // 🌍 i18n
-             return response.ok({ message: t('order.deleteSuccess'), isDeleted: true }); // Nouvelle clé
+            // 🌍 i18n
+            return response.ok({ message: t('order.deleteSuccess'), isDeleted: true }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
-             logger.error({ actorId: auth.user!.id, orderId: user_order_id, error: error.message, stack: error.stack }, 'Failed to delete order');
-             // 🌍 i18n
-             return response.internalServerError({ message: t('order.deleteFailed'), error: error.message }); // Nouvelle clé
+            logger.error({ actorId: auth.user!.id, orderId: user_order_id, error: error.message, stack: error.stack }, 'Failed to delete order');
+            // 🌍 i18n
+            return response.internalServerError({ message: t('order.deleteFailed'), error: error.message }); // Nouvelle clé
         }
     }
 }

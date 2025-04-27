@@ -46,14 +46,11 @@ export default class DetailsController {
 
     private updateDetailSchema = vine.compile(
         vine.object({
-            // L'ID vient des params, pas du body dans ce cas
-            // id: vine.string().uuid().optional(), // Dans params
-            // detail_id: vine.string().uuid().optional(), // Dans params
             title: vine.string().trim().minLength(1).maxLength(124).optional(),
             description: vine.string().trim().maxLength(2000).optional().nullable(),
             index: vine.number().min(0).optional(), // Index peut être 0
             type: vine.string().trim().maxLength(50).optional(),
-            view: vine.array(vine.string()).optional(), // Pour updateFiles (pseudo URLs)
+            view: vine.any().optional(), // Pour updateFiles (pseudo URLs)
         })
     );
 
@@ -231,6 +228,8 @@ export default class DetailsController {
         const trx = await db.transaction(); // Utiliser transaction pour la réindexation potentielle
         let payload: Infer<typeof this.updateDetailSchema>;
         try {
+            console.log({payload:request.all()});
+            
              // ✅ Validation Vine (pour le body)
              // Utiliser request.all() car updateFiles a besoin des fichiers
             payload = await this.updateDetailSchema.validate(request.all());
