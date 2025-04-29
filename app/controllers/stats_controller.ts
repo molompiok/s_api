@@ -48,7 +48,7 @@ export default class StatisticsController {
       with_delivery: request.input('with_delivery'),
     }
 
-    console.log(params);
+    // console.log(params);
 
     const statsToInclude = request.input('stats', []) as string[]
 
@@ -86,7 +86,7 @@ export default class StatisticsController {
       })
     }
 
-    console.log(result);
+    // console.log(result);
 
     return response.json(result)
   }

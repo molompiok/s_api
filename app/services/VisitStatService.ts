@@ -25,7 +25,7 @@ interface VisitStatsResult {
 export  class VisitStatsService {
   public static async getVisitStats(params: VisitStatsParams) {
     const { period, include = {} } = params
-    console.log({ period, include })
+    // console.log({ period, include })
 
     const groupFormat = getGroupFormat(period)
     const { clause: whereClause, bindings } = buildWhereClause(params)

@@ -27,7 +27,7 @@ interface OrderStatsResult {
 export  class OrderStatsService {
   public static async getOrderStats(params: OrderStatsParams) {
     const { period, include = {} } = params
-    console.log({ period, include })
+    // console.log({ period, include })
 
     const groupFormat = getGroupFormat(period)
     const { clause: whereClause, bindings } = buildWhereClause(params)

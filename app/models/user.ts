@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { compose } from '@adonisjs/core/helpers'
 import { column, hasMany } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
-import { TypeJsonRole } from './role.js'
+import Role, { TypeJsonRole } from './role.js'
 import db from '@adonisjs/lucid/services/db'
 import { OWNER_ID } from '#controllers/Utils/ctrlManager'
 import type { HasMany } from '@adonisjs/lucid/types/relations';
@@ -67,6 +67,11 @@ export default class User  extends compose(BaseModel, AuthFinder)  {
   })
   declare user_phones: HasMany<typeof UserPhone>
 
+  @hasMany(() => Role, {
+    foreignKey: 'user_id'
+  })
+  declare roles :HasMany<typeof Role>
+
   public static async VerifyUser(email: string, password: string) {
     const user = await User.findByOrFail('email', email)
     if (!(await hash.verify(user.password, password))) {
@@ -85,17 +90,19 @@ export default class User  extends compose(BaseModel, AuthFinder)  {
   static ParseUser(user: User | User['$attributes']): Partial<User['$attributes']> {
       // Ta logique pour parser/sérialiser l'utilisateur pour la réponse API
       // Assure-toi d'inclure 'email_verified_at' ou 'isEmailVerified' si tu veux l'exposer au client
-      return {
-          id: user.id,
-          full_name: user.full_name,
-          email: user.email,
-          // photos: user.photos, // exemple
-          created_at: user.created_at,
-          updated_at: user.updated_at,
-          email_verified_at: user.email_verified_at, // Exposer la date de vérification
-          is_email_verified: !!user.email_verified_at // Exposer le booléen calculé
-          // NE PAS inclure 'password'
-      };
+      // return {
+      //     id: user.id,
+      //     full_name: user.full_name,
+      //     email: user.email,
+      //     photo: user.photo, // exemple
+      //     created_at: user.created_at,
+      //     updated_at: user.updated_at,
+      //     email_verified_at: user.email_verified_at, // Exposer la date de vérification
+      //     is_email_verified: !!user.email_verified_at // Exposer le booléen calculé
+      //     // NE PAS inclure 'password'
+      // };
+
+      return user.serialize()||user
   }
 
   public static async isOwner(user_id: string, _premision?: Partial<TypeJsonRole>) {

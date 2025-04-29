@@ -215,7 +215,7 @@ export default class VisitesController {
               .where('created_at', '>=', from.toISO()!);
 
           if (user_id) {
-              query.andWhere('user_id', user_id);
+              query.andWhere('user_id', user_id).limit(1);
           }
 
           // Utilisation de DATE_TRUNC (Standard SQL, marche sur PostgreSQL)

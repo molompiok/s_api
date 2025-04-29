@@ -53,7 +53,6 @@ export default class CommentsController {
 
      private updateCommentSchema = vine.compile(
        vine.object({
-         comment_id: vine.string().uuid(),
          title: vine.string().trim().minLength(3).maxLength(124).optional(),
          description: vine.string().trim().maxLength(512).optional().nullable(),
          rating: vine.number().min(1).max(5).optional(),
@@ -61,7 +60,7 @@ export default class CommentsController {
        })
      );
 
-     private deleteCommentParamsSchema = vine.compile(
+     private commentIdParamsSchema = vine.compile(
        vine.object({
          id: vine.string().uuid(), // ID dans l'URL
        })
@@ -276,18 +275,19 @@ export default class CommentsController {
          }
     }
 
-    public async update_comment({ request, response, auth }: HttpContext) {
-         // 🔐 Authentification (l'utilisateur doit être celui qui a posté le commentaire)
-         await auth.authenticate();
-         const user = auth.user!;
+    public async update_comment({ request, response, auth,params }: HttpContext) {
+        // 🔐 Authentification (l'utilisateur doit être celui qui a posté le commentaire)
+        await auth.authenticate();
+        const user = auth.user!;
+        let comment_id : string = params['id']; // ID validé
 
          const trx = await db.transaction();
          let payload: Infer<typeof this.updateCommentSchema> = {} as any;
          try {
              // ✅ Validation Vine (Body)
              // Utiliser request.all() pour updateFiles
+             comment_id = (await this.commentIdParamsSchema.validate(params)).id;
              payload = await this.updateCommentSchema.validate(request.all());
-             const comment_id = payload.comment_id; // ID validé
 
              // --- Logique métier ---
              const comment = await Comment.find(comment_id, { client: trx });
@@ -363,7 +363,7 @@ export default class CommentsController {
 
          } catch (error) {
              await trx.rollback();
-             logger.error({ userId: user.id, commentId: payload?.comment_id, error: error.message, stack: error.stack }, 'Failed to update comment');
+             logger.error({ userId: user.id, commentId: comment_id, error: error.message, stack: error.stack }, 'Failed to update comment');
               if (error.code === 'E_VALIDATION_ERROR') {
                   // 🌍 i18n
                   return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
@@ -379,10 +379,10 @@ export default class CommentsController {
         await auth.authenticate();
         const user = auth.user!;
 
-        let payload: Infer<typeof this.deleteCommentParamsSchema>;
+        let payload: Infer<typeof this.commentIdParamsSchema>;
         try {
              // ✅ Validation Vine pour Params
-            payload = await this.deleteCommentParamsSchema.validate(params);
+            payload = await this.commentIdParamsSchema.validate(params);
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                  // 🌍 i18n
