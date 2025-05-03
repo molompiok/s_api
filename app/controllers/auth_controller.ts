@@ -165,7 +165,6 @@ export default class AuthController {
         }
     }
 
-
     async login({ request, response }: HttpContext) { // Retiré auth car non utilisé pour login
         let payload: Infer<typeof this.loginSchema>;
         try {
@@ -196,7 +195,8 @@ export default class AuthController {
                 // 🌍 i18n
                 return response.unauthorized({
                     code: 'E_EMAIL_NOT_VERIFIED',
-                    message: t('auth.emailNotVerified') // Nouvelle clé
+                    // message: t('auth.emailNotVerified') // Nouvelle clé
+                    message: 'Verifier votre boite email' // Nouvelle clé
                 });
             }
 

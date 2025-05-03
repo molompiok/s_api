@@ -9,7 +9,7 @@ export default class extends BaseSchema {
       
       table.uuid('user_id').notNullable().references('id').inTable('users')
       table.uuid('order_item_id').notNullable().references('id').inTable('user_order_items')
-      table.uuid('product_id').notNullable().references('id').inTable('products')
+      table.uuid('product_id').nullable()//.notNullable().references('id').inTable('products')
       table.uuid('order_id').notNullable().references('id').inTable('user_orders')
       
       table.string('title',255).notNullable()

@@ -10,6 +10,7 @@ import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
+import { DateTime } from 'luxon'
 
 // Permissions
 const VIEW_USERS_PERMISSION: keyof TypeJsonRole = 'filter_client'; // Utiliser la permission existante
@@ -126,6 +127,93 @@ export default class UsersController {
             return response.internalServerError({ message: t('user.fetchFailed'), error: error.message }); // Nouvelle clé
         }
     }
+
+    
+  /**
+   * Récupère les statistiques globales des utilisateurs
+   */
+  async clients_stats({ request, response, auth ,bouncer}: HttpContext) {
+
+        // 🔐 Authentification
+        await auth.authenticate();
+        // 🛡️ Permissions (pour voir la liste des utilisateurs)
+        try {
+            await bouncer.authorize('collaboratorAbility', [VIEW_USERS_PERMISSION]);
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') });
+            }
+            throw error;
+        }
+
+    const {
+      with_active_users,
+      with_total_clients,
+      with_online_clients,
+      with_satisfied_clients
+    } = request.qs()
+ 
+    console.log('Client stats',request.qs());
+    
+ if(! with_active_users&&
+      !with_total_clients&&
+      !with_online_clients&&
+      !with_satisfied_clients){
+        return {
+          message:'turn true stats selectors, exmple /get_users_stats?with_active_users=true; All selector => with_active_users,with_total_clients,with_online_clients,with_satisfied_clients'
+        }
+      }
+    const stats: any = {}
+
+    // Utilisateurs actifs (dernière visite < 6 mois et authentifiés)
+    if (with_active_users) {
+      const sixMonthsAgo = DateTime.now().minus({ months: 6 }).toISO()
+      const activeUsersCount = await Visite.query()
+        .where('is_authenticate', true)
+        .andWhere('created_at', '>=', sixMonthsAgo)
+        .countDistinct('user_id as active_users')
+        .first()
+      stats.activeUsers = activeUsersCount?.$extras.active_users || 0
+    }
+
+    // Nombre total de clients
+    if (with_total_clients) {
+      const totalClients = await User.query()
+        .count('* as total_clients')
+        .first()
+      stats.totalClients = totalClients?.$extras.total_clients || 0
+    }
+
+    // Clients en ligne (dernière visite < 1 heure)
+    if (with_online_clients) {
+      const oneHourAgo = DateTime.now().minus({ hours: 1 }).toISO()
+      const onlineClientsCount = await Visite.query()
+        .where('is_authenticate', true)
+        .andWhere('created_at', '>=', oneHourAgo)
+        .countDistinct('user_id as online_clients')
+        .first()
+      stats.onlineClients = onlineClientsCount?.$extras.online_clients || 0
+    }
+
+    // Clients satisfaits (moyenne des ratings)
+    if (with_satisfied_clients) {
+      
+      const satisfactionStats = await Comment.query()
+        .avg('rating as avg_rating')
+        .countDistinct('user_id as rated_users')
+        .first()
+      stats.averageSatisfaction = satisfactionStats?.$extras.avg_rating ? parseFloat(satisfactionStats.$extras.avg_rating) : 0
+      stats.ratedUsersCount = satisfactionStats?.$extras.rated_users || 0
+    }
+
+    console.log(stats);
+    
+
+    return response.ok({
+      stats: Object.keys(stats).length > 0 ? stats : undefined
+    })
+  }
 
     /**
      * Méthode privée pour calculer les statistiques d'un client

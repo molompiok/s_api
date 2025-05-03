@@ -325,6 +325,33 @@ export default class DetailsController {
         }
     }
 
+    public static async _delete_detail(detail_id:string, trx?:any){
+        const detail = await Detail.findOrFail(detail_id, { client: trx }); // Utiliser findOrFail
+        const productId = detail.product_id; // Garder l'ID produit pour la réindexation
+
+        // Supprimer l'enregistrement DB
+        await detail.useTransaction(trx).delete();
+
+         // --- Logique métier (réindexation après suppression) ---
+         // Si la suppression a réussi (pas d'erreur levée), on réindexe
+         const remainingDetails = await Detail.query({ client: trx })
+            .where('product_id', productId)
+            .orderBy('index', 'asc');
+
+        for (let i = 0; i < remainingDetails.length; i++) {
+            if (remainingDetails[i].index !== i) {
+                remainingDetails[i].index = i;
+                await remainingDetails[i].useTransaction(trx).save();
+            }
+        }
+        try {
+            await deleteFiles(detail_id);
+        } catch (fileError) {
+            logger.error({ detailId: detail_id, error: fileError }, 'Failed to delete associated files after detail deletion, but DB entry was removed.');
+        }
+
+
+    }
     async delete_detail({ params, response, auth, bouncer }: HttpContext) {
          // 🔐 Authentification
          await auth.authenticate();
@@ -354,34 +381,10 @@ export default class DetailsController {
 
         const trx = await db.transaction();
         try {
-            const detail = await Detail.findOrFail(payload.id, { client: trx }); // Utiliser findOrFail
-            const productId = detail.product_id; // Garder l'ID produit pour la réindexation
-
-            // Supprimer l'enregistrement DB
-            await detail.useTransaction(trx).delete();
-
-             // --- Logique métier (réindexation après suppression) ---
-             // Si la suppression a réussi (pas d'erreur levée), on réindexe
-             const remainingDetails = await Detail.query({ client: trx })
-                .where('product_id', productId)
-                .orderBy('index', 'asc');
-
-            for (let i = 0; i < remainingDetails.length; i++) {
-                if (remainingDetails[i].index !== i) {
-                    remainingDetails[i].index = i;
-                    await remainingDetails[i].useTransaction(trx).save();
-                }
-            }
-            // --- Fin logique métier réindexation ---
-
-            await trx.commit(); // Commit avant suppression fichiers
-
-            // Suppression des fichiers associés
-            try {
-                await deleteFiles(payload.id);
-            } catch (fileError) {
-                logger.error({ detailId: payload.id, error: fileError }, 'Failed to delete associated files after detail deletion, but DB entry was removed.');
-            }
+            
+            await DetailsController._delete_detail(payload.id,trx)
+            
+            await trx.commit();
 
             logger.info({ userId: auth.user!.id, detailId: payload.id }, 'Detail deleted');
             // 🌍 i18n

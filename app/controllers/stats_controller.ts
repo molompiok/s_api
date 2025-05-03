@@ -86,7 +86,7 @@ export default class StatisticsController {
       })
     }
 
-    // console.log(result);
+    console.log(result);
 
     return response.json(result)
   }

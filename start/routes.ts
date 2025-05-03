@@ -179,7 +179,7 @@ router.group(() => {
     // == Inventories ==
     router.group(() => {
         router.post('/', [InventoriesController, 'create'])
-        router.get('/', [InventoriesController, 'get'])        // Liste
+        router.get('/', [InventoriesController, 'get_many'])        // Liste
         router.get('/:id', [InventoriesController, 'get'])     // Spécifique par ID URL
         router.put('/:id', [InventoriesController, 'update'])
         router.delete('/:id', [InventoriesController, 'delete'])
@@ -197,6 +197,7 @@ router.group(() => {
         router.post('/track', [VisitesController, 'visite']) // Route pour tracker une visite (appelée par middleware?)
         router.get('/summary', [VisitesController, 'get_visites']) // Route pour récupérer les stats agrégées
         router.get('/', [StatisticsController, 'index']) // Route principale pour les stats détaillées
+        router.get('/clients_stats', [UsersController, 'clients_stats']) // Route principale pour les stats détaillées
     }).prefix('/stats')
 
     // == Debug ==

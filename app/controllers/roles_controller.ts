@@ -107,9 +107,9 @@ export default class RolesController {
             return response.conflict({ message: t('collaborator.alreadyCollaborator') }); // Nouvelle clé
         }
 
-        targetUser.useTransaction(trx);
-        targetUser.role_type = RoleType.COLLABORATOR;
-        await targetUser.save();
+        // targetUser.useTransaction(trx);
+        // targetUser.role_type = RoleType.COLLABORATOR;
+        // await targetUser.save();
 
         const defaultPermissions = Object.keys(JsonRole).reduce((acc, key) => {
             acc[key as keyof TypeJsonRole] = false;
@@ -242,7 +242,10 @@ export default class RolesController {
             .paginate(page, limit);
 
         // Pas de message i18n car on retourne la liste directement
-        return response.ok(collaborators);
+        return response.ok({
+            list:collaborators.all(),
+            meta:collaborators.getMeta()
+        });
 
     } catch (error) {
         logger.error({ actorId: auth.user!.id, error: error.message, stack: error.stack }, 'Failed to list collaborators');

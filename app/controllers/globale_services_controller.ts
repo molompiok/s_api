@@ -64,6 +64,8 @@ export default class GlobaleServicesController {
             throw error;
         }
 
+        console.log(payload);
+        
         const text = payload.text; // Peut être undefined si non fourni
 
         // Retourner un objet vide si pas de texte de recherche
@@ -102,7 +104,7 @@ export default class GlobaleServicesController {
 
                 // Recherche Client par ID (UUID)
                 clientsQuery = User.query()
-                    .where('role_type', 'client') // Assurer qu'on cherche bien un client
+                    // .where('role_type', 'client') // Assurer qu'on cherche bien un client
                     .whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
                      // 🔍 GET par ID -> .first()
                     .first();
@@ -140,7 +142,7 @@ export default class GlobaleServicesController {
 
                  // Recherche Client par Nom/Email
                  clientsQuery = User.query()
-                    .where('role_type', 'client')
+                    // .where('role_type', 'client')
                     .where((query) => {
                          query.whereILike('full_name', searchTerm)
                               .orWhereILike('email', searchTerm);

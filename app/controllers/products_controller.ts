@@ -16,6 +16,8 @@ import vine from '@vinejs/vine'; // ✅ Ajout de Vine
 import { t, normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajout de t et normalize
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { Infer } from '@vinejs/vine/types';
+import Detail from '#models/detail';
+import DetailsController from './details_controller.js';
 
 export default class ProductsController {
 
@@ -67,7 +69,7 @@ export default class ProductsController {
     vine.object({
       id: vine.string().uuid(),
     })
-  );
+  ); 
 
   // --- Méthodes du contrôleur ---
 
@@ -519,6 +521,11 @@ export default class ProductsController {
       // --- Logique métier (inchangée) ---
       const features = await Feature.query({ client: trx }).preload('values').where('product_id', product.id);
       await Promise.allSettled(features?.map(value => FeaturesController._delete_feature(value.id, trx)));
+      
+      const details = await Detail.query({client:trx}).where('product_id',product.id);
+      await Promise.allSettled(details.map(detail=> DetailsController._delete_detail(detail.id)))
+      
+      
       await product.useTransaction(trx).delete();
 
       await trx.commit(); // Commit avant suppression fichiers
