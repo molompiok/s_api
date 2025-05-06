@@ -5,21 +5,31 @@ import UserOrderItem from './user_order_item.js';
 import BaseModel from './base_model.js';
 import User from './user.js';
 export enum OrderStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  CANCELED = 'canceled',
-  RETURNED = 'returned',
-  DELIVERED = 'delivered',
-  PICKED_UP = 'picked_up',
-  NOT_DELIVERED = 'not_delivered',
-  NOT_PICKED_UP = 'not_picked_up',
-  WAITING_FOR_PAYMENT = 'waiting_for_payment',
-  WAITING_PICKED_UP = 'waiting_picked_up',
+  // == États Initiaux / En attente ==
+  PENDING = 'pending',               // Créée, en attente action (confirmation/paiement)
+  // WAITING_FOR_PAYMENT = 'waiting_for_payment', // Optionnel si PaymentStatus ne suffit pas
+
+  // == États Actifs ==
+  CONFIRMED = 'confirmed',             // Commande validée par le vendeur (et paiement reçu si applicable)
+  PROCESSING = 'processing',           // Commande en cours de préparation
+  READY_FOR_PICKUP = 'ready_for_pickup', // Prête pour le retrait (équivalent de votre WAITING_PICKED_UP)
+  SHIPPED = 'shipped',                 // Expédiée (pour livraison)
+
+  // == États Finaux (Succès) ==
+  DELIVERED = 'delivered',             // Livrée avec succès
+  PICKED_UP = 'picked_up',             // Retirée avec succès
+
+  // == États Finaux (Échec/Annulation/Retour) ==
+  CANCELED = 'canceled',               // Annulée (par client ou vendeur)
+  RETURNED = 'returned',               // Retournée après livraison/retrait
+  FAILED = 'failed',                   // Échec (paiement, processing, livraison...) - état final générique d'échec
+  NOT_DELIVERED = 'not_delivered',     // Tentative de livraison échouée (peut nécessiter action)
+  NOT_PICKED_UP = 'not_picked_up',     // Non retirée par le client (peut nécessiter action)
 }
 
-export  enum CURRENCY{
-  FCFA= 'CFA'
-} 
+export enum CURRENCY {
+  FCFA = 'CFA'
+}
 export enum PaymentMethod {
   CREDIT_CARD = 'credit_card',
   PAYPAL = 'paypal',
@@ -35,12 +45,12 @@ export enum PaymentStatus {
 }
 
 export type EventStatus = {
-  change_at:DateTime,
-  status:OrderStatus,
-  estimated_duration?:number,
-  message?:string,
-  user_role:'client'|'admin'|'owner'|'collaborator'|'supervisor',
-  user_provide_change_id:string
+  change_at: DateTime,
+  status: OrderStatus,
+  estimated_duration?: number,
+  message?: string,
+  user_role: 'client' | 'admin' | 'owner' | 'collaborator' | 'supervisor',
+  user_provide_change_id: string
 }
 export default class UserOrder extends BaseModel {
   @column({ isPrimary: true })
@@ -63,7 +73,7 @@ export default class UserOrder extends BaseModel {
   declare items_count: number
 
   // Détails de la commande
-  
+
   @column()
   declare reference: string
 
@@ -71,14 +81,14 @@ export default class UserOrder extends BaseModel {
   declare status: OrderStatus
 
   @column({
-    prepare:(value)=>{
+    prepare: (value) => {
       try {
-        if(!Array.isArray(value)){
-          throw new Error('command.events_status n\'est pas valid, \n'+value)
+        if (!Array.isArray(value)) {
+          throw new Error('command.events_status n\'est pas valid, \n' + value)
         }
         return JSON.stringify(value)
       } catch (error) {
-        throw new Error('command.events_status n\'est pas valid, \n'+value)
+        throw new Error('command.events_status n\'est pas valid, \n' + value)
       }
     }
   })
@@ -89,7 +99,7 @@ export default class UserOrder extends BaseModel {
 
   @column()
   declare payment_status: PaymentStatus
- 
+
   @column()
   declare currency: string
 
@@ -108,7 +118,7 @@ export default class UserOrder extends BaseModel {
   // Adresse de livraison
   @column()
   declare delivery_address: string
-  
+
   @column()
   declare delivery_address_name: string
 
@@ -149,7 +159,7 @@ export default class UserOrder extends BaseModel {
     localKey: 'id',          // La clé primaire dans UserCommand
   })
   declare items: HasMany<typeof UserOrderItem>
- 
+
   @belongsTo(() => User, {
     foreignKey: 'user_id', // ✅ La clé étrangère doit être `user_id` dans `Order`
   })

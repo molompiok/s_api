@@ -17,13 +17,54 @@ import { normalizeStringArrayInput, t } from '../utils/functions.js'; // ✅ Ajo
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
-import User, { RoleType } from '#models/user' // Pour déterminer le rôle de l'updater
 
 // Permissions
-const VIEW_OWN_ORDERS_PERMISSION = null; // Pas de permission spécifique, juste être authentifié
 const VIEW_ALL_ORDERS_PERMISSION: keyof TypeJsonRole = 'filter_command';
 const MANAGE_ORDERS_PERMISSION: keyof TypeJsonRole = 'manage_command';
 
+const allowedTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
+    [OrderStatus.PENDING]: [
+        OrderStatus.CONFIRMED,
+        OrderStatus.CANCELED,
+        OrderStatus.FAILED
+    ],
+    [OrderStatus.CONFIRMED]: [
+        OrderStatus.PROCESSING,
+        OrderStatus.CANCELED
+    ],
+    [OrderStatus.PROCESSING]: [
+        OrderStatus.SHIPPED,           // Si livraison
+        OrderStatus.READY_FOR_PICKUP,  // Si retrait
+        OrderStatus.CANCELED,          // Si annulation permise ici
+        OrderStatus.FAILED             // Si échec pendant préparation
+    ],
+    [OrderStatus.READY_FOR_PICKUP]: [
+        OrderStatus.PICKED_UP,
+        OrderStatus.NOT_PICKED_UP
+    ],
+    [OrderStatus.SHIPPED]: [
+        OrderStatus.DELIVERED,
+        OrderStatus.NOT_DELIVERED,
+        OrderStatus.RETURNED, // Retour possible pendant transit? Rare.
+        OrderStatus.FAILED    // Problème transport?
+    ],
+    [OrderStatus.DELIVERED]: [
+        OrderStatus.RETURNED
+    ],
+     [OrderStatus.PICKED_UP]: [ // Ajouté : retour possible après retrait
+        OrderStatus.RETURNED
+    ],
+    [OrderStatus.NOT_DELIVERED]: [ // Action après échec livraison
+        OrderStatus.SHIPPED,    // Nouvelle tentative
+        OrderStatus.RETURNED,   // Retour direct
+        OrderStatus.CANCELED    // Annulation
+    ],
+    [OrderStatus.NOT_PICKED_UP]: [ // Action après non retrait
+        OrderStatus.CANCELED    // Annulation après délai?
+        // On pourrait aussi permettre de remettre en READY_FOR_PICKUP si le client prévient
+    ],
+    // CANCELED, RETURNED, FAILED sont finaux
+};
 
 export default class UserOrdersController {
 
@@ -78,7 +119,6 @@ export default class UserOrdersController {
 
     private updateOrderSchema = vine.compile(
         vine.object({
-            user_order_id: vine.string().uuid(),
             status: vine.enum(Object.values(OrderStatus)), // Valider contre l'enum
             message: vine.string().trim().maxLength(500).optional(),
             estimated_duration: vine.number().min(0).optional(), // en minutes? jours?
@@ -406,67 +446,70 @@ export default class UserOrdersController {
         }
     }
 
-    // Mettre à jour le statut d'une commande (admin/collaborateur)
-    async update_user_order({ response, auth, request, bouncer }: HttpContext) {
-        // 🔐 Authentification
-        await auth.authenticate();
-        const user = auth.user!; // Utilisateur effectuant l'action
-        // 🛡️ Permissions
+    async update_user_order({ response, auth, request, bouncer , params}: HttpContext) {
+        // 🔐 Authentification & 🛡️ Permissions (inchangé)
+       
+        const user =  await auth.authenticate();;
         try {
             await bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
-        } catch (error) {
+        } catch (error) { // ... gestion erreur permission
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                // 🌍 i18n
                 return response.forbidden({ message: t('unauthorized_action') });
             }
             throw error;
         }
 
+        const order_id = params['id'];
         let payload: Infer<typeof this.updateOrderSchema>;
         try {
-            // ✅ Validation Vine (Body)
             payload = await this.updateOrderSchema.validate(request.body());
-        } catch (error) {
+        } catch (error) { // ... gestion erreur validation
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
             }
             throw error;
         }
 
-        const trx = await db.transaction(); // Transaction pour MAJ atomique
+        const trx = await db.transaction();
         try {
-            const order = await UserOrder.find(payload.user_order_id, { client: trx });
+            const order = await UserOrder.find(order_id, { client: trx });
 
             if (!order) {
                 await trx.rollback();
-                // 🌍 i18n
-                return response.notFound({ message: t('order.notFound') }); // Nouvelle clé
+                return response.notFound({ message: t('order.notFound') });
             }
 
-            // --- Logique métier ---
-            // TODO: Ajouter la logique de validation des transitions de statut ici
-            // Exemple simple: Ne pas permettre de revenir en arrière depuis 'delivered' ou 'canceled'
             const currentStatus = order.status;
             const newStatus = payload.status;
-            if ([OrderStatus.DELIVERED, OrderStatus.CANCELED, OrderStatus.RETURNED].includes(currentStatus) && currentStatus !== newStatus) {
-                if (!(currentStatus === OrderStatus.DELIVERED && newStatus === OrderStatus.RETURNED)) { // Exception: livré peut devenir retourné
-                    await trx.rollback();
-                    // 🌍 i18n
-                    return response.badRequest({ message: t('order.invalidStatusTransition', { from: currentStatus, to: newStatus }) }); // Nouvelle clé
-                }
+
+            // --- ✅ Vérification de la Transition ---
+            // Si le statut actuel et le nouveau statut sont identiques, ne rien faire (succès silencieux?)
+            if (currentStatus === newStatus) {
+                 await trx.rollback(); // Pas besoin de transaction si rien ne change
+                 logger.warn({ actorId: user.id, orderId: order.id, status: currentStatus }, 'Order status update requested but status is already the same.');
+                 // On peut retourner OK avec un message spécifique ou la commande actuelle
+                 const currentCommandData = await this._get_users_orders({ command_id: order.id, with_items: true });
+                 return response.ok({ message: t('order.statusAlreadySet'), order: currentCommandData.list[0] }); // Nouvelle clé i18n
             }
 
-            // Déterminer le rôle de l'acteur
-            let actorRole: EventStatus['user_role'] = 'collaborator'; // Défaut
-            if (user.id === env.get('OWNER_ID')) {
-                actorRole = 'owner';
-            } else if (user.id === order.user_id) {
-                actorRole = 'client'; // Théoriquement pas possible ici car protégé par Bouncer, mais sécurité
-            }
-            // Ajouter logique pour 'admin' ou 'supervisor' si nécessaire
+            // Vérifier si la transition est autorisée dans notre map
+            const isValidTransition = allowedTransitions[currentStatus]?.includes(newStatus);
 
-            // Ajouter le nouvel événement de statut
+            if (!isValidTransition) {
+                await trx.rollback();
+                logger.warn({ actorId: user.id, orderId: order.id, from: currentStatus, to: newStatus }, 'Invalid order status transition attempted');
+                // 🌍 i18n
+                return response.badRequest({ message: t('order.invalidStatusTransition', { from: t(`orderStatus.${currentStatus.toLowerCase()}`), to: t(`orderStatus.${newStatus.toLowerCase()}`) }) }); // Utiliser clés i18n pour les noms de statut
+            }
+             // --- Fin Vérification de la Transition ---
+
+
+            // --- Logique métier (ajout de l'événement) ---
+            let actorRole: EventStatus['user_role'] = 'collaborator'; // ... (logique de rôle inchangée)
+            if (user.id === env.get('OWNER_ID')) actorRole = 'owner';
+            else if (user.id === order.user_id) actorRole = 'client';
+
+
             const newEvent: EventStatus = {
                 change_at: DateTime.now(),
                 status: newStatus,
@@ -478,31 +521,25 @@ export default class UserOrdersController {
 
             order.useTransaction(trx).merge({
                 status: newStatus,
-                // Ajouter le nouvel event au début ou à la fin? Début est souvent plus logique
-                events_status: [newEvent, ...(order.events_status || [])],
+                events_status: [...(order.events_status || []), newEvent],
             });
             await order.save();
             // --- Fin logique métier ---
 
             await trx.commit();
-            logger.info({ actorId: user.id, orderId: order.id, newStatus: newStatus }, 'Order status updated');
+            logger.info({ actorId: user.id, orderId: order.id, from: currentStatus, to: newStatus }, 'Order status updated successfully');
 
-            // Recharger la commande avec les items pour la réponse
+            // Recharger et répondre (inchangé)
             const updatedCommand = await this._get_users_orders({ command_id: order.id, with_items: true });
-            // Diffusion SSE
             transmit.broadcast(`store/${env.get('STORE_ID')}/update_command`, { id: order.id });
+            return response.ok({ message: t('order.updateSuccess'), order: updatedCommand.list[0] });
 
-            // 🌍 i18n
-            return response.ok({ message: t('order.updateSuccess'), order: updatedCommand.list[0] }); // Nouvelle clé
-
-        } catch (error) {
+        } catch (error) { // ... gestion erreur interne
             await trx.rollback();
-            logger.error({ actorId: user.id, orderId: payload?.user_order_id, error: error.message, stack: error.stack }, 'Failed to update order status');
-            // 🌍 i18n
-            return response.internalServerError({ message: t('order.updateFailed'), error: error.message }); // Nouvelle clé
+            logger.error({ actorId: user.id, orderId: order_id, error: error.message, stack: error.stack }, 'Failed to update order status');
+            return response.internalServerError({ message: t('order.updateFailed'), error: error.message });
         }
     }
-
     // Supprimer une commande (admin/collaborateur)
     async delete_user_order({ params, response, auth, bouncer }: HttpContext) {
         // 🔐 Authentification

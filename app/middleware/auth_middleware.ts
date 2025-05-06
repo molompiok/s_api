@@ -27,11 +27,16 @@ export default class AuthMiddleware {
 
     let isAuthenticated = false
 
-    for (const guard of guards) {
-      if (await tryAuth(guard)) {
-        isAuthenticated = true
-        break
+    try {
+
+      for (const guard of guards) {
+        if (await tryAuth(guard)) {
+          isAuthenticated = true
+          break
+        }
       }
+    } catch (error) {
+      return ctx.response.unauthorized({ message: 'Unauthorized access' })
     }
 
     if (!isAuthenticated) {

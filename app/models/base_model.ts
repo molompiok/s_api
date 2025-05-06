@@ -1,3 +1,4 @@
+//app/models/base_model.ts
 import { BaseModel as LucidBaseModel } from '@adonisjs/lucid/orm'
 
 export default class BaseModel extends LucidBaseModel {

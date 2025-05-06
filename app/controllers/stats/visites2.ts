@@ -45,11 +45,11 @@ export default class VisitStatsService {
     const mainStats = await db.rawQuery(mainStatsSQL, bindings)
 
     // Initialisation des maps pour chaque champ inclus
-    let browserMap : any = {}
-    let osMap : any = {}
-    let deviceMap : any = {}
-    let pageUrlMap : any = {}
-    let referrerMap : any = {}
+    let browserMap: any = {}
+    let osMap: any = {}
+    let deviceMap: any = {}
+    let pageUrlMap: any = {}
+    let referrerMap: any = {}
 
     // Statistiques par navigateur
     if (include.browser) {
@@ -74,9 +74,9 @@ export default class VisitStatsService {
 
     // Statistiques par URL de page
     if (include.pageUrl) {
-      const pageUrlStatsSQL = generateStatSQL(groupFormat, 'page_url', whereClause)
+      const pageUrlStatsSQL = generateStatSQL(groupFormat, 'landing_page', whereClause)
       const pageUrlStats = await db.rawQuery(pageUrlStatsSQL, bindings)
-      pageUrlMap = buildFieldStatsMap(pageUrlStats.rows, 'page_url')
+      pageUrlMap = buildFieldStatsMap(pageUrlStats.rows, 'landing_page')
     }
 
     // Statistiques par référent

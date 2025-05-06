@@ -13,9 +13,9 @@ import server from '@adonisjs/core/services/server'
 import './lucid.js'
 
 import '../contracts/context.js'
-import { Ignitor } from '@adonisjs/core'
+// import { Ignitor } from '@adonisjs/core'
 import { startScheduler } from './scheduler.js'
-import { createServer } from 'node:http'
+// import { createServer } from 'node:http'
 
 /**
  * The error handler is used to convert an exception
@@ -51,6 +51,3 @@ export const middleware = router.named({
 startScheduler()
 
 // BaseModel.boot() // Assure-toi que le modèle est bien chargé
-
-// console.log('Feature Relations:', Feature.$relationsDefinitions)
-// console.log('Value Relations:', Value.$relationsDefinitions)

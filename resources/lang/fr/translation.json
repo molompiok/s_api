@@ -102,7 +102,11 @@
     "listFailed": "Impossible de lister les collaborateurs.",
     "cannotRemoveOwner": "Vous ne pouvez pas supprimer le propriétaire.",
     "removeSuccess": "Collaborateur supprimé avec succès.",
-    "removeFailed": "Impossible de supprimer le collaborateur."
+    "removeFailed": "Impossible de supprimer le collaborateur.",
+    "addedSuccessExisting": "L'utilisateur {{email}} a été ajouté à votre équipe.",
+    "invitedSuccessNew": "Une invitation a été envoyée à {{email}} pour rejoindre votre équipe et configurer son compte.",
+    "creationInviteFailed": "Impossible d'ajouter ou d'inviter le collaborateur.",
+    "defaultInvitedName": "Collaborateur Invité"
   },
   "stats": {
     "fetchFailed": "Erreur lors de la récupération des statistiques."
@@ -174,6 +178,12 @@
     "deleteFailed": "La suppression du commentaire a échoué."
   },
   "auth": {
+    "setupAccount": { 
+        "invalidToken": "Ce lien d'activation est invalide ou a expiré. Veuillez contacter l'administrateur de la boutique.",
+        "alreadyActive": "Ce compte est déjà actif. Vous pouvez vous connecter directement.",
+        "success": "Votre compte a été activé et votre mot de passe défini avec succès. Vous pouvez maintenant vous connecter.",
+        "genericError": "Une erreur est survenue lors de l'activation du compte."
+    },
     "socialCallbackFailed": "Erreur interne lors du traitement de la connexion sociale.",
     "emailNotVerified": "Veuillez vérifier votre adresse email avant de vous connecter.",
     "loginSuccess": "Connexion réussie.",
@@ -200,7 +210,9 @@
     "accountDeleteFailed": "Échec de la suppression du compte."
   },
   "emails": {
-    "verifySubject": "Vérifiez votre adresse email - Sublymus"
+    "verifySubject": "Vérifiez votre adresse email - Sublymus",
+    "collaboratorAddedSubject": "Vous avez été ajouté à l'équipe {{storeName}}",
+    "collaboratorInviteSubject": "Invitation à rejoindre l'équipe {{storeName}} sur Sublymus"
   },
   "cart": {
     "negativeQuantityNotAllowed": "La quantité ne peut pas être négative.",
@@ -230,6 +242,12 @@
     "updateFailed": "La mise à jour de la catégorie a échoué.",
     "deleteSuccess": "Catégorie supprimée avec succès.",
     "deleteFailed": "La suppression de la catégorie a échoué."
+  },
+  "setupAccount": {
+    "invalidToken": "Ce lien d'activation est invalide ou a expiré. Veuillez contacter l'administrateur de la boutique.",
+    "alreadyActive": "Ce compte est déjà actif. Vous pouvez vous connecter directement.",
+    "success": "Votre compte a été activé et votre mot de passe défini avec succès. Vous pouvez maintenant vous connecter.",
+    "genericError": "Une erreur est survenue lors de l'activation du compte."
   },
   "invalid_value": "La valeur du champ \"{{ key }}\" est invalide : {{ value }}",
   "unauthorized_action": "Vous n’avez pas la permission d’effectuer cette action.",

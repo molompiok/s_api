@@ -180,7 +180,7 @@ export default class InventoriesController {
             let query = Inventory.query();
 
             if (payload.inventory_id) {
-                const inventory = await query.where('id', payload.inventory_id).firstOrFail();
+                const inventory = await query.where('id', payload.inventory_id).limit(1)
                return response.ok(inventory);
             }
 

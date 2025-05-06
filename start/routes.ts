@@ -47,6 +47,15 @@ router.group(() => {
         router.post('/register', [AuthController, 'register_mdp'])
         router.get('/verify-email', [AuthController, 'verifyEmail']) // GET avec token en query param
         router.post('/resend-verification', [AuthController, 'resendVerification'])
+
+        // --- NOUVEAU: Routes Mot de Passe Oublié ---
+        router.post('/forgot-password', [AuthController, 'forgotPassword'])
+        router.post('/reset-password', [AuthController, 'resetPassword'])
+
+        // --- NOUVEAU: Route Setup Compte Collaborateur ---
+        router.post('/setup-account', [AuthController, 'setupAccount'])
+
+        // --- Routes Authentifiées ---
         router.post('/logout', [AuthController, 'logout'])
         router.post('/logout-all', [AuthController, 'logoutAllDevices']) // Renommé pour clarté
         router.get('/me', [AuthController, 'me'])
@@ -77,8 +86,8 @@ router.group(() => {
         router.get('/sub-categories', [CategoriesController, 'get_sub_categories']) // Route spécifique pour sous-catégories
         router.get('/filters', [CategoriesController, 'get_filters']) // Route spécifique pour filtres
         router.put('/:id', [CategoriesController, 'update_category']) // ID dans l'URL pour PUT
-         // Le code d'update attendait category_id dans le body, ajustement ici vers /:id
-         // Il faudra adapter le contrôleur pour prendre l'ID des params.
+        // Le code d'update attendait category_id dans le body, ajustement ici vers /:id
+        // Il faudra adapter le contrôleur pour prendre l'ID des params.
         router.delete('/:id', [CategoriesController, 'delete_category'])
     }).prefix('/categories')
 
@@ -88,7 +97,7 @@ router.group(() => {
         router.get('/', [CommentsController, 'get_comments']) // Liste ou par ID/Produit via query
         router.get('/for-item', [CommentsController, 'get_comment']) // Route spécifique par order_item_id
         router.put('/:id', [CommentsController, 'update_comment']) // ID dans l'URL pour PUT
-         // Le code d'update attendait comment_id dans le body. Adapter contrôleur.
+        // Le code d'update attendait comment_id dans le body. Adapter contrôleur.
         router.delete('/:id', [CommentsController, 'delete_comment'])
     }).prefix('/comments')
 
@@ -97,7 +106,7 @@ router.group(() => {
         router.post('/', [FavoritesController, 'create_favorite'])
         router.get('/', [FavoritesController, 'get_favorites']) // Liste ou par ID via query
         router.put('/:id', [FavoritesController, 'update_favorites']) // ID dans l'URL pour PUT
-         // Le code d'update attendait favorite_id dans le body. Adapter contrôleur.
+        // Le code d'update attendait favorite_id dans le body. Adapter contrôleur.
         router.delete('/:id', [FavoritesController, 'delete_favorite'])
     }).prefix('/favorites')
 
@@ -107,7 +116,7 @@ router.group(() => {
         router.get('/', [FeaturesController, 'get_features']) // Simple liste
         router.get('/with-values', [FeaturesController, 'get_features_with_values']) // Avec valeurs préchargées
         router.put('/:id', [FeaturesController, 'update_feature']) // ID dans l'URL pour PUT
-         // Le code d'update attendait feature_id dans le body. Adapter contrôleur.
+        // Le code d'update attendait feature_id dans le body. Adapter contrôleur.
         router.post('/multiple-updates', [FeaturesController, 'multiple_update_features_values']) // Endpoint dédié
         router.delete('/:id', [FeaturesController, 'delete_feature'])
     }).prefix('/features')
@@ -127,7 +136,7 @@ router.group(() => {
         router.post('/', [DetailsController, 'create_detail'])
         router.get('/', [DetailsController, 'get_details'])   // Liste ou par ID via query
         router.put('/:id', [DetailsController, 'update_detail']) // ID dans l'URL pour PUT
-         // Le code d'update attendait id/detail_id dans le body. Adapter contrôleur.
+        // Le code d'update attendait id/detail_id dans le body. Adapter contrôleur.
         router.delete('/:id', [DetailsController, 'delete_detail'])
     }).prefix('/details')
 
@@ -149,22 +158,22 @@ router.group(() => {
     }).prefix('/roles')
 
     // == User Addresses ==
-     router.group(() => {
-         router.post('/', [UserAddressesController, 'create_user_address'])
-         router.get('/', [UserAddressesController, 'get_user_address']) // Liste ou par ID via query
-         router.put('/:id', [UserAddressesController, 'update_user_address']) // ID dans l'URL pour PUT
-         // Le code d'update attendait id dans le body. Adapter contrôleur.
-         router.delete('/:id', [UserAddressesController, 'delete_user_address'])
-     }).prefix('/user-addresses')
+    router.group(() => {
+        router.post('/', [UserAddressesController, 'create_user_address'])
+        router.get('/', [UserAddressesController, 'get_user_address']) // Liste ou par ID via query
+        router.put('/:id', [UserAddressesController, 'update_user_address']) // ID dans l'URL pour PUT
+        // Le code d'update attendait id dans le body. Adapter contrôleur.
+        router.delete('/:id', [UserAddressesController, 'delete_user_address'])
+    }).prefix('/user-addresses')
 
     // == User Phones ==
-     router.group(() => {
-         router.post('/', [UserPhonesController, 'create_user_phone'])
-         router.get('/', [UserPhonesController, 'get_user_phones']) // Liste ou par ID via query
-         router.put('/:id', [UserPhonesController, 'update_user_phone']) // ID dans l'URL pour PUT
-          // Le code d'update attendait id dans le body. Adapter contrôleur.
-         router.delete('/:id', [UserPhonesController, 'delete_user_phone'])
-     }).prefix('/user-phones')
+    router.group(() => {
+        router.post('/', [UserPhonesController, 'create_user_phone'])
+        router.get('/', [UserPhonesController, 'get_user_phones']) // Liste ou par ID via query
+        router.put('/:id', [UserPhonesController, 'update_user_phone']) // ID dans l'URL pour PUT
+        // Le code d'update attendait id dans le body. Adapter contrôleur.
+        router.delete('/:id', [UserPhonesController, 'delete_user_phone'])
+    }).prefix('/user-phones')
 
     // == Orders ==
     router.group(() => {
@@ -172,7 +181,7 @@ router.group(() => {
         router.get('/my-orders', [UserOrdersController, 'get_orders'])     // Client récupère SES commandes
         router.get('/', [UserOrdersController, 'get_users_orders'])        // Admin/Collab récupère toutes/filtrées
         router.put('/:id/status', [UserOrdersController, 'update_user_order']) // Admin/Collab met à jour statut via ID URL
-         // Le code d'update attendait user_order_id dans le body. Adapter contrôleur.
+        // Le code d'update attendait user_order_id dans le body. Adapter contrôleur.
         router.delete('/:id', [UserOrdersController, 'delete_user_order']) // Admin/Collab supprime commande
     }).prefix('/orders')
 
@@ -196,7 +205,9 @@ router.group(() => {
     router.group(() => {
         router.post('/track', [VisitesController, 'visite']) // Route pour tracker une visite (appelée par middleware?)
         router.get('/summary', [VisitesController, 'get_visites']) // Route pour récupérer les stats agrégées
-        router.get('/', [StatisticsController, 'index']) // Route principale pour les stats détaillées
+        router.get('/kpi', [StatisticsController, 'getKpi']);           // Endpoint pour les KPIs
+        router.get('/visits', [StatisticsController, 'getVisitDetails']); // Endpoint pour stats visites détaillées
+        router.get('/orders', [StatisticsController, 'getOrderDetails']); // Route principale pour les stats détaillées
         router.get('/clients_stats', [UsersController, 'clients_stats']) // Route principale pour les stats détaillées
     }).prefix('/stats')
 
@@ -211,7 +222,7 @@ router.group(() => {
     // router.get('/uploads/*', ...) // Cette route est définie plus bas
 
     // == Send Email (Debug/Test - À déplacer) ==
-     router.get('/_test/send-email', async ({ request, response, i18n }) => { // Route de test préfixée
+    router.get('/_test/send-email', async ({ request, response, i18n }) => { // Route de test préfixée
         const { email } = request.qs();
         if (!email) return response.badRequest('Email parameter is required');
         try {
@@ -221,15 +232,17 @@ router.group(() => {
             const verificationUrl = `${env.get('APP_URL')}/api/v1/auth/verify-email?token=${token.value!.release()}`; // Adapter URL
             const queue = BullMQService.getServerToServerQueue();
             await queue.add('send_email', {
-              event: 'send_email',
-              data: { to: user.email, subject: i18n.t('emails.verifySubject'), template: 'emails/verify_email',
-                      context: { userName: user.full_name, verificationUrl: verificationUrl } }
+                event: 'send_email',
+                data: {
+                    to: user.email, subject: i18n.t('emails.verifySubject'), template: 'emails/verify_email',
+                    context: { userName: user.full_name, verificationUrl: verificationUrl }
+                }
             }, { jobId: `test-verify-email-${user.id}-${Date.now()}` });
             logger.info({ userId: user.id }, 'Test verification email sent');
             return response.ok('Test email queued.');
         } catch (error) {
-             logger.error({ email, error }, 'Failed to send test email');
-             return response.internalServerError('Failed to send test email');
+            logger.error({ email, error }, 'Failed to send test email');
+            return response.internalServerError('Failed to send test email');
         }
     });
 
@@ -243,15 +256,15 @@ router.get('/uploads/*', async ({ request, response }) => {
     const filePath = request.param('*').join('/');
     const safePath = decodeURIComponent(filePath); // Décoder l'URL
     try {
-         // Utiliser la méthode 'safe' pour le téléchargement
-         // Il faudra peut-être spécifier le chemin complet vers le dossier 'uploads'
+        // Utiliser la méthode 'safe' pour le téléchargement
+        // Il faudra peut-être spécifier le chemin complet vers le dossier 'uploads'
         // const absolutePath = app.makePath('public/uploads', safePath); // Exemple
         // return response.download(absolutePath);
         // Pour l'instant, on garde le chemin relatif mais c'est moins sûr
         return response.download(`.${request.url()}`);
     } catch (error) {
-         logger.error({ path: safePath, error }, 'Failed to download file');
-         return response.notFound('File not found');
+        logger.error({ path: safePath, error }, 'Failed to download file');
+        return response.notFound('File not found');
     }
 });
 
@@ -263,43 +276,46 @@ router.get('/', () => {
 // Route Test SSE (gardée pour debug)
 router.get('/test_sse', () => {
     logger.info('SSE test requested');
-    transmit.broadcast('test:sse', { test: Date.now() });
+    const url = `store/${env.get('STORE_ID')}/update_command`;
+    console.log(url);
+    
+    transmit.broadcast(`store/${env.get('STORE_ID')}/update_command`, { id: 'WWW'});
     return { message: 'SSE event broadcasted.' };
 });
 
 
 router.get('/send_email', async ({ request }) => {
 
-  const user = await User.findByOrFail('email', request.qs().email)
-  const token = await User.accessTokens.create(
-    user,
-    ['*'],
-    {
-      name: `api_login_${user.id}_${DateTime.now().toMillis()}`,
-      expiresIn: '30 days' // Durée de vie du token
-    }
-  );
-  const verificationUrl = `${env.get('APP_URL')}/api/auth/verify-email?token=${token.value!.release()}`;
-
-  try {
-    const queue = BullMQService.getServerToServerQueue();
-    await queue.add('send_email', {
-      event: 'send_email',
-      data: {
-        to: user.email,
-        subject: 'Vérifiez votre adresse email - Sublymus',
-        template: 'emails/verify_email', // Le template doit exister dans s_server
-        context: {
-          userName: user.full_name,
-          verificationUrl: verificationUrl
+    const user = await User.findByOrFail('email', request.qs().email)
+    const token = await User.accessTokens.create(
+        user,
+        ['*'],
+        {
+            name: `api_login_${user.id}_${DateTime.now().toMillis()}`,
+            expiresIn: '30 days' // Durée de vie du token
         }
-      }
-    }, { jobId: `verify-email-${user.id}-${Date.now()}` });
-    logger.info({ userId: user.id, email: user.email }, 'Verification email job sent to s_server');
-  } catch (queueError) {
-    logger.error({ userId: user.id, error: queueError.message }, 'Failed to send verification email job');
-  }
-  return
+    );
+    const verificationUrl = `${env.get('APP_URL')}/api/auth/verify-email?token=${token.value!.release()}`;
+
+    try {
+        const queue = BullMQService.getServerToServerQueue();
+        await queue.add('send_email', {
+            event: 'send_email',
+            data: {
+                to: user.email,
+                subject: 'Vérifiez votre adresse email - Sublymus',
+                template: 'emails/verify_email', // Le template doit exister dans s_server
+                context: {
+                    userName: user.full_name,
+                    verificationUrl: verificationUrl
+                }
+            }
+        }, { jobId: `verify-email-${user.id}-${Date.now()}` });
+        logger.info({ userId: user.id, email: user.email }, 'Verification email job sent to s_server');
+    } catch (queueError) {
+        logger.error({ userId: user.id, error: queueError.message }, 'Failed to send verification email job');
+    }
+    return
 })
 
 
@@ -307,40 +323,4 @@ router.get('/send_email', async ({ request }) => {
 // --- Démarrage Worker BullMQ ---
 // (Idéalement, cela devrait être dans un processus séparé ou un Service Provider)
 await startBullMQWoker(); // Gardé à la fin comme dans l'original
-
-
-// router.get('/', () => {
-//   console.log('@@@@@@@@@@@@@@@@@@@@', env);
-
-//   return env
-// })
-
-// router.get('/test_sse', () => {
-//   console.log('/test_sse');
-
-//   transmit.broadcast('test:sse', {
-//     test: Date.now()
-//   })
-//   return {}
-// })
-
-// router.get('/uploads/*', ({ request, response }) => {
-
-//   return response.download('.' + request.url())
-// })
-
-// router.post('/test-vine', async ({ request, response }) => {
-//   const rawBody = request.body();
-//   console.log('Raw body:', rawBody);
-
-//   try {
-//     const payload = await TestValidator.validate({
-//       data: rawBody,
-//       messages: 'Test Messages',
-//     });
-//     return response.ok({ message: 'Validation succeeded', payload });
-//   } catch (error) {
-//     return response.badRequest({ message: 'Validation failed', errors: error.messages });
-//   }
-// });
 

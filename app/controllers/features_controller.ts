@@ -305,7 +305,7 @@ export default class FeaturesController {
 
             if (payload.feature_id) {
                 // 🔍 Pas de .first() ici, on veut potentiellement un tableau même avec un ID
-                query = query.where('id', payload.feature_id);
+                query = query.where('id', payload.feature_id).limit(1);
             }
             if (payload.product_id) {
                 query = query.where('product_id', payload.product_id);

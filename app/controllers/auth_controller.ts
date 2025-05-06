@@ -15,6 +15,7 @@ import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import db from '@adonisjs/lucid/services/db';
 import UserAuthentification from '#models/user_authentification';
+import AsyncConfirm, { AsyncConfirmType } from '#models/asyncConfirm';
 // Bouncer n'est pas utilisé directement ici, les actions sont liées à l'utilisateur lui-même
 
 // Interface spécifique pour delete_account
@@ -67,6 +68,27 @@ export default class AuthController {
             full_name: vine.string().trim().minLength(3).maxLength(255).optional(),
             // Le mot de passe nécessite confirmation
             password: vine.string().minLength(8).confirmed().optional(),
+        })
+    );
+
+    private forgotPasswordSchema = vine.compile(
+        vine.object({
+            email: vine.string().trim().email().normalizeEmail(),
+            callback_url:vine.string().trim().minLength(3)
+        })
+    );
+
+    private resetPasswordSchema = vine.compile(
+        vine.object({
+            token: vine.string().trim().minLength(10), // Le token brut reçu
+            password: vine.string().minLength(8).confirmed(), // Nouveau mot de passe + confirmation
+        })
+    );
+
+    private setupAccountSchema = vine.compile(
+        vine.object({
+            token: vine.string().trim().minLength(10), // Le token brut reçu de l'URL
+            password: vine.string().minLength(8).confirmed(), // Nouveau mot de passe + confirmation
         })
     );
 
@@ -426,6 +448,291 @@ export default class AuthController {
         }
     }
 
+     /**
+     * @forgotPassword
+     * Initiates the password reset process for a user.
+     * Finds user by email, generates a reset token, stores its hash, and sends reset email.
+     */
+     async forgotPassword({ request, response }: HttpContext) {
+        let payload: Infer<typeof this.forgotPasswordSchema>;
+        try {
+            // ✅ Validation Vine
+            payload = await this.forgotPasswordSchema.validate(request.body());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                 // 🌍 i18n
+                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            }
+            // Logguer mais ne pas relancer pour masquer l'erreur
+            logger.error({ error }, "Forgot password validation failed");
+             // 🌍 i18n - Réponse générique pour la sécurité
+             return response.ok({ message: t('auth.forgotPassword.emailSentConfirmation') });
+        }
+
+        const email = payload.email;
+        const genericSuccessMessage = { message: t('auth.forgotPassword.emailSentConfirmation') };
+
+        try {
+            // --- Logique métier ---
+            const user = await User.findBy('email', email);
+
+            // **Sécurité** : Ne pas révéler si l'email existe.
+            if (!user) {
+                 logger.info({ email }, "Password reset requested for non-existent email.");
+                 return response.ok(genericSuccessMessage); // Toujours retourner succès
+            }
+
+            // Empêcher reset pour emails non vérifiés ? (Optionnel mais recommandé)
+            if (!user.isEmailVerified) {
+                 logger.warn({ userId: user.id, email }, "Password reset requested for unverified email.");
+                 return response.ok(genericSuccessMessage);
+            }
+
+            // Invalider les anciens tokens de reset pour cet utilisateur
+            //TODO invalider ou supprimer // je pense qu'il vaut mieux suprimer
+            await AsyncConfirm.query()
+                .where('userId', user.id)
+                .where('type', AsyncConfirmType.PASSWORD_RESET)
+                .update({ usedAt: DateTime.now() }); // Marquer comme utilisés
+
+            // Générer token BRUT et HASH
+            const tokenBrut = string.random(64); // Token à envoyer par email
+            const tokenHash = await hash.make(tokenBrut); // Hash à stocker
+            const expiresAt = DateTime.now().plus({ hours: 1 }); // Durée de vie courte (1h)
+
+            // Stocker le nouveau token hashé dans async_confirms
+            await AsyncConfirm.create({
+                userId: user.id,
+                tokenHash: tokenHash,
+                type: AsyncConfirmType.PASSWORD_RESET,
+                expiresAt: expiresAt,
+            });
+            logger.info({ userId: user.id }, "Password reset token created");
+
+            // Construire l'URL de réinitialisation (côté frontend)
+             // Assurer que APP_FRONTEND_URL est définie dans .env
+            const resetUrl = `${payload.callback_url}?token=${tokenBrut}`;
+
+            // Envoyer le job d'email via BullMQ
+            try {
+                const queue = BullMQService.getServerToServerQueue();
+                await queue.add('send_email', {
+                    event: 'send_email',
+                    data: {
+                        to: user.email,
+                         // 🌍 i18n
+                         subject: t('emails.passwordResetSubject'), // Nouvelle clé
+                         template: 'emails/password_reset', // Template à créer sur s_server
+                        context: {
+                            userName: user.full_name,
+                            resetUrl: resetUrl // Passer l'URL au template
+                        }
+                    }
+                }, { jobId: `pwd-reset-${user.id}-${Date.now()}` });
+                logger.info({ userId: user.id }, "Password reset email job sent to s_server");
+            } catch (queueError) {
+                 logger.error({ userId: user.id, error: queueError.message }, 'Failed to send password reset email job');
+                 // Ne pas faire échouer la requête user à cause de ça, retourner succès quand même
+            }
+
+            // Toujours retourner le message de succès générique
+            return response.ok(genericSuccessMessage);
+
+        } catch (error) {
+             logger.error({ email, error: error.message, stack: error.stack }, 'Forgot password process failed internally');
+              // 🌍 i18n - Réponse générique même en cas d'erreur interne
+              return response.ok(genericSuccessMessage); // Ou 500 si on veut indiquer un problème serveur
+              // return response.internalServerError({ message: t('auth.forgotPassword.genericError') });
+        }
+    }
+
+    /**
+     * @resetPassword
+     * Resets the user's password using a valid token.
+     */
+    async resetPassword({ request, response }: HttpContext) {
+        let payload: Infer<typeof this.resetPasswordSchema>;
+        try {
+             // ✅ Validation Vine
+             payload = await this.resetPasswordSchema.validate(request.body());
+        } catch (error) {
+             if (error.code === 'E_VALIDATION_ERROR') {
+                  // 🌍 i18n
+                  return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+             }
+             throw error;
+        }
+
+        const { token: tokenBrut, password } = payload;
+
+        // --- Logique métier ---
+        // Variable pour stocker l'enregistrement AsyncConfirm trouvé
+         let validTokenRecord: AsyncConfirm | null = null;
+
+         try {
+             // 1. Trouver TOUS les tokens potentiels non utilisés/non expirés pour ce type
+             // On ne peut pas chercher par hash directement de manière performante sans extension DB
+              // Solution: chercher les tokens récents non utilisés et vérifier le hash en mémoire
+              const potentialTokens = await AsyncConfirm.query()
+                  .where('type', AsyncConfirmType.PASSWORD_RESET)
+                  .whereNull('usedAt')
+                  .where('expiresAt', '>', DateTime.now().toISO()) // Seulement les non expirés
+                  .orderBy('createdAt', 'desc'); // Commencer par les plus récents
+
+              // 2. Vérifier chaque token potentiel
+              for (const tokenRecord of potentialTokens) {
+                  if (await hash.verify(tokenRecord.tokenHash, tokenBrut)) {
+                       // Correspondance trouvée !
+                       validTokenRecord = tokenRecord;
+                       break; // Sortir de la boucle
+                  }
+              }
+
+              // 3. Vérifier si un token valide a été trouvé
+              if (!validTokenRecord) {
+                   logger.warn({ tokenHint: tokenBrut.substring(0, 5) }, "Invalid or expired password reset token provided");
+                    // 🌍 i18n
+                    return response.badRequest({ message: t('auth.resetPassword.invalidToken') });
+              }
+
+               // 4. Token valide trouvé, procéder à la mise à jour
+               const user = await User.find(validTokenRecord.userId); // Récupérer l'utilisateur associé
+               if (!user) {
+                    // Cas très rare où l'utilisateur a été supprimé entre temps
+                     logger.error({ userId: validTokenRecord.userId, tokenId: validTokenRecord.id }, "User associated with valid password reset token not found.");
+                     await validTokenRecord.markAsUsed(); // Invalider le token quand même
+                      // 🌍 i18n
+                      return response.badRequest({ message: t('auth.resetPassword.invalidToken') }); // Message générique
+               }
+
+               // Utiliser une transaction pour la mise à jour du mot de passe et l'invalidation du token
+               const trx = await db.transaction();
+               try {
+                   // 5. Mettre à jour le mot de passe (le hook User s'occupe du hash)
+                   user.useTransaction(trx);
+                   user.password = password;
+                   await user.save();
+
+                   // 6. Marquer le token comme utilisé
+                   validTokenRecord.useTransaction(trx);
+                   await validTokenRecord.markAsUsed();
+
+                    // 7. (Optionnel) Supprimer tous les autres tokens API actifs pour cet utilisateur
+                   
+                    logger.info({ userId: user.id }, "Deleted active API tokens after password reset.");
+
+                   await trx.commit(); // Valider la transaction
+
+                   logger.info({ userId: user.id }, "Password reset successfully");
+                    // 🌍 i18n
+                    return response.ok({ message: t('auth.resetPassword.success') });
+
+               } catch (dbError) {
+                    await trx.rollback();
+                    logger.error({ userId: user.id, tokenId: validTokenRecord.id, error: dbError.message }, "Database error during password reset update");
+                    throw dbError; // Relancer pour erreur 500
+               }
+
+         } catch (error) {
+             logger.error({ tokenHint: tokenBrut.substring(0, 5), error: error.message, stack: error.stack }, 'Password reset process failed');
+              // 🌍 i18n
+              return response.internalServerError({ message: t('auth.resetPassword.genericError'), error: error.message }); // Nouvelle clé
+         }
+    }
+
+    async setupAccount({ request, response }: HttpContext) {
+        // Pas besoin d'auth ici, l'accès est basé sur le token
+
+        let payload: Infer<typeof this.setupAccountSchema>;
+        try {
+            // ✅ Validation Vine
+            payload = await this.setupAccountSchema.validate(request.body());
+        } catch (error) {
+            if (error.code === 'E_VALIDATION_ERROR') {
+                 // 🌍 i18n
+                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            }
+            // Logguer erreur inattendue
+            logger.error({ error }, "Setup account validation failed");
+            throw error; // Relancer pour 500
+        }
+
+        const { token: tokenBrut, password } = payload;
+
+        // --- Logique métier ---
+        // Variable pour stocker l'enregistrement AsyncConfirm trouvé
+        let validTokenRecord: AsyncConfirm | null = null;
+
+        try {
+            // 1. Trouver TOUS les tokens potentiels non utilisés/non expirés pour ce type
+             const potentialTokens = await AsyncConfirm.query()
+                 .where('type', AsyncConfirmType.ACCOUNT_SETUP) // ✅ Utiliser le bon type
+                 .whereNull('usedAt')
+                 .where('expiresAt', '>', DateTime.now().toISO())
+                 .orderBy('createdAt', 'desc');
+
+             // 2. Vérifier chaque token potentiel avec le hash
+             for (const tokenRecord of potentialTokens) {
+                 if (await hash.verify(tokenRecord.tokenHash, tokenBrut)) {
+                     validTokenRecord = tokenRecord;
+                     await validTokenRecord.load('user'); // ✅ Précharger l'utilisateur associé
+                     break;
+                 }
+             }
+
+             // 3. Vérifier si un token valide et un utilisateur associé ont été trouvés
+             if (!validTokenRecord || !validTokenRecord.user) {
+                  logger.warn({ tokenHint: tokenBrut.substring(0, 5) }, "Invalid, expired, used, or userless account setup token provided");
+                   // 🌍 i18n
+                   return response.badRequest({ message: t('auth.setupAccount.invalidToken') }); // Nouvelle clé
+             }
+
+             // 4. Token valide trouvé, procéder à la mise à jour
+             const user = validTokenRecord.user;
+
+             // Vérifier si le compte n'est pas déjà actif (double sécurité)
+             if (user.email_verified_at) {
+                  logger.warn({ userId: user.id }, "Account setup attempted for already verified user.");
+                  await validTokenRecord.markAsUsed(); // Invalider le token quand même
+                   // 🌍 i18n
+                   return response.badRequest({ message: t('auth.setupAccount.alreadyActive') }); // Nouvelle clé
+             }
+
+
+             const trx = await db.transaction();
+             try {
+                 // 5. Mettre à jour le mot de passe
+                 user.useTransaction(trx);
+                 user.password = password; // Hashage géré par hook User
+
+                 // 6. Marquer l'email comme vérifié
+                 user.email_verified_at = DateTime.now();
+
+                 await user.save();
+
+                 // 7. Marquer le token comme utilisé
+                 validTokenRecord.useTransaction(trx);
+                 await validTokenRecord.markAsUsed();
+
+                 await trx.commit();
+
+                 logger.info({ userId: user.id }, "Collaborator account setup successfully");
+                  // 🌍 i18n
+                  // Retourner succès, le frontend redirigera vers login
+                  return response.ok({ message: t('auth.setupAccount.success') });
+
+             } catch (dbError) {
+                  await trx.rollback();
+                  logger.error({ userId: user.id, tokenId: validTokenRecord.id, error: dbError.message }, "Database error during account setup update");
+                  throw dbError; // Relancer pour erreur 500
+             }
+
+        } catch (error) {
+            logger.error({ tokenHint: tokenBrut.substring(0, 5), error: error.message, stack: error.stack }, 'Account setup process failed');
+             // 🌍 i18n
+             return response.internalServerError({ message: t('auth.setupAccount.genericError'), error: error.message }); // Nouvelle clé
+        }
+    }
 
     public async logoutAllDevices({ auth, response, session }: HttpContext) {
         // 🔐 Authentification
@@ -559,6 +866,8 @@ export default class AuthController {
             throw error;
         }
 
+        console.log(payload);
+        
         // --- Logique métier ---
         // Utiliser une transaction si plusieurs champs peuvent être modifiés et dépendent les uns des autres
         // Ici, nom et mot de passe sont indépendants, pas besoin de transaction stricte.

@@ -135,7 +135,7 @@ export default class FavoritesController {
              // 🔍 GET par ID (si fourni)
              if (payload.favorite_id) {
                 // query = query.where('id', payload.favorite_id).first(); // Appliquer .first() pour GET par ID
-                 const favorite = await query.where('id', payload.favorite_id).first();
+                 const favorite = await query.where('id', payload.favorite_id).limit(1);
                  if (!favorite) {
                     // 🌍 i18n
                      return response.notFound({ message: t('favorite.notFound') }); // Nouvelle clé
