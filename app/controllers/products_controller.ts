@@ -425,6 +425,8 @@ export default class ProductsController {
         }
       }
 
+      console.log({normalizedCategories});
+      
       const product = await Product.findOrFail(product_id)
 
       // --- Logique métier (utilise payload validé/normalisé) ---

@@ -549,9 +549,11 @@ export default class FeaturesController {
                 .where('id', payload.product_id)
                 .first();
 
-            // 🌍 i18n
+            // 🌍 i18n 
             return response.ok({ message: t('feature.multipleUpdateSuccess'), product: updatedProduct?.toObject() });
         } catch (error) {
+            console.log(error);
+            
             await trx.rollback();
             logger.error({ userId: auth.user?.id, productId: payload?.product_id, error: error.message, stack: error.stack }, 'Failed multiple_update_features_values');
             if (error.code === 'E_ROW_NOT_FOUND') {

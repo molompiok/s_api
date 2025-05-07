@@ -328,7 +328,7 @@ export default class InventoriesController {
             
             // Gérer la mise à jour des fichiers 'views'
             let updatedViewsUrls: string[] | undefined = undefined;
-            if (normalizedViews !== undefined) { // Si payload.views était présent (même vide [])
+            if (payload.views !== undefined) { // Si payload.views était présent (même vide [])
                 updatedViewsUrls = await updateFiles({
                     request,
                     table_name: Inventory.table,

@@ -30,7 +30,7 @@ export default class CommentsController {
             title: vine.string().trim().minLength(3).maxLength(124),
             description: vine.string().trim().maxLength(512).optional(), // Max length from original logic?
             rating: vine.number().min(1).max(5),
-            // 'views' géré par createFiles
+            views:vine.any().optional()
         })
     );
 
