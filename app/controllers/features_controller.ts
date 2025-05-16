@@ -480,7 +480,7 @@ export default class FeaturesController {
                 feature.product_id = payload.product_id; // Assigner le product_id validé
                 const id = v4();
                 // TODO: Valider les données de 'feature' avant de les passer à _create_feature
-                const createdFeature = await this._create_feature(request, payload.product_id, { ...feature, id }, trx);
+                 await this._create_feature(request, payload.product_id, { ...feature, id }, trx);
 
                 if (feature.values) {
                     for (const value of feature.values) {

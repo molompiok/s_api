@@ -1,4 +1,3 @@
-import Visite from '#models/visite'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 

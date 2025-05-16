@@ -1,12 +1,5 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import { VisiteFactory } from '../factories/visite_factory.js'
-import { UserOrderFactory } from '../factories/orders_factory.js'
-import { ProductFactory } from '#database/factories/product_factory'
-import { CategorieFactory } from '#database/factories/categorie_factory'
-import { FeatureFactory } from '#database/factories/feature_factory'
-import { ValueFactory } from '#database/factories/value_factory'
-import { FeatureType } from '#models/feature'
-
 export default class extends BaseSeeder {
   async run() {
 

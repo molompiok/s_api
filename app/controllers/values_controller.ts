@@ -53,7 +53,7 @@ export interface FeatureInterface {
 
 // Permissions requises pour ce contrôleur (assumant les mêmes que pour les produits)
 const EDIT_PERMISSION: keyof TypeJsonRole = 'edit_product';
-const CREATE_DELETE_PERMISSION: keyof TypeJsonRole = 'create_delete_product';
+// const CREATE_DELETE_PERMISSION: keyof TypeJsonRole = 'create_delete_product';
 
 
 // --- Fonction de validation métier (gardée car spécifique à Value/Feature) ---

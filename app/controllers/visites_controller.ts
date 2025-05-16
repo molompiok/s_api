@@ -12,7 +12,7 @@ import { calculateDateRange } from '#services/StatsUtils';
 
 // Périodes valides pour get_visites
 const VALID_VISIT_PERIODS = ['day', 'week', 'month'] as const;
-type ValidVisitPeriod = typeof VALID_VISIT_PERIODS[number];
+// type ValidVisitPeriod = typeof VALID_VISIT_PERIODS[number];
 
 // Permission requise pour voir les visites agrégées (peut-être la même que les stats?)
 const VIEW_VISITS_PERMISSION: keyof TypeJsonRole = 'filter_command'; // Exemple

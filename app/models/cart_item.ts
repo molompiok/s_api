@@ -125,22 +125,7 @@ export default class CartItem extends BaseModel {
     }
   }
   public static compareBind(bind_a: any, bind_b: any) {
-    let _bind_b = bind_b;
-    if (typeof bind_b == 'string') {
-      try {
-        _bind_b = JSON.parse(bind_b);
-      } catch (error) {
-        return false
-      }
-    }
-    let _bind_a = bind_a;
-    if (typeof bind_a == 'string') {
-      try {
-        _bind_a = JSON.parse(bind_a);
-      } catch (error) {
-        return false
-      }
-    }
+    
     if (typeof bind_a !== 'object') return false
     if (typeof bind_b !== 'object') return false
 

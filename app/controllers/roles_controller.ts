@@ -2,7 +2,7 @@
 
 import type { HttpContext } from '@adonisjs/core/http'
 import Role, { JsonRole, TypeJsonRole } from '#models/role'
-import User, { RoleType } from '#models/user'
+import User from '#models/user'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { v4 as uuidv4 } from 'uuid'
@@ -93,10 +93,7 @@ export default class RolesController {
             // 2. Chercher l'utilisateur existant par email
             const existingUser = await User.query({ client: trx })
                 .where('email', email)
-                .preload('roles', (query) => { // Précharger les rôles pour vérifier s'il est déjà collabo
-                    // Idéalement, vérifier le rôle pour CE store si la relation était plus complexe
-                    // Pour l'instant, on vérifie juste s'il a une entrée dans la table Role
-                })
+                .preload('roles')
                 .first();
 
             // --- Cas 1: Utilisateur Existant ---
@@ -397,7 +394,7 @@ export default class RolesController {
                 return response.notFound({ message: t('collaborator.notFound') });
             }
 
-            const user = await User.find(collaboratorUserId, { client: trx });
+            // await User.find(collaboratorUserId, { client: trx });
 
             await role.useTransaction(trx).delete();
 

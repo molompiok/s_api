@@ -1,7 +1,6 @@
 import fs from "fs/promises";
 import { HttpContext } from "@adonisjs/core/http";
 import env from "#start/env";
-import {RollbackManager} from "./RollbackManager.js";
 import { createFile } from "./CreateFiles.js";
 
 type OptionsType = {
@@ -39,7 +38,7 @@ export async function updateFiles({
 
   let _newPseudoUrls: string[] = [];
   let _lastUrls: string[] = lastUrls || [];
-  const { extname, max, maxSize, min, compress, resize, removeBackground,crop, throwError } = options || {};
+  const { extname, max, maxSize, min, compress, resize, removeBackground, throwError } = options || {};
   let fileLength = 0;
 
   // 🔹 Vérifier et parser les nouvelles URLs

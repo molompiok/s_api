@@ -16,7 +16,6 @@ import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import db from '@adonisjs/lucid/services/db';
 import UserAuthentification from '#models/user_authentification';
 import AsyncConfirm, { AsyncConfirmType } from '#models/asyncConfirm';
-import { isDataView } from 'util/types';
 import { updateFiles } from './Utils/media/UpdateFiles.js';
 import { EXT_IMAGE, MEGA_OCTET } from './Utils/ctrlManager.js';
 // Bouncer n'est pas utilisé directement ici, les actions sont liées à l'utilisateur lui-même

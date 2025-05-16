@@ -17,7 +17,6 @@ import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 
 // Définir les modes valides pour la validation
 const VALID_CART_MODES = ['increment', 'decrement', 'set', 'clear', 'max'] as const;
-type ValidCartMode = typeof VALID_CART_MODES[number];
 
 // Interface conservée pour la clarté des retours internes
 interface UpdateCartResult {
