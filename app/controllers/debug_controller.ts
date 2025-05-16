@@ -22,7 +22,9 @@ export default class DebugController {
      */
     public async requestScaleUp({ response, auth, bouncer }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        const user = await auth.authenticate();
+        console.log(user.$attributes);
+        
         // 🛡️ Permissions (Seuls les utilisateurs autorisés peuvent scaler)
         try {
             await bouncer.authorize('collaboratorAbility', [DEBUG_PERMISSION]);

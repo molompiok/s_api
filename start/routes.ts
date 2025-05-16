@@ -34,6 +34,7 @@ import DebugController from '#controllers/debug_controller'
 import User from '#models/user'
 import { DateTime } from 'luxon'
 import BullMQService from '#services/BullMQService'
+import './LoadMonitoring.js'
 
 // --- Register Transmit Routes ---
 transmit.registerRoutes();
@@ -245,8 +246,6 @@ router.group(() => {
             return response.internalServerError('Failed to send test email');
         }
     });
-
-
 }).prefix('/api/v1') // Préfixe global pour la V1 de l'API
 
 // --- Routes Hors API V1 ---
