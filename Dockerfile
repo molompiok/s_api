@@ -67,7 +67,7 @@ USER node
 # Exposer le port sur lequel l'application s_api écoutera
 # Ce port doit correspondre à celui défini par la variable d'env PORT
 # et à celui utilisé par s_server pour configurer le service Swarm (internal_port du modèle Api)
-EXPOSE ${PORT:-3333} # Valeur par défaut pour l'exposition, mais c'est PORT qui compte pour l'app
+EXPOSE 3334
 
 # Commande pour démarrer l'application s_api en production
 # Pour AdonisJS 6, c'est généralement `node bin/server.js`
