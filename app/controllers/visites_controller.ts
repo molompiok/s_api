@@ -9,6 +9,7 @@ import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
 import { calculateDateRange } from '#services/StatsUtils';
+import { securityService } from '#services/SecurityService';
 
 // Périodes valides pour get_visites
 const VALID_VISIT_PERIODS = ['day', 'week', 'month'] as const;
@@ -162,12 +163,12 @@ export default class VisitesController {
     /**
      * Récupérer les visites agrégées par période.
      */
-    public async get_visites({ request, response, auth, bouncer }: HttpContext) {
+    public async get_visites({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions (pour voir les stats de visites)
         try {
-            await bouncer.authorize('collaboratorAbility', [VIEW_VISITS_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_VISITS_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -188,14 +189,14 @@ export default class VisitesController {
             throw error;
         }
 
-        const {  count,start_at,end_at } = payload
+        const { count, start_at, end_at } = payload
         const period = payload.period ?? 'week'; // Défaut '1m'
         const range = calculateDateRange(period || 'week', start_at, count, end_at)
         const user_id = payload.user_id;
 
         try {
-         
-           const query = db
+
+            const query = db
                 .from(Visite.table) // Utiliser le nom de table du modèle
                 .where('created_at', '>=', range.startDate.toISO()!)
                 .where('created_at', '<=', range.endDate.toISO()!);

@@ -8,7 +8,6 @@ import type { InferAuthenticators, InferAuthEvents, Authenticators } from '@adon
 
 const authConfig = defineConfig({
     default: 'api',
-
     guards: {
         web:  sessionGuard({
           useRememberMeTokens: false,

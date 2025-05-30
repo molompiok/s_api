@@ -7,7 +7,7 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().nullable()
       
-      table.uuid('parent_category_id')
+      table.uuid('parent_category_id').nullable()
       table.string('name',255).notNullable()
       table.string('slug').notNullable().unique()
       table.string('description',1000).nullable()

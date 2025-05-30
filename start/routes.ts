@@ -49,12 +49,15 @@ router.group(() => {
         router.get('/verify-email', [AuthController, 'verifyEmail']) // GET avec token en query param
         router.post('/resend-verification', [AuthController, 'resendVerification'])
 
-        // --- NOUVEAU: Routes Mot de Passe Oublié ---
+        //  Routes Mot de Passe Oublié ---
         router.post('/forgot-password', [AuthController, 'forgotPassword'])
         router.post('/reset-password', [AuthController, 'resetPassword'])
 
-        // --- NOUVEAU: Route Setup Compte Collaborateur ---
+        //  Route Setup Compte Collaborateur ---
         router.post('/setup-account', [AuthController, 'setupAccount'])
+        router.post('/google_callback', [AuthController, 'google_auth'])
+        // router.post('/auth_token_cookie', [AuthController ,'convertTokenToUser'])
+
 
         // --- Routes Authentifiées ---
         router.post('/logout', [AuthController, 'logout'])
@@ -167,7 +170,7 @@ router.group(() => {
         router.delete('/:id', [UserAddressesController, 'delete_user_address'])
     }).prefix('/user-addresses')
 
-    // == User Phones ==
+    // == User Phones ==    
     router.group(() => {
         router.post('/', [UserPhonesController, 'create_user_phone'])
         router.get('/', [UserPhonesController, 'get_user_phones']) // Liste ou par ID via query
@@ -246,7 +249,11 @@ router.group(() => {
             return response.internalServerError('Failed to send test email');
         }
     });
-}).prefix('/api/v1') // Préfixe global pour la V1 de l'API
+}).prefix('/v1')
+// .middleware([({request})=>{
+//     console.log(request.completeUrl());
+// }])
+// Préfixe global pour la V1 de l'API
 
 // --- Routes Hors API V1 ---
 
@@ -277,8 +284,8 @@ router.get('/test_sse', () => {
     logger.info('SSE test requested');
     const url = `store/${env.get('STORE_ID')}/update_command`;
     console.log(url);
-    
-    transmit.broadcast(`store/${env.get('STORE_ID')}/update_command`, { id: 'WWW'});
+
+    transmit.broadcast(`store/${env.get('STORE_ID')}/update_command`, { id: 'WWW' });
     return { message: 'SSE event broadcasted.' };
 });
 

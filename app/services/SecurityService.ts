@@ -1,11 +1,30 @@
 // app/services/SecurityService.ts
-import type { HttpContext } from '@adonisjs/core/http'
+import { type HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import { Exception } from '@adonisjs/core/exceptions'
+import redisService from './RedisService.js'
+import JwtService from './JwtService.js';
+import User from '#models/user';
 
+import { policies } from '#policies/main'
+import * as abilities from '#abilities/main'
+
+import { Bouncer } from '@adonisjs/bouncer'
+import { v4 } from 'uuid';
+import { DateTime } from 'luxon';
+
+interface ServerJwtPayload {
+  userId: string;
+  email: string;
+  sub: string;
+  iss: string;
+  aud: string;
+  iat: number;
+  exp: number;
+}
 export class SecurityService {
   public verifyInternalRequest(request: HttpContext['request']): void {
-    console.log('SecurityService: Verifying internal request...') // Log de débogage
+    // console.log('SecurityService: Verifying internal request...') // Log de débogage
 
     const receivedSecret = request.header('X-Internal-Secret')
     const expectedSecret = env.get('INTERNAL_API_SECRET')
@@ -26,9 +45,121 @@ export class SecurityService {
     console.log('SecurityService: Internal request verified successfully.')
   }
 
-  // Vous pouvez ajouter d'autres fonctions liées à la sécurité ici si nécessaire
+  async authenticate({ auth, request }: {response?: HttpContext['response'], auth: HttpContext['auth'], request: HttpContext['request'] }) {
+    let user;
+    
+    console.log('request.authorization', request.headers()['authorization']);
+    
+    try {
+      user = await this.authenticateJWT(request);
+      (user as any).connection = 'jwt';
+    } catch { }
+    try {
+      if (!user) {
+        user = await auth.use('web').authenticate();
+      }
+    } catch { }
+    try {
+      if (!user) {
+        user = await auth.use('api').authenticate();
+        // if (convert = 'to-web') {
+        //   console.log(auth.use('web').login(user));
+        // }
+      }
+    } catch (error) {
+      console.log({ authError: error });
+    }
+
+    if (!user) throw new Exception('Unauthorized access', { code: 'E_UNAUTHORIZED', status: 401 })
+
+    if (request.ctx) {
+      const ctx = request.ctx;
+
+      //@ts-ignore
+      Object.defineProperty(ctx.auth, 'user', {
+        value: user,
+        writable: false,
+      });
+      
+      Object.defineProperty(ctx, 'bouncer', {
+        value: new Bouncer(
+        () => ctx.auth.user || null,
+        abilities,
+        policies
+      ).setContainerResolver(ctx.containerResolver),
+        writable: true,
+        configurable:true,
+        enumerable:true
+      });
+    }
+    // if (convert = 'to-web') {
+    //   console.log(auth.use('web'));
+    // }
+    return user
+  }
+
+
+  async authenticateJWT(request: HttpContext['request']) {
+    const authHeader = request.header('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // console.log({ authHeader });
+
+      throw new Error('Unauthorized access')
+    }
+
+    const token = authHeader.replace('Bearer ', '').trim()
+    // console.log({ token });
+
+    const isBlacklisted = await redisService.getCache(`jwt_blacklist:${token}`)
+    // console.log({ isBlacklisted });
+
+    if (isBlacklisted) {
+      throw new Error('Token has been revoked')
+    }
+
+    let payload: ServerJwtPayload
+    try {
+      payload = JwtService.verify<ServerJwtPayload>(token)
+    } catch {
+      throw new Error('Invalid or expired token')
+    }
+    // console.log({ payload });
+
+    if (!payload || typeof payload !== 'object' || !payload.userId) {
+      throw new Error('Invalid token payload')
+    }
+
+    const revoked_date = await redisService.getCache(`revoked_all_token_at:${payload.userId}`);
+
+    // console.log({ payload, env: env.get('OWNER_ID') }, payload.iat, revoked_date, payload.iat < revoked_date, Date.now());
+
+    if (payload.iat < (revoked_date || 0)) {
+      // console.log('REVOKED TOKEN, ');
+      // console.log('REVOKED TOKEN (issued before global revocation)');
+      throw new Error('Token has been revoked globally');
+
+    }
+    let user;
+    try {
+      user = await User.findByOrFail('email', payload.email)
+    } catch (error) {
+      if (!user && payload.userId == env.get('OWNER_ID')) {
+        user = await User.create({
+          email: payload.email,
+          id: payload.userId,
+          email_verified_at: DateTime.now(),
+          full_name: 'Propriétaire',
+          password: v4()
+        })
+      }
+    }
+
+    if (!user) {
+      throw new Error('User not found for token');
+    }
+    return user
+  }
 }
 
-// Exporter une instance si vous préférez l'injection ou l'utilisation directe
-// export default new SecurityService()
-// Ou laisser comme classe pour l'injection via le conteneur IoC d'AdonisJS
+const securityService = new SecurityService();
+export { securityService }

@@ -13,6 +13,7 @@ import { TypeJsonRole } from '#models/role'; // Pour type permissions
 import User from '#models/user'; // Importer User pour la recherche future
 import UserOrder from '#models/user_order'; // Importer UserOrder pour la recherche future
 import { v4 } from 'uuid';
+import { securityService } from '#services/SecurityService';
 
 // Permissions requises (à définir - exemple)
 const SEARCH_PERMISSION: keyof TypeJsonRole = 'filter_product'; // Ou une permission plus globale?
@@ -38,12 +39,12 @@ export default class GlobaleServicesController {
 
     // --- Méthodes du contrôleur ---
 
-    async global_search({ request, response, auth, bouncer }: HttpContext) {
+    async global_search({ request, response, auth }: HttpContext) {
         // 🔐 Authentification (requis pour rechercher)
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions (requis pour utiliser la recherche globale)
         try {
-            await bouncer.authorize('collaboratorAbility', [SEARCH_PERMISSION]) // Permission à définir
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [SEARCH_PERMISSION]) // Permission à définir
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -65,7 +66,7 @@ export default class GlobaleServicesController {
         }
 
         console.log(payload);
-        
+
         const text = payload.text; // Peut être undefined si non fourni
 
         // Retourner un objet vide si pas de texte de recherche
@@ -98,22 +99,22 @@ export default class GlobaleServicesController {
                     .first();
 
                 categoriesQuery = Categorie.query()
-                     .whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
-                     // 🔍 GET par ID -> .first()
-                     .first();
+                    .whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
+                    // 🔍 GET par ID -> .first()
+                    .first();
 
                 // Recherche Client par ID (UUID)
                 clientsQuery = User.query()
                     // .where('role_type', 'client') // Assurer qu'on cherche bien un client
                     .whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
-                     // 🔍 GET par ID -> .first()
+                    // 🔍 GET par ID -> .first()
                     .first();
 
-                 // Recherche Commande par ID (UUID) ou Reference
-                 commandsQuery = UserOrder.query()
+                // Recherche Commande par ID (UUID) ou Reference
+                commandsQuery = UserOrder.query()
                     .where((query) => {
                         query.whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
-                             .orWhereILike('reference', searchPattern); // La référence est peut-être déjà text
+                            .orWhereILike('reference', searchPattern); // La référence est peut-être déjà text
                     })
                     // 🔍 GET par ID -> .first()
                     .first();
@@ -125,7 +126,7 @@ export default class GlobaleServicesController {
                 productsQuery = Product.query()
                     .where((query) => {
                         query.whereILike('name', searchTerm)
-                             .orWhereILike('description', searchTerm);
+                            .orWhereILike('description', searchTerm);
                     })
                     // Pas de preload ici pour la recherche rapide, le front fera un appel détaillé si besoin
                     // .preload('features', ...)
@@ -134,30 +135,30 @@ export default class GlobaleServicesController {
 
                 categoriesQuery = Categorie.query()
                     .where((query) => {
-                         query.whereILike('name', searchTerm)
-                              .orWhereILike('description', searchTerm);
+                        query.whereILike('name', searchTerm)
+                            .orWhereILike('description', searchTerm);
                     })
                     .limit(searchLimit)
                     .exec();
 
-                 // Recherche Client par Nom/Email
-                 clientsQuery = User.query()
+                // Recherche Client par Nom/Email
+                clientsQuery = User.query()
                     // .where('role_type', 'client')
                     .where((query) => {
-                         query.whereILike('full_name', searchTerm)
-                              .orWhereILike('email', searchTerm);
+                        query.whereILike('full_name', searchTerm)
+                            .orWhereILike('email', searchTerm);
                     })
                     .limit(searchLimit)
                     .exec();
 
-                 // Recherche Commande par infos client ou référence
-                 commandsQuery = UserOrder.query()
-                     .whereILike('reference', searchTerm)
-                     // Peut-être ajouter recherche par nom/email du client associé?
-                     .orWhereHas('user', (userQuery) => {
-                          userQuery.whereILike('full_name', searchTerm)
-                                   .orWhereILike('email', searchTerm);
-                     })
+                // Recherche Commande par infos client ou référence
+                commandsQuery = UserOrder.query()
+                    .whereILike('reference', searchTerm)
+                    // Peut-être ajouter recherche par nom/email du client associé?
+                    .orWhereHas('user', (userQuery) => {
+                        userQuery.whereILike('full_name', searchTerm)
+                            .orWhereILike('email', searchTerm);
+                    })
                     .preload('user', (userQuery) => userQuery.select(['id', 'full_name', 'email'])) // Preload user pour affichage
                     .limit(searchLimit)
                     .exec();
@@ -186,15 +187,15 @@ export default class GlobaleServicesController {
         }
     }
 
-    async import_store({ request, response, auth, bouncer }: HttpContext) {
-         // 🔐 Authentification
-        await auth.authenticate();
+    async import_store({ request, response, auth }: HttpContext) {
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [IMPORT_EXPORT_PERMISSION])
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [IMPORT_EXPORT_PERMISSION])
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                 // 🌍 i18n
+                // 🌍 i18n
                 return response.forbidden({ message: t('unauthorized_action') })
             }
             throw error;
@@ -206,7 +207,7 @@ export default class GlobaleServicesController {
             payload = await this.importStoreSchema.validate(request.body());
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
+                // 🌍 i18n
                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
             }
             throw error;
@@ -215,34 +216,34 @@ export default class GlobaleServicesController {
         const { products, categories } = payload; // Utiliser payload validé
 
         if (!products && !categories) {
-             // 🌍 i18n
-             return response.badRequest({ message: t('importExport.noDataToImport') }); // Nouvelle clé
+            // 🌍 i18n
+            return response.badRequest({ message: t('importExport.noDataToImport') }); // Nouvelle clé
         }
 
         const trx = await db.transaction();
         try {
             // --- Logique métier (inchangée, mais nécessite une validation plus poussée des données importées) ---
-             // TODO: Ajouter une validation BEAUCOUP plus stricte des objets 'product' et 'category'
-             // avant de tenter de les insérer pour éviter les erreurs DB.
-             // Utiliser des schémas Vine complexes ou une librairie comme Zod.
+            // TODO: Ajouter une validation BEAUCOUP plus stricte des objets 'product' et 'category'
+            // avant de tenter de les insérer pour éviter les erreurs DB.
+            // Utiliser des schémas Vine complexes ou une librairie comme Zod.
 
             if (Array.isArray(products)) {
                 for (const productData of products) {
-                     // **Validation Stricte de productData ici**
-                     // Créer Product
+                    // **Validation Stricte de productData ici**
+                    // Créer Product
                     const newProduct = await Product.create({ ...productData, id: v4() }, { client: trx }); // Générer nouvel ID
 
                     if (Array.isArray(productData.features)) {
                         for (const featureData of productData.features) {
                             // **Validation Stricte de featureData ici**
-                             // Créer Feature
+                            // Créer Feature
                             const newFeature = await Feature.create({ ...featureData, id: v4(), product_id: newProduct.id }, { client: trx }); // Lier au nouveau produit
 
                             if (Array.isArray(featureData.values)) {
                                 for (const valueData of featureData.values) {
-                                     // **Validation Stricte de valueData ici**
-                                     // Créer Value
-                                     await Value.create({ ...valueData, id: v4(), feature_id: newFeature.id }, { client: trx }); // Lier à la nouvelle feature
+                                    // **Validation Stricte de valueData ici**
+                                    // Créer Value
+                                    await Value.create({ ...valueData, id: v4(), feature_id: newFeature.id }, { client: trx }); // Lier à la nouvelle feature
                                 }
                             }
                         }
@@ -253,7 +254,7 @@ export default class GlobaleServicesController {
             if (Array.isArray(categories)) {
                 for (const categoryData of categories) {
                     // **Validation Stricte de categoryData ici**
-                     // Créer Category
+                    // Créer Category
                     await Categorie.create({ ...categoryData, id: v4() }, { client: trx }); // Générer nouvel ID
                 }
             }
@@ -267,48 +268,48 @@ export default class GlobaleServicesController {
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, error: error.message, stack: error.stack }, 'Store import failed');
-             // 🌍 i18n
+            // 🌍 i18n
             return response.internalServerError({ message: t('importExport.importFailed'), error: error.message }); // Nouvelle clé
         }
     }
 
-    async export_store({ response, auth, bouncer }: HttpContext){
+    async export_store({ response, auth, request }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
-         // 🛡️ Permissions
-         try {
-             await bouncer.authorize('collaboratorAbility', [IMPORT_EXPORT_PERMISSION])
-         } catch (error) {
-             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                  // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') })
-             }
-             throw error;
-         }
+        await securityService.authenticate({ request, auth });
+        // 🛡️ Permissions
+        try {
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [IMPORT_EXPORT_PERMISSION])
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
 
         try {
             // --- Logique métier (inchangée) ---
             const categories = await Categorie.all();
             const products = await Product.query().select('*').preload('features', (featureQuery) => {
                 featureQuery
-                  .orderBy('created_at', 'asc')
-                  .preload('values', (valueQuery) => {
-                    valueQuery.orderBy('created_at', 'asc')
-                  });
-              }).exec(); // Utiliser exec() pour obtenir directement le tableau
-              // --- Fin logique métier ---
+                    .orderBy('created_at', 'asc')
+                    .preload('values', (valueQuery) => {
+                        valueQuery.orderBy('created_at', 'asc')
+                    });
+            }).exec(); // Utiliser exec() pour obtenir directement le tableau
+            // --- Fin logique métier ---
 
-             logger.info({ userId: auth.user!.id }, 'Store data exported successfully');
-             // Pas besoin de message i18n ici car on retourne directement les données
+            logger.info({ userId: auth.user!.id }, 'Store data exported successfully');
+            // Pas besoin de message i18n ici car on retourne directement les données
             return response.ok({
                 categories: categories.map(c => c.toJSON()), // Assurer la sérialisation propre
                 products: products.map(p => p.toJSON())   // Assurer la sérialisation propre
             });
 
-        } catch(error) {
+        } catch (error) {
             logger.error({ userId: auth.user!.id, error: error.message, stack: error.stack }, 'Store export failed');
-             // 🌍 i18n
-             return response.internalServerError({ message: t('importExport.exportFailed'), error: error.message }); // Nouvelle clé
+            // 🌍 i18n
+            return response.internalServerError({ message: t('importExport.exportFailed'), error: error.message }); // Nouvelle clé
         }
     }
 }

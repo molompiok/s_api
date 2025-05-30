@@ -13,6 +13,7 @@ import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
+import { securityService } from '#services/SecurityService';
 
 // Permissions requises (assumant les mêmes que pour les produits)
 const EDIT_PERMISSION: keyof TypeJsonRole = 'edit_product';
@@ -55,22 +56,22 @@ export default class DetailsController {
     );
 
     private deleteDetailParamsSchema = vine.compile(
-      vine.object({
-        id: vine.string().uuid(), // ID dans l'URL
-      })
+        vine.object({
+            id: vine.string().uuid(), // ID dans l'URL
+        })
     );
 
     // --- Méthodes du contrôleur ---
 
-    async create_detail({ request, response, auth, bouncer }: HttpContext) {
-         // 🔐 Authentification
-        await auth.authenticate();
+    async create_detail({ request, response, auth }: HttpContext) {
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Créer un détail = éditer un produit
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Créer un détail = éditer un produit
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                 // 🌍 i18n
+                // 🌍 i18n
                 return response.forbidden({ message: t('unauthorized_action') })
             }
             throw error;
@@ -80,15 +81,15 @@ export default class DetailsController {
         const trx = await db.transaction();
 
         try {
-             // ✅ Validation Vine (pour le body)
-             // Utiliser request.all() car createFiles a besoin des fichiers
+            // ✅ Validation Vine (pour le body)
+            // Utiliser request.all() car createFiles a besoin des fichiers
             const payload = await this.createDetailSchema.validate(request.all());
 
             // Vérifier existence produit
             const product = await Product.find(payload.product_id);
             if (!product) {
-                 // 🌍 i18n
-                 return response.notFound({ message: t('product.notFound') });
+                // 🌍 i18n
+                return response.notFound({ message: t('product.notFound') });
             }
 
             // Gestion fichier 'view'
@@ -137,14 +138,14 @@ export default class DetailsController {
 
             logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to create detail');
             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
             }
-             if (error.code === 'E_ROW_NOT_FOUND') { // Peut arriver si Product.find échoue entretemps
-                  // 🌍 i18n
-                  return response.notFound({ message: t('product.notFound') });
-             }
-             // 🌍 i18n
+            if (error.code === 'E_ROW_NOT_FOUND') { // Peut arriver si Product.find échoue entretemps
+                // 🌍 i18n
+                return response.notFound({ message: t('product.notFound') });
+            }
+            // 🌍 i18n
             return response.internalServerError({ message: t('detail.creationFailed'), error: error.message }); // Nouvelle clé
         }
     }
@@ -174,14 +175,14 @@ export default class DetailsController {
         try {
             let query = Detail.query();
 
-             // 🔍 GET par ID
+            // 🔍 GET par ID
             if (detail_id) {
-                 const detail = await query.where('id', detail_id).first(); // Utiliser .first()
-                 if (!detail) {
+                const detail = await query.where('id', detail_id).first(); // Utiliser .first()
+                if (!detail) {
                     // 🌍 i18n
                     return response.notFound({ message: t('detail.notFound') }); // Nouvelle clé
-                 }
-                 return response.ok(detail); // Retourner l'objet unique
+                }
+                return response.ok(detail); // Retourner l'objet unique
             }
 
             // Si pas d'ID spécifique, appliquer les filtres et paginer
@@ -205,33 +206,33 @@ export default class DetailsController {
         }
     }
 
-    async update_detail({ params, request, response, auth, bouncer }: HttpContext) {
-         // 🔐 Authentification
-         await auth.authenticate();
-         // 🛡️ Permissions
-         try {
-             await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
-         } catch (error) {
-             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                  // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') })
-             }
-             throw error;
-         }
+    async update_detail({ params, request, response, auth }: HttpContext) {
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
+        // 🛡️ Permissions
+        try {
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
 
         const detailId = params.id; // ID depuis les paramètres d'URL
         if (!detailId) {
-             // 🌍 i18n
-             return response.badRequest({ message: t('detail.idRequired') }); // Nouvelle clé
+            // 🌍 i18n
+            return response.badRequest({ message: t('detail.idRequired') }); // Nouvelle clé
         }
 
         const trx = await db.transaction(); // Utiliser transaction pour la réindexation potentielle
         let payload: Infer<typeof this.updateDetailSchema>;
         try {
-            console.log({payload:request.all()});
-            
-             // ✅ Validation Vine (pour le body)
-             // Utiliser request.all() car updateFiles a besoin des fichiers
+            console.log({ payload: request.all() });
+
+            // ✅ Validation Vine (pour le body)
+            // Utiliser request.all() car updateFiles a besoin des fichiers
             payload = await this.updateDetailSchema.validate(request.all());
 
             const detail = await Detail.findOrFail(detailId, { client: trx }); // Utiliser findOrFail avec transaction
@@ -273,40 +274,40 @@ export default class DetailsController {
                     .where('product_id', productId)
                     .orderBy('index', 'asc');
 
-                newIndex = newIndex < 0 ? 0 : (newIndex >= details.length ? details.length -1 : newIndex); // Ajuster l'index cible
+                newIndex = newIndex < 0 ? 0 : (newIndex >= details.length ? details.length - 1 : newIndex); // Ajuster l'index cible
 
                 // Supprimer l'élément actuel (déjà chargé comme 'detail')
                 const currentIndex = details.findIndex(d => d.id === detail.id);
                 if (currentIndex > -1) {
                     details.splice(currentIndex, 1);
                 } else {
-                     // Ne devrait pas arriver si detail a été trouvé, mais sécurité
-                     logger.warn({ detailId, productId }, "Detail to reindex not found in siblings list");
+                    // Ne devrait pas arriver si detail a été trouvé, mais sécurité
+                    logger.warn({ detailId, productId }, "Detail to reindex not found in siblings list");
                 }
 
                 // Insérer l'élément (qui a déjà les données mergées mais pas encore l'index) à la nouvelle position
-                 details.splice(newIndex, 0, detail);
+                details.splice(newIndex, 0, detail);
 
                 // Réassigner les index et sauvegarder TOUS les détails affectés DANS la transaction
                 for (let i = 0; i < details.length; i++) {
                     if (details[i].index !== i) { // Sauvegarder seulement si l'index change
-                         details[i].index = i;
-                         await details[i].useTransaction(trx).save();
+                        details[i].index = i;
+                        await details[i].useTransaction(trx).save();
                     }
                 }
-                 // S'assurer que l'index du détail courant est bien mis à jour avant la sauvegarde finale
-                 detail.index = newIndex;
+                // S'assurer que l'index du détail courant est bien mis à jour avant la sauvegarde finale
+                detail.index = newIndex;
             }
             // --- Fin logique métier réindexation ---
 
             // Sauvegarder le détail courant (s'il n'a pas été sauvegardé dans la boucle de réindexation)
             if (!detail.$isPersisted || detail.$isDirty) { // Vérifier si déjà sauvé ou si modifié hors index
-              await detail.useTransaction(trx).save();
+                await detail.useTransaction(trx).save();
             }
 
             await trx.commit();
             logger.info({ userId: auth.user!.id, detailId: detail.id }, 'Detail updated');
-             // 🌍 i18n
+            // 🌍 i18n
             return response.ok({ message: t('detail.updateSuccess'), detail: detail }); // Nouvelle clé
 
         } catch (error) {
@@ -317,24 +318,24 @@ export default class DetailsController {
                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
             }
             if (error.code === 'E_ROW_NOT_FOUND') {
-                 // 🌍 i18n
-                 return response.notFound({ message: t('detail.notFound') });
+                // 🌍 i18n
+                return response.notFound({ message: t('detail.notFound') });
             }
             // 🌍 i18n
             return response.internalServerError({ message: t('detail.updateFailed'), error: error.message }); // Nouvelle clé
         }
     }
 
-    public static async _delete_detail(detail_id:string, trx?:any){
+    public static async _delete_detail(detail_id: string, trx?: any) {
         const detail = await Detail.findOrFail(detail_id, { client: trx }); // Utiliser findOrFail
         const productId = detail.product_id; // Garder l'ID produit pour la réindexation
 
         // Supprimer l'enregistrement DB
         await detail.useTransaction(trx).delete();
 
-         // --- Logique métier (réindexation après suppression) ---
-         // Si la suppression a réussi (pas d'erreur levée), on réindexe
-         const remainingDetails = await Detail.query({ client: trx })
+        // --- Logique métier (réindexation après suppression) ---
+        // Si la suppression a réussi (pas d'erreur levée), on réindexe
+        const remainingDetails = await Detail.query({ client: trx })
             .where('product_id', productId)
             .orderBy('index', 'asc');
 
@@ -350,22 +351,21 @@ export default class DetailsController {
             logger.error({ detailId: detail_id, error: fileError }, 'Failed to delete associated files after detail deletion, but DB entry was removed.');
         }
 
-
     }
-    async delete_detail({ params, response, auth, bouncer }: HttpContext) {
-         // 🔐 Authentification
-         await auth.authenticate();
-         // 🛡️ Permissions
-         try {
+    async delete_detail({ params, response, auth, request }: HttpContext) {
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
+        // 🛡️ Permissions
+        try {
             // Utiliser la permission de suppression produit ?
-             await bouncer.authorize('collaboratorAbility', [CREATE_DELETE_PERMISSION])
-         } catch (error) {
-             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                  // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') })
-             }
-             throw error;
-         }
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [CREATE_DELETE_PERMISSION])
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
 
         let payload: Infer<typeof this.deleteDetailParamsSchema>;
         try {
@@ -381,9 +381,9 @@ export default class DetailsController {
 
         const trx = await db.transaction();
         try {
-            
-            await DetailsController._delete_detail(payload.id,trx)
-            
+
+            await DetailsController._delete_detail(payload.id, trx)
+
             await trx.commit();
 
             logger.info({ userId: auth.user!.id, detailId: payload.id }, 'Detail deleted');
@@ -394,7 +394,7 @@ export default class DetailsController {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, detailId: payload?.id, error: error.message, stack: error.stack }, 'Failed to delete detail');
             if (error.code === 'E_ROW_NOT_FOUND') {
-                 // 🌍 i18n
+                // 🌍 i18n
                 return response.notFound({ message: t('detail.notFound') });
             }
             // 🌍 i18n

@@ -1,3 +1,4 @@
+//app/middleware/initialize_bouncer_middleware.ts
 import { policies } from '#policies/main'
 import * as abilities from '#abilities/main'
 

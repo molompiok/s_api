@@ -8,50 +8,53 @@ import vine from '@vinejs/vine'; // ✅ Ajout de Vine
 import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
+import { securityService } from '#services/SecurityService';
+import User from '#models/user';
+import { TransactionClientContract } from '@adonisjs/lucid/types/database';
 // Pas besoin de bouncer ici, les actions sont liées à l'utilisateur authentifié lui-même
 
 export default class FavoritesController {
 
     // --- Schémas de validation Vine ---
     private createFavoriteSchema = vine.compile(
-      vine.object({
-        product_id: vine.string().uuid(),
-      })
+        vine.object({
+            product_id: vine.string().uuid(),
+        })
     );
 
     private getFavoritesSchema = vine.compile(
-      vine.object({
-        page: vine.number().positive().optional(),
-        limit: vine.number().positive().optional(),
-        order_by: vine.string().trim().optional(),
-        favorite_id: vine.string().uuid().optional(),
-        label: vine.string().trim().optional(),
-        product_id: vine.string().uuid().optional(),
-      })
+        vine.object({
+            page: vine.number().positive().optional(),
+            limit: vine.number().positive().optional(),
+            order_by: vine.string().trim().optional(),
+            favorite_id: vine.string().uuid().optional(),
+            label: vine.string().trim().optional(),
+            product_id: vine.string().uuid().optional(),
+        })
     );
 
     private updateFavoriteSchema = vine.compile(
-      vine.object({
-        favorite_id: vine.string().uuid(),
-        label: vine.string().trim().minLength(1).maxLength(100), // Ajout de limites raisonnables
-      })
+        vine.object({
+            favorite_id: vine.string().uuid(),
+            label: vine.string().trim().minLength(1).maxLength(100), // Ajout de limites raisonnables
+        })
     );
 
     private deleteFavoriteParamsSchema = vine.compile(
-      vine.object({
-        id: vine.string().uuid(), // ID dans l'URL
-      })
+        vine.object({
+            id: vine.string().uuid(), // ID dans l'URL
+        })
     );
 
     // --- Méthodes du contrôleur ---
 
     async create_favorite({ request, response, auth }: HttpContext) {
         // 🔐 Authentification (requise pour ajouter un favori)
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         const user = auth.user!; // Garanti non null après authenticate
 
         const trx = await db.transaction();
-        let payload: Infer<typeof this.createFavoriteSchema>={} as any;
+        let payload: Infer<typeof this.createFavoriteSchema> = {} as any;
         try {
             // ✅ Validation Vine
             payload = await this.createFavoriteSchema.validate(request.body());
@@ -84,8 +87,8 @@ export default class FavoritesController {
             logger.info({ userId: user.id, favoriteId: favorite.id, productId: payload.product_id }, 'Favorite created');
             // 🌍 i18n
             return response.created({
-                 message: t('favorite.createdSuccess'), // Nouvelle clé
-                 favorite: { favorite_id: favorite.id, product_name: product.name } // Garder le format original de réponse
+                message: t('favorite.createdSuccess'), // Nouvelle clé
+                favorite: { favorite_id: favorite.id, product_name: product.name } // Garder le format original de réponse
             });
 
         } catch (error) {
@@ -95,21 +98,29 @@ export default class FavoritesController {
                 // 🌍 i18n
                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
             }
-             if (error.message === t('product.notFound') || error.message === t('favorite.alreadyExists')) {
-                  // 🌍 i18n (Erreurs métier spécifiques)
-                 return response.badRequest({ message: error.message });
-             }
+            if (error.message === t('product.notFound') || error.message === t('favorite.alreadyExists')) {
+                // 🌍 i18n (Erreurs métier spécifiques)
+                return response.badRequest({ message: error.message });
+            }
             // 🌍 i18n
             return response.internalServerError({ message: t('favorite.creationFailed'), error: error.message }); // Nouvelle clé
         }
     }
 
     async get_favorites({ request, response, auth }: HttpContext) {
-         // 🔐 Authentification (requise pour voir SES favoris)
-        // Note: Le code original utilisait auth.use('web').authenticate().
-        // Je garde auth.authenticate() pour être cohérent avec les autres contrôleurs (API token ou web session)
-        await auth.authenticate();
+        // 🔐 Authentification (requise pour voir SES favoris)
+        const bearerToken = request.header('Authorization')?.replace('Bearer ', '')
+
+        logger.info('✅ENTRY bearerToken', bearerToken);
+
+        if (!bearerToken) {
+            return response.unauthorized({ error: 'Missing bearer token' })
+        }
+
+        logger.info('✅ENTRY Authentification (requise pour voir SES favoris)');
+        await securityService.authenticate({ request, auth });
         const user = auth.user!;
+        logger.info('✅ Authentification (requise pour voir SES favoris)', user);
 
         let payload: Infer<typeof this.getFavoritesSchema>;
         try {
@@ -124,35 +135,35 @@ export default class FavoritesController {
         }
 
         try {
-             // --- Logique métier (requête optimisée avec Lucid ORM) ---
-             const pageNum = payload.page ?? 1;
-             const limitNum = payload.limit ?? 10;
+            // --- Logique métier (requête optimisée avec Lucid ORM) ---
+            const pageNum = payload.page ?? 1;
+            const limitNum = payload.limit ?? 10;
 
-             let query = Favorite.query()
-                 .where('user_id', user.id) // Filtrer par l'utilisateur authentifié
-                 .preload('product'); // Précharger les détails du produit associé
+            let query = Favorite.query()
+                .where('user_id', user.id) // Filtrer par l'utilisateur authentifié
+                .preload('product'); // Précharger les détails du produit associé
 
-             // 🔍 GET par ID (si fourni)
-             if (payload.favorite_id) {
+            // 🔍 GET par ID (si fourni)
+            if (payload.favorite_id) {
                 // query = query.where('id', payload.favorite_id).first(); // Appliquer .first() pour GET par ID
-                 const favorite = await query.where('id', payload.favorite_id).limit(1);
-                 if (!favorite) {
+                const favorite = await query.where('id', payload.favorite_id).limit(1);
+                if (!favorite) {
                     // 🌍 i18n
-                     return response.notFound({ message: t('favorite.notFound') }); // Nouvelle clé
-                 }
-                 // Retourner l'objet unique avec le produit préchargé
-                 return response.ok(favorite);
-             }
+                    return response.notFound({ message: t('favorite.notFound') }); // Nouvelle clé
+                }
+                // Retourner l'objet unique avec le produit préchargé
+                return response.ok(favorite);
+            }
 
-             // Appliquer les filtres si pas de favorite_id
-             if (payload.label) query = query.where('label', payload.label);
-             if (payload.product_id) query = query.where('product_id', payload.product_id);
-             if (payload.order_by) query = applyOrderBy(query, payload.order_by, Favorite.table); // applyOrderBy doit supporter les requêtes Lucid ORM
+            // Appliquer les filtres si pas de favorite_id
+            if (payload.label) query = query.where('label', payload.label);
+            if (payload.product_id) query = query.where('product_id', payload.product_id);
+            if (payload.order_by) query = applyOrderBy(query, payload.order_by, Favorite.table); // applyOrderBy doit supporter les requêtes Lucid ORM
 
-             const favoritesPaginate = await query.paginate(pageNum, limitNum);
+            const favoritesPaginate = await query.paginate(pageNum, limitNum);
 
-             // Retourner la liste paginée (chaque favori aura son 'product' préchargé)
-             return response.ok({ list: favoritesPaginate.all(), meta: favoritesPaginate.getMeta() });
+            // Retourner la liste paginée (chaque favori aura son 'product' préchargé)
+            return response.ok({ list: favoritesPaginate.all(), meta: favoritesPaginate.getMeta() });
 
         } catch (error) {
             logger.error({ userId: user.id, error: error.message, stack: error.stack }, 'Failed to get favorites');
@@ -162,8 +173,8 @@ export default class FavoritesController {
     }
 
     async update_favorites({ request, response, auth }: HttpContext) {
-         // 🔐 Authentification
-        await auth.authenticate();
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
         const user = auth.user!;
 
         let payload: Infer<typeof this.updateFavoriteSchema> = {} as any;
@@ -180,8 +191,8 @@ export default class FavoritesController {
             }
             // Vérifier que le favori appartient à l'utilisateur authentifié
             if (favorite.user_id !== user.id) {
-                 // 🌍 i18n
-                 throw new Error(t('unauthorized_action'));
+                // 🌍 i18n
+                throw new Error(t('unauthorized_action'));
             }
 
             favorite.useTransaction(trx);
@@ -190,7 +201,7 @@ export default class FavoritesController {
 
             await trx.commit();
             logger.info({ userId: user.id, favoriteId: favorite.id }, 'Favorite updated');
-             // 🌍 i18n
+            // 🌍 i18n
             return response.ok({ message: t('favorite.updateSuccess'), favorite: favorite }); // Nouvelle clé
 
         } catch (error) {
@@ -200,55 +211,62 @@ export default class FavoritesController {
                 // 🌍 i18n
                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
             }
-             if (error.message === t('favorite.notFound') || error.message === t('unauthorized_action')) {
-                  // 🌍 i18n
-                  const status = error.message === t('unauthorized_action') ? 403 : 404;
-                  return response.status(status).send({ message: error.message });
-             }
+            if (error.message === t('favorite.notFound') || error.message === t('unauthorized_action')) {
+                // 🌍 i18n
+                const status = error.message === t('unauthorized_action') ? 403 : 404;
+                return response.status(status).send({ message: error.message });
+            }
             // 🌍 i18n
             return response.internalServerError({ message: t('favorite.updateFailed'), error: error.message }); // Nouvelle clé
         }
     }
 
-    async delete_favorite({ params, response, auth }: HttpContext) {
-        // 🔐 Authentification
-        await auth.authenticate();
-        const user = auth.user!;
+    public static async _delete_favorite(user:User,id:string,trx:TransactionClientContract) {
+        
 
-        let payload: Infer<typeof this.deleteFavoriteParamsSchema>= {} as any;
+        // --- Logique métier ---
+        const favorite = await Favorite.find(id, { client: trx });
+        if (!favorite) {
+            // 🌍 i18n
+            throw new Error(t('favorite.notFound'));
+        }
+        // Vérifier que le favori appartient à l'utilisateur authentifié
+        if (favorite.user_id !== user.id) {
+            // 🌍 i18n
+            throw new Error(t('unauthorized_action'));
+        }
+
+        await favorite.useTransaction(trx).delete();
+    }
+    async delete_favorite({ params, response, request, auth }: HttpContext) {
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
+        const user = auth.user!;
+        console.log({ favoriyesUser: user.$attributes });
+
+        let payload: Infer<typeof this.deleteFavoriteParamsSchema> = {} as any;
+        
+        payload = await this.deleteFavoriteParamsSchema.validate(params);
+
         const trx = await db.transaction();
         try {
             // ✅ Validation Vine pour Params
-            payload = await this.deleteFavoriteParamsSchema.validate(params);
-
-            // --- Logique métier ---
-            const favorite = await Favorite.find(payload.id, { client: trx });
-            if (!favorite) {
-                 // 🌍 i18n
-                throw new Error(t('favorite.notFound'));
-            }
-            // Vérifier que le favori appartient à l'utilisateur authentifié
-            if (favorite.user_id !== user.id) {
-                 // 🌍 i18n
-                 throw new Error(t('unauthorized_action'));
-            }
-
-            await favorite.useTransaction(trx).delete();
+            await FavoritesController._delete_favorite(user,payload.id,trx)
             await trx.commit();
 
             logger.info({ userId: user.id, favoriteId: payload.id }, 'Favorite deleted');
             // 🌍 i18n
             // Garder la réponse originale pour la cohérence avec le code précédent
-             return response.ok({ message: t('favorite.deleteSuccess'), isDeleted: true }); // Nouvelle clé
+            return response.ok({ message: t('favorite.deleteSuccess'), isDeleted: true }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, favoriteId: payload?.id, error: error.message, stack: error.stack }, 'Failed to delete favorite');
-             if (error.message === t('favorite.notFound') || error.message === t('unauthorized_action')) {
-                  // 🌍 i18n
-                  const status = error.message === t('unauthorized_action') ? 403 : 404;
-                  return response.status(status).send({ message: error.message });
-             }
+            if (error.message === t('favorite.notFound') || error.message === t('unauthorized_action')) {
+                // 🌍 i18n
+                const status = error.message === t('unauthorized_action') ? 403 : 404;
+                return response.status(status).send({ message: error.message });
+            }
             // 🌍 i18n
             return response.internalServerError({ message: t('favorite.deleteFailed'), error: error.message }); // Nouvelle clé
         }

@@ -14,6 +14,7 @@ import BullMQService from '#services/BullMQService'
 import AsyncConfirm, { AsyncConfirmType } from '#models/asyncConfirm'
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
+import { securityService } from '#services/SecurityService'
 
 // Permission requise pour gérer les collaborateurs (ajouter, modifier perms, supprimer)
 const MANAGE_COLLABORATORS_PERMISSION: keyof TypeJsonRole = 'create_delete_collaborator';
@@ -28,8 +29,8 @@ export default class RolesController {
         vine.object({
             email: vine.string().trim().email().normalizeEmail(),
             full_name: vine.string().trim().minLength(2).maxLength(255).optional(),
-            dashboard_url:vine.string().trim().minLength(3).maxLength(255),
-            setup_account_url:vine.string().trim().minLength(2).maxLength(255).optional(),
+            dashboard_url: vine.string().trim().minLength(3).maxLength(255),
+            setup_account_url: vine.string().trim().minLength(2).maxLength(255).optional(),
         })
     );
 
@@ -65,7 +66,7 @@ export default class RolesController {
 
     async create_collaborator({ request, response, auth }: HttpContext) {
         // 🔐 Authentification et 🛡️ Autorisation gérées par middleware sur la route
-        const owner = await auth.authenticate(); // L'owner qui effectue l'action
+        const owner = await securityService.authenticate({ request, auth }); // L'owner qui effectue l'action
 
         const trx = await db.transaction(); // Transaction pour opérations multiples
         let payload: Infer<typeof this.createCollaboratorSchema>;
@@ -161,7 +162,7 @@ export default class RolesController {
                 const newUser = await User.create({
                     id: uuidv4(),
                     email: email,
-                    full_name: full_name?.trim() || email.substring(0,email.indexOf('@')), // Nom fourni ou défaut
+                    full_name: full_name?.trim() || email.substring(0, email.indexOf('@')), // Nom fourni ou défaut
                     password: tempPassword, // Sera hashé par le hook
                     email_verified_at: null, // Non vérifié au début
                     // role_type: RoleType.COLLABORATOR, // Directement collaborateur
@@ -185,7 +186,7 @@ export default class RolesController {
                     .update({ usedAt: DateTime.now() });
 
                 // d. Générer et stocker le token de setup
-                const tokenBrut = uuidv4()+uuidv4(); // + sécurisé que random
+                const tokenBrut = uuidv4() + uuidv4(); // + sécurisé que random
                 const tokenHash = await hash.make(tokenBrut);
                 const expiresAt = DateTime.now().plus({ days: 2 }); // Durée de vie 48h
 
@@ -198,7 +199,7 @@ export default class RolesController {
                 logger.info({ userId: newUser.id }, "Account setup token created");
 
                 // e. Construire l'URL de setup pour le frontend
-                const setupUrl = `${setup_account_url||dashboard_url}/${setup_account_url?'':'setup-account'}?token=${tokenBrut}`; // Token BRUT dans l'URL
+                const setupUrl = `${setup_account_url || dashboard_url}/${setup_account_url ? '' : 'setup-account'}?token=${tokenBrut}`; // Token BRUT dans l'URL
 
                 await trx.commit(); // Commit après création user/role/token
 
@@ -242,12 +243,12 @@ export default class RolesController {
         }
     }
 
-    async add_remove_permission({ request, response, auth, bouncer }: HttpContext) {
+    async add_remove_permission({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [MANAGE_COLLABORATORS_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [MANAGE_COLLABORATORS_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -301,12 +302,12 @@ export default class RolesController {
         }
     }
 
-    async list_role({ response, auth, request, bouncer }: HttpContext) {
+    async list_role({ response, auth, request }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [VIEW_COLLABORATORS_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_COLLABORATORS_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -351,12 +352,12 @@ export default class RolesController {
         }
     }
 
-    async remove_collaborator({ params, response, auth, bouncer }: HttpContext) {
+    async remove_collaborator({ params, response, request, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [MANAGE_COLLABORATORS_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [MANAGE_COLLABORATORS_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n

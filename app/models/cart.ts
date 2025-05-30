@@ -4,6 +4,7 @@ import CartItem from './cart_item.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import BaseModel from './base_model.js';
 import { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import logger from '@adonisjs/core/services/logger';
 
 export default class Cart extends BaseModel {
   @column({ isPrimary: true })
@@ -33,6 +34,7 @@ export default class Cart extends BaseModel {
     for (const item of this.items) {
       const product  = item.product
       const option  = await CartItem.getBindOptionFrom(item.getBind(),product)
+      logger.info(option,"Cart getTotal");
       const itemPrice = (option?.additional_price || 0) + (product?.price || 0)
       sum += item.quantity * itemPrice
     }

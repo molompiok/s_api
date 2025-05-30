@@ -18,6 +18,9 @@ import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { Infer } from '@vinejs/vine/types';
 import Detail from '#models/detail';
 import DetailsController from './details_controller.js';
+import { securityService } from '#services/SecurityService';
+import Favorite from '#models/favorite';
+import FavoritesController from './favorites_controller.js';
 
 export default class ProductsController {
 
@@ -69,16 +72,16 @@ export default class ProductsController {
     vine.object({
       id: vine.string().uuid(),
     })
-  ); 
+  );
 
   // --- Méthodes du contrôleur ---
 
-  async create_product({ request, response, auth, bouncer }: HttpContext) {
+  async create_product({ request, response, auth }: HttpContext) {
     // 🔐 Authentification
-    await auth.authenticate();
+    await securityService.authenticate({ request, auth });
     // 🛡️ Permissions
     try {
-      await bouncer.authorize('collaboratorAbility', ['create_delete_product'])
+      await request.ctx?.bouncer.authorize('collaboratorAbility', ['create_delete_product'])
     } catch (error) {
       if (error.code === 'E_AUTHORIZATION_FAILURE') {
         // 🌍 i18n
@@ -93,15 +96,15 @@ export default class ProductsController {
     const value_id = v4()
 
     console.log(request.all());
-    
+
     try {
       // ✅ Validation Vine
       const data = request.all()
       const preparedData = {
         ...data,
         price: data.price ? Number(data.price) : undefined,
-        barred_price: data.barred_price && data.barred_price !== 'undefined' 
-          ? Number(data.barred_price) 
+        barred_price: data.barred_price && data.barred_price !== 'undefined'
+          ? Number(data.barred_price)
           : null,
         is_visible: data.is_visible === 'true' ? true : false,
         view: data.view, // reste tel quel
@@ -121,7 +124,7 @@ export default class ProductsController {
           return response.badRequest({ message: t('invalid_value', { key: 'categories_id', value: payload.categories_id }) })
         }
       }
-      
+
       // Gestion des fichiers
       const views = await createFiles({
         request,
@@ -161,7 +164,7 @@ export default class ProductsController {
         categories_id: normalizedCategories, // Utiliser le tableau normalisé
         barred_price: barred_price,
         default_feature_id: feature_id,
-        is_visible:true,
+        is_visible: true,
         currency: CURRENCY.FCFA, // Ou récupérer depuis payload si ajouté au schema
       }, { client: trx })
 
@@ -268,7 +271,7 @@ export default class ProductsController {
   // Lecture publique, pas d'auth/bouncer requis
   public async get_products({ request, response, }: HttpContext) { // Retiré auth, bouncer
     let payload: Infer<typeof this.getProductsQuerySchema>;
-    
+
     try {
       // ✅ Validation Vine pour Query Params
       payload = await this.getProductsQuerySchema.validate(request.qs());
@@ -279,8 +282,8 @@ export default class ProductsController {
       }
       throw error;
     }
-    
-    console.log(request.qs(),payload);
+
+    console.log(request.qs(), payload);
     // 📦 Normalisation (après validation)
     let normalizedCategories: string[] | undefined = undefined;
     if (payload.categories_id) {
@@ -289,7 +292,7 @@ export default class ProductsController {
       } catch (error) {
         // 🌍 i18n
         console.log(error);
-        
+
         return response.badRequest({ message: t('invalid_value', { key: 'categories_id', value: payload.categories_id }) })
       }
     }
@@ -368,7 +371,7 @@ export default class ProductsController {
       }
       query = this.applySearch(query, payload.search)
 
-      query = applyOrderBy(query, payload.order_by||'date_desc', Product.table)
+      query = applyOrderBy(query, payload.order_by || 'date_desc', Product.table)
 
       products = await query.paginate(pageNum, limitNum)
 
@@ -390,12 +393,12 @@ export default class ProductsController {
     }
   }
 
-  async update_product({ request, response, auth, bouncer,params }: HttpContext) {
+  async update_product({ request, response, auth, params }: HttpContext) {
     // 🔐 Authentification
-    await auth.authenticate();
+    await securityService.authenticate({ request, auth });
     // 🛡️ Permissions
     try {
-      await bouncer.authorize('collaboratorAbility', ['edit_product'])
+      await request.ctx?.bouncer.authorize('collaboratorAbility', ['edit_product'])
     } catch (error) {
       if (error.code === 'E_AUTHORIZATION_FAILURE') {
         // 🌍 i18n
@@ -404,7 +407,7 @@ export default class ProductsController {
       throw error;
     }
 
-    
+
     let product_id = params.id
 
     try {
@@ -412,8 +415,8 @@ export default class ProductsController {
       const payload = await request.validateUsing(this.updateProductSchema)
       product_id = (await this.productIdParamsSchema.validate(params)).id
 
-      console.log('>>>>>>',payload);
-      
+      console.log('>>>>>>', payload);
+
       // 📦 Normalisation
       let normalizedCategories: string[] | undefined = undefined;
       if (payload.categories_id) {
@@ -425,8 +428,8 @@ export default class ProductsController {
         }
       }
 
-      console.log({normalizedCategories});
-      
+      console.log({ normalizedCategories });
+
       const product = await Product.findOrFail(product_id)
 
       // --- Logique métier (utilise payload validé/normalisé) ---
@@ -486,12 +489,12 @@ export default class ProductsController {
     }
   }
 
-  async delete_product({ params, response, auth, bouncer }: HttpContext) {
+  async delete_product({ params, response, request, auth }: HttpContext) {
     // 🔐 Authentification
-    await auth.authenticate();
+   const user = await securityService.authenticate({ request, auth });
     // 🛡️ Permissions
     try {
-      await bouncer.authorize('collaboratorAbility', ['create_delete_product'])
+      await request.ctx?.bouncer.authorize('collaboratorAbility', ['create_delete_product'])
     } catch (error) {
       if (error.code === 'E_AUTHORIZATION_FAILURE') {
         // 🌍 i18n
@@ -523,10 +526,16 @@ export default class ProductsController {
       // --- Logique métier (inchangée) ---
       const features = await Feature.query({ client: trx }).preload('values').where('product_id', product.id);
       await Promise.allSettled(features?.map(value => FeaturesController._delete_feature(value.id, trx)));
-      
-      const details = await Detail.query({client:trx}).where('product_id',product.id);
-      await Promise.allSettled(details.map(detail=> DetailsController._delete_detail(detail.id)))
-      
+
+      const details = await Detail.query({ client: trx }).where('product_id', product.id);
+      await Promise.allSettled(details.map(detail => DetailsController._delete_detail(detail.id)))
+
+      const favorites = await Favorite.query({ client: trx }).where('product_id', product.id);
+      await Promise.allSettled(favorites.map(favory => FavoritesController._delete_favorite(user,favory.id,trx)))
+
+      const favorites2 = await Favorite.query({ client: trx }).where('product_id', product.id);
+
+      console.log({favorites2});
       
       await product.useTransaction(trx).delete();
 

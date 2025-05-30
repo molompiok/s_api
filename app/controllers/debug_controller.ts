@@ -7,6 +7,7 @@ import logger from '@adonisjs/core/services/logger';
 import { t } from '../utils/functions.js'; // ✅ Ajout de t
 // Pas besoin de Vine ici car pas d'input client
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
+import { securityService } from '#services/SecurityService';
 // Pas besoin de Infer car pas de schéma Vine
 
 // Permission requise pour accéder aux outils de debug (très sensible!)
@@ -20,18 +21,18 @@ export default class DebugController {
      * @param auth - Service d'authentification
      * @param bouncer - Service d'autorisation
      */
-    public async requestScaleUp({ response, auth, bouncer }: HttpContext) {
+    public async requestScaleUp({ response, auth, request }: HttpContext) {
         // 🔐 Authentification
-        const user = await auth.authenticate();
+        const user = await securityService.authenticate({ request, auth });
         console.log(user.$attributes);
-        
+
         // 🛡️ Permissions (Seuls les utilisateurs autorisés peuvent scaler)
         try {
-            await bouncer.authorize('collaboratorAbility', [DEBUG_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [DEBUG_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                 // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') });
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') });
             }
             throw error;
         }
@@ -41,8 +42,8 @@ export default class DebugController {
 
         if (!storeId) {
             logger.error('[DebugController] STORE_ID not configured.');
-             // 🌍 i18n
-             return response.internalServerError({ message: t('debug.storeIdMissing') }); // Nouvelle clé
+            // 🌍 i18n
+            return response.internalServerError({ message: t('debug.storeIdMissing') }); // Nouvelle clé
         }
 
         const logCtx = { storeId, action: 'scale-up', serviceType, actorId: auth.user!.id };
@@ -56,8 +57,8 @@ export default class DebugController {
             await serverQueue.add('request_scale_up', { event: 'request_scale_up', data: scaleData }, { jobId });
 
             logger.info({ ...logCtx, jobId }, 'Scale UP request sent to s_server.');
-             // 🌍 i18n
-             return response.ok({ message: t('debug.scaleUpSent', { jobId }), jobId }); // Nouvelle clé
+            // 🌍 i18n
+            return response.ok({ message: t('debug.scaleUpSent', { jobId }), jobId }); // Nouvelle clé
 
         } catch (error) {
             logger.error({ ...logCtx, err: error }, 'Error sending scale UP request');
@@ -72,16 +73,16 @@ export default class DebugController {
       * @param auth - Service d'authentification
       * @param bouncer - Service d'autorisation
      */
-    public async requestScaleDown({ response, auth, bouncer }: HttpContext) {
+    public async requestScaleDown({ response, auth, request }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [DEBUG_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [DEBUG_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                 // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') });
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') });
             }
             throw error;
         }
@@ -91,8 +92,8 @@ export default class DebugController {
 
         if (!storeId) {
             logger.error('[DebugController] STORE_ID not configured.');
-             // 🌍 i18n
-             return response.internalServerError({ message: t('debug.storeIdMissing') });
+            // 🌍 i18n
+            return response.internalServerError({ message: t('debug.storeIdMissing') });
         }
 
         const logCtx = { storeId, action: 'scale-down', serviceType, actorId: auth.user!.id };
@@ -107,13 +108,13 @@ export default class DebugController {
             await serverQueue.add('request_scale_down', { event: 'request_scale_down', data: scaleData }, { jobId });
 
             logger.info({ ...logCtx, jobId }, 'Scale DOWN request sent to s_server.');
-             // 🌍 i18n
-             return response.ok({ message: t('debug.scaleDownSent', { jobId }), jobId }); // Nouvelle clé
+            // 🌍 i18n
+            return response.ok({ message: t('debug.scaleDownSent', { jobId }), jobId }); // Nouvelle clé
 
         } catch (error) {
             logger.error({ ...logCtx, err: error }, 'Error sending scale DOWN request');
-             // 🌍 i18n
-             return response.internalServerError({ message: t('debug.scaleDownFailed'), error: error.message }); // Nouvelle clé
+            // 🌍 i18n
+            return response.internalServerError({ message: t('debug.scaleDownFailed'), error: error.message }); // Nouvelle clé
         }
     }
 }

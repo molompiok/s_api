@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.uuid('user_id').references('id').inTable('users')
       table.string('label').notNullable()
-      table.uuid('product_id').references('id').inTable('products')
+      table.uuid('product_id').references('id').inTable('products').onDelete('CASCADE').notNullable()
       
       table.timestamps(true,true) 
     })

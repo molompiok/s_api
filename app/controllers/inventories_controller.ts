@@ -14,6 +14,7 @@ import { TypeJsonRole } from '#models/role' // Assurez-vous que TypeJsonRole est
 import { t, normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import { applyOrderBy } from './Utils/query.js'
+import { securityService } from '#services/SecurityService'
 
 const REQUIRED_PERMISSION: keyof TypeJsonRole = 'manage_interface' // Permission requise
 
@@ -74,12 +75,12 @@ export default class InventoriesController {
      * Crée un nouveau point d'inventaire.
      * Permission requise: 'manage_interface'
      */
-    async create({ request, response, auth, bouncer }: HttpContext) {
+    async create({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [REQUIRED_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [REQUIRED_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -149,19 +150,8 @@ export default class InventoriesController {
      * Peut récupérer par ID spécifique ou lister avec pagination/filtres.
      * Permission requise: 'manage_interface'
      */
-    async get_many({ request, response, auth, bouncer }: HttpContext) {
-        // 🔐 Authentification
-        await auth.authenticate();
-        // 🛡️ Permissions
-        try {
-            await bouncer.authorize('collaboratorAbility', [REQUIRED_PERMISSION]);
-        } catch (error) {
-            if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
-            }
-            throw error;
-        }
+    async get_many({ request, response, auth }: HttpContext) {
+
 
         let payload: Infer<typeof this.getInventoriesSchema>;
         try {
@@ -181,10 +171,10 @@ export default class InventoriesController {
 
             if (payload.inventory_id) {
                 const inventory = await query.where('id', payload.inventory_id).limit(1)
-               return response.ok(inventory);
+                return response.ok(inventory);
             }
 
-           if (payload.search) {
+            if (payload.search) {
                 const searchTerm = `%${payload.search.toLowerCase()}%`;
                 query.where((q) => {
                     q.whereILike('address_name', searchTerm)
@@ -204,8 +194,8 @@ export default class InventoriesController {
 
             // Pas de message i18n, retourner la liste paginée
             return response.ok({
-                list:inventories.all(),
-                meta:inventories.getMeta()
+                list: inventories.all(),
+                meta: inventories.getMeta()
             }); // Retourne directement l'objet Paginator
 
         } catch (error) {
@@ -224,19 +214,7 @@ export default class InventoriesController {
      * Récupère un ou plusieurs points d'inventaire.
      * Permission requise: 'manage_interface'
      */
-    async get({ request, response, auth, bouncer }: HttpContext) {
-        // 🔐 Authentification
-        await auth.authenticate();
-        // 🛡️ Permissions
-        try {
-            await bouncer.authorize('collaboratorAbility', [REQUIRED_PERMISSION]);
-        } catch (error) {
-            if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
-            }
-            throw error;
-        }
+    async get({ request, response, auth }: HttpContext) {
 
         let payload: Infer<typeof this.getInventorySchema>;
         try {
@@ -283,12 +261,12 @@ export default class InventoriesController {
      * Met à jour un point d'inventaire existant.
      * Permission requise: 'manage_interface'
      */
-    async update({ params, request, response, auth, bouncer }: HttpContext) {
+    async update({ params, request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [REQUIRED_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [REQUIRED_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -324,8 +302,8 @@ export default class InventoriesController {
                 }
             }
 
-            console.log({normalizedViews, payload, b: request.body()});
-            
+            console.log({ normalizedViews, payload, b: request.body() });
+
             // Gérer la mise à jour des fichiers 'views'
             let updatedViewsUrls: string[] | undefined = undefined;
             if (payload.views !== undefined) { // Si payload.views était présent (même vide [])
@@ -381,12 +359,12 @@ export default class InventoriesController {
      * Supprime un point d'inventaire.
      * Permission requise: 'manage_interface'
      */
-    async delete({ params, response, auth, bouncer }: HttpContext) {
+    async delete({ params, response, request, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [REQUIRED_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [REQUIRED_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n

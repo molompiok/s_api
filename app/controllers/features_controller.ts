@@ -12,6 +12,7 @@ import vine from '@vinejs/vine'; // ✅ Ajout de Vine
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types';
+import { securityService } from '#services/SecurityService';
 
 // Interfaces (conservées pour clarté du code qui les utilise)
 export interface ValueInterface {
@@ -233,12 +234,12 @@ export default class FeaturesController {
 
     // --- Méthodes Publiques (Contrôleur) ---
 
-    public async create_feature({ request, response, auth, bouncer }: HttpContext) {
+    public async create_feature({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -329,6 +330,7 @@ export default class FeaturesController {
         try {
             // ✅ Validation Vine pour Query Params
             payload = await this.getFeaturesSchema.validate(request.qs());
+
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
@@ -365,12 +367,12 @@ export default class FeaturesController {
         }
     }
 
-    async update_feature({ request, response, auth, bouncer }: HttpContext) {
+    async update_feature({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -409,12 +411,12 @@ export default class FeaturesController {
         }
     }
 
-    async multiple_update_features_values({ request, response, auth, bouncer }: HttpContext) {
+    async multiple_update_features_values({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -425,7 +427,7 @@ export default class FeaturesController {
 
         let payload: Infer<typeof this.multipleUpdateSchema>;
 
-        
+
         try {
             // ✅ Validation Vine (simple pour le JSON string)
             payload = await this.multipleUpdateSchema.validate(request.body());
@@ -436,9 +438,9 @@ export default class FeaturesController {
             }
             throw error;
         }
-        
+
         console.log(payload);
-        
+
         const trx = await db.transaction();
         try {
             // Parsing du JSON string après validation
@@ -457,7 +459,7 @@ export default class FeaturesController {
             }
 
             console.log(Allfeatures);
-            
+
             const product = await Product.findOrFail(payload.product_id, { client: trx });
 
             // --- Logique métier (inchangée) ---
@@ -480,7 +482,7 @@ export default class FeaturesController {
                 feature.product_id = payload.product_id; // Assigner le product_id validé
                 const id = v4();
                 // TODO: Valider les données de 'feature' avant de les passer à _create_feature
-                 await this._create_feature(request, payload.product_id, { ...feature, id }, trx);
+                await this._create_feature(request, payload.product_id, { ...feature, id }, trx);
 
                 if (feature.values) {
                     for (const value of feature.values) {
@@ -553,7 +555,7 @@ export default class FeaturesController {
             return response.ok({ message: t('feature.multipleUpdateSuccess'), product: updatedProduct?.toObject() });
         } catch (error) {
             console.log(error);
-            
+
             await trx.rollback();
             logger.error({ userId: auth.user?.id, productId: payload?.product_id, error: error.message, stack: error.stack }, 'Failed multiple_update_features_values');
             if (error.code === 'E_ROW_NOT_FOUND') {
@@ -569,12 +571,12 @@ export default class FeaturesController {
         }
     }
 
-    async delete_feature({ request, response, auth, bouncer }: HttpContext) {
+    async delete_feature({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [CREATE_DELETE_PERMISSION]) // Utiliser la bonne permission
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [CREATE_DELETE_PERMISSION]) // Utiliser la bonne permission
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n

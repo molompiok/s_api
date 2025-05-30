@@ -17,6 +17,7 @@ import { normalizeStringArrayInput, t } from '../utils/functions.js'; // ✅ Ajo
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
+import { securityService } from '#services/SecurityService'
 
 // Permissions
 const VIEW_ALL_ORDERS_PERMISSION: keyof TypeJsonRole = 'filter_command';
@@ -51,7 +52,7 @@ const allowedTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
     [OrderStatus.DELIVERED]: [
         OrderStatus.RETURNED
     ],
-     [OrderStatus.PICKED_UP]: [ // Ajouté : retour possible après retrait
+    [OrderStatus.PICKED_UP]: [ // Ajouté : retour possible après retrait
         OrderStatus.RETURNED
     ],
     [OrderStatus.NOT_DELIVERED]: [ // Action après échec livraison
@@ -135,7 +136,7 @@ export default class UserOrdersController {
 
     async create_user_order({ request, response, auth }: HttpContext) {
         // 🔐 Authentification (Seul un utilisateur connecté peut créer une commande)
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         const user = auth.user!; // Garanti non null
 
         const trx = await db.transaction();
@@ -156,8 +157,24 @@ export default class UserOrdersController {
                 return response.badRequest({ message: t('order.cartEmpty') }); // Nouvelle clé
             }
 
-            const itemsTotalPrice = await cart.getTotal(trx); // Utiliser transaction
-            // Utiliser le prix validé ou 0 par défaut
+            await cart.load('items', (query) => query.orderBy('created_at', 'asc').preload('product'));
+
+            const itemsWithRealBind = await Promise.all(
+                cart.items.map(async (item) => {
+                    const option = item.product ? await CartItem.getBindOptionFrom(item.bind, { id: item.product_id }) : null;
+
+                    return { ...item.serialize(), realBind: option?.realBind ?? {}, additional_price: option?.additional_price ?? 0, quantity: item.quantity, product: item.product };
+                })
+            );
+
+            const itemsTotalPrice =  itemsWithRealBind.reduce((total, item) => {
+                const basePrice = item.product?.price || 0;
+                const additionalPrice = item.additional_price || 0;
+                const quantity = item.quantity || 1;
+
+                return total + (basePrice + additionalPrice) * quantity;
+            }, 0);
+
             const deliveryPrice = payload.delivery_price ?? 0;
             const totalPrice = itemsTotalPrice + deliveryPrice;
 
@@ -280,7 +297,7 @@ export default class UserOrdersController {
     // Récupérer SES propres commandes
     async get_orders({ auth, response, request }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         const user = auth.user!;
 
         let payload: Infer<typeof this.getOrdersSchema>;
@@ -334,8 +351,8 @@ export default class UserOrdersController {
         let normalizedStatusInput: string[] | undefined = undefined;
         if (statusInput) {
             try {
-                normalizedStatusInput = normalizeStringArrayInput({ statusInput}).statusInput;
-            } catch (error) {}
+                normalizedStatusInput = normalizeStringArrayInput({ statusInput }).statusInput;
+            } catch (error) { }
         }
         let query = UserOrder.query().preload('user'); // Précharger user par défaut
 
@@ -407,19 +424,11 @@ export default class UserOrdersController {
     }
 
     // Récupérer les commandes (vue admin/collaborateur)
-    async get_users_orders({ response, auth, request, bouncer }: HttpContext) {
+    async get_users_orders({ response, auth, request }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        const user = await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
-        try {
-            await bouncer.authorize('collaboratorAbility', [VIEW_ALL_ORDERS_PERMISSION]);
-        } catch (error) {
-            if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
-            }
-            throw error;
-        }
+
 
         let payload: Infer<typeof this.getUsersOrdersSchema>;
         try {
@@ -431,6 +440,21 @@ export default class UserOrdersController {
                 return response.badRequest({ message: t('validationFailed'), errors: error.messages });
             }
             throw error;
+        }
+
+
+        if (payload.user_id || user.isStoreManager()) {
+            try {
+                await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_ALL_ORDERS_PERMISSION]);
+            } catch (error) {
+                if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                    // 🌍 i18n
+                    return response.forbidden({ message: t('unauthorized_action') });
+                }
+                throw error;
+            }
+        } else {
+            payload.user_id = user.id;
         }
 
         try {
@@ -446,12 +470,12 @@ export default class UserOrdersController {
         }
     }
 
-    async update_user_order({ response, auth, request, bouncer , params}: HttpContext) {
+    async update_user_order({ response, auth, request, params }: HttpContext) {
         // 🔐 Authentification & 🛡️ Permissions (inchangé)
-       
-        const user =  await auth.authenticate();;
+
+        const user = await securityService.authenticate({ request, auth });;
         try {
-            await bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
         } catch (error) { // ... gestion erreur permission
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 return response.forbidden({ message: t('unauthorized_action') });
@@ -485,11 +509,11 @@ export default class UserOrdersController {
             // --- ✅ Vérification de la Transition ---
             // Si le statut actuel et le nouveau statut sont identiques, ne rien faire (succès silencieux?)
             if (currentStatus === newStatus) {
-                 await trx.rollback(); // Pas besoin de transaction si rien ne change
-                 logger.warn({ actorId: user.id, orderId: order.id, status: currentStatus }, 'Order status update requested but status is already the same.');
-                 // On peut retourner OK avec un message spécifique ou la commande actuelle
-                 const currentCommandData = await this._get_users_orders({ command_id: order.id, with_items: true });
-                 return response.ok({ message: t('order.statusAlreadySet'), order: currentCommandData.list[0] }); // Nouvelle clé i18n
+                await trx.rollback(); // Pas besoin de transaction si rien ne change
+                logger.warn({ actorId: user.id, orderId: order.id, status: currentStatus }, 'Order status update requested but status is already the same.');
+                // On peut retourner OK avec un message spécifique ou la commande actuelle
+                const currentCommandData = await this._get_users_orders({ command_id: order.id, with_items: true });
+                return response.ok({ message: t('order.statusAlreadySet'), order: currentCommandData.list[0] }); // Nouvelle clé i18n
             }
 
             // Vérifier si la transition est autorisée dans notre map
@@ -501,7 +525,7 @@ export default class UserOrdersController {
                 // 🌍 i18n
                 return response.badRequest({ message: t('order.invalidStatusTransition', { from: t(`orderStatus.${currentStatus.toLowerCase()}`), to: t(`orderStatus.${newStatus.toLowerCase()}`) }) }); // Utiliser clés i18n pour les noms de statut
             }
-             // --- Fin Vérification de la Transition ---
+            // --- Fin Vérification de la Transition ---
 
 
             // --- Logique métier (ajout de l'événement) ---
@@ -541,13 +565,13 @@ export default class UserOrdersController {
         }
     }
     // Supprimer une commande (admin/collaborateur)
-    async delete_user_order({ params, response, auth, bouncer }: HttpContext) {
+    async delete_user_order({ params, response, request, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
             // Utiliser la même permission que pour gérer les commandes?
-            await bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n

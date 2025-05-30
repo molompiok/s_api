@@ -13,6 +13,7 @@ import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
+import { securityService } from '#services/SecurityService'
 
 // Interfaces (conservées pour la méthode checkValidValue)
 export interface ValueInterface {
@@ -44,7 +45,7 @@ export interface FeatureInterface {
     index?: number,
     multiple?: boolean,
     is_double?: boolean,
-    default_value?: string|null,
+    default_value?: string | null,
     created_at: string,
     updated_at: string,
     values?: ValueInterface[];
@@ -58,26 +59,26 @@ const EDIT_PERMISSION: keyof TypeJsonRole = 'edit_product';
 
 // --- Fonction de validation métier (gardée car spécifique à Value/Feature) ---
 const checkValidValue = (feature: FeatureInterface | null, value: Partial<ValueInterface>) => {
-  if (!feature) {
-    // 🌍 i18n
-    throw new Error(t('feature.notFound')); // Impossible de valider sans la feature parente
-  }
-  if (feature.type === FeatureType.COLOR) {
-    if (!value.key || !/^#[0-9A-Fa-f]{6}$/i.test(value.key)) {
-      // 🌍 i18n
-      throw new Error(t('value.invalidColorKey', { key: value.key, value: JSON.stringify(value) }));
+    if (!feature) {
+        // 🌍 i18n
+        throw new Error(t('feature.notFound')); // Impossible de valider sans la feature parente
     }
-    if (!value.text || value.text.trim().length < 1) {
-      // 🌍 i18n
-      throw new Error(t('value.textRequired'));
+    if (feature.type === FeatureType.COLOR) {
+        if (!value.key || !/^#[0-9A-Fa-f]{6}$/i.test(value.key)) {
+            // 🌍 i18n
+            throw new Error(t('value.invalidColorKey', { key: value.key, value: JSON.stringify(value) }));
+        }
+        if (!value.text || value.text.trim().length < 1) {
+            // 🌍 i18n
+            throw new Error(t('value.textRequired'));
+        }
+    } else if (feature.type && [FeatureType.ICON_TEXT, FeatureType.TEXT, FeatureType.ICON].includes(feature.type)) {
+        if (!value.text || value.text.trim().length < 1) {
+            // 🌍 i18n
+            throw new Error(t('value.textRequired'));
+        }
     }
-  } else if (feature.type && [FeatureType.ICON_TEXT, FeatureType.TEXT, FeatureType.ICON].includes(feature.type)) {
-    if (!value.text || value.text.trim().length < 1) {
-      // 🌍 i18n
-      throw new Error(t('value.textRequired'));
-    }
-  }
-  // Ajouter d'autres validations métier si nécessaire pour d'autres FeatureType
+    // Ajouter d'autres validations métier si nécessaire pour d'autres FeatureType
 }
 // --- Fin fonction validation métier ---
 
@@ -86,18 +87,18 @@ export default class ValuesController {
 
     // --- Schémas de validation Vine ---
     private createValueSchema = vine.compile(
-      vine.object({
-        feature_id: vine.string().uuid(),
-        additional_price: vine.number().min(0).max(MAX_PRICE).optional(),
-        currency: vine.string().optional(), // Pourrait être un enum si plus de devises sont gérées
-        text: vine.string().trim().minLength(1).maxLength(255).optional(), // Optionnel car peut être déduit ou non requis
-        key: vine.string().trim().maxLength(255).optional().nullable(), // Peut être null
-        stock: vine.number().min(0).optional().nullable(),
-        decreases_stock: vine.boolean().optional(),
-        continue_selling: vine.boolean().optional(),
-        index: vine.number().positive().optional(),
-        // 'views' et 'icon' gérés par createFiles
-      })
+        vine.object({
+            feature_id: vine.string().uuid(),
+            additional_price: vine.number().min(0).max(MAX_PRICE).optional(),
+            currency: vine.string().optional(), // Pourrait être un enum si plus de devises sont gérées
+            text: vine.string().trim().minLength(1).maxLength(255).optional(), // Optionnel car peut être déduit ou non requis
+            key: vine.string().trim().maxLength(255).optional().nullable(), // Peut être null
+            stock: vine.number().min(0).optional().nullable(),
+            decreases_stock: vine.boolean().optional(),
+            continue_selling: vine.boolean().optional(),
+            index: vine.number().positive().optional(),
+            // 'views' et 'icon' gérés par createFiles
+        })
     );
 
     private getValuesSchema = vine.compile(
@@ -143,8 +144,8 @@ export default class ValuesController {
 
         const feature = await Feature.find(payload.feature_id); // Pas findOrFail ici, gérer l'erreur
         if (!feature) {
-             // 🌍 i18n
-             throw new Error(t('feature.notFound'));
+            // 🌍 i18n
+            throw new Error(t('feature.notFound'));
         }
 
         checkValidValue(feature as any, payload); // Validation métier
@@ -154,20 +155,20 @@ export default class ValuesController {
         distinct = distinct?.substring(0, distinct.indexOf(':'));
 
         let viewsUrls = await createFiles({
-          request,
-          column_name: "views", // Nom du champ dans la requête form-data
-          table_id: id,
-          table_name: Value.table,
-          distinct,
-          options: { throwError: true, compress: 'img', min: 0, max: 5, extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
+            request,
+            column_name: "views", // Nom du champ dans la requête form-data
+            table_id: id,
+            table_name: Value.table,
+            distinct,
+            options: { throwError: true, compress: 'img', min: 0, max: 5, extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
         });
         let iconUrls = await createFiles({
-          request,
-          column_name: "icon", // Nom du champ dans la requête form-data
-          table_id: id,
-          table_name: Value.table,
-          distinct,
-          options: { throwError: true, compress: 'img', min: 0, max: 1, extname: EXT_IMAGE, maxSize: 5 * MEGA_OCTET, },
+            request,
+            column_name: "icon", // Nom du champ dans la requête form-data
+            table_id: id,
+            table_name: Value.table,
+            distinct,
+            options: { throwError: true, compress: 'img', min: 0, max: 1, extname: EXT_IMAGE, maxSize: 5 * MEGA_OCTET, },
         });
 
         // Préparation données (défaults)
@@ -176,18 +177,18 @@ export default class ValuesController {
         const additional_price = payload.additional_price;
 
         const newValue = await Value.create({
-          id: id,
-          feature_id: payload.feature_id,
-          stock: stock?? undefined,
-          decreases_stock: !!payload.decreases_stock,
-          continue_selling: !!payload.continue_selling,
-          index: index <= 0 ? 1 : index, // Assurer positif
-          additional_price: additional_price,
-          currency: payload.currency,
-          text: payload.text, // Utiliser directement car validé
-          key: payload.key??undefined,   // Utiliser directement car validé
-          icon: ((!iconUrls || iconUrls.length === 0) ? (viewsUrls[0] ? [viewsUrls[0]] : []) : iconUrls),
-          views: viewsUrls,
+            id: id,
+            feature_id: payload.feature_id,
+            stock: stock ?? undefined,
+            decreases_stock: !!payload.decreases_stock,
+            continue_selling: !!payload.continue_selling,
+            index: index <= 0 ? 1 : index, // Assurer positif
+            additional_price: additional_price,
+            currency: payload.currency,
+            text: payload.text, // Utiliser directement car validé
+            key: payload.key ?? undefined,   // Utiliser directement car validé
+            icon: ((!iconUrls || iconUrls.length === 0) ? (viewsUrls[0] ? [viewsUrls[0]] : []) : iconUrls),
+            views: viewsUrls,
         }, { client: trx })
 
         logger.debug({ valueId: newValue.id }, '_create_value successful');
@@ -204,19 +205,19 @@ export default class ValuesController {
         checkValidValue(feature as any, payload); // Validation métier
 
         // Préparation données (défaults/parsing)
-        const stock = payload.stock??undefined;
+        const stock = payload.stock ?? undefined;
         const index = payload.index;
         const additional_price = payload.additional_price;
 
         const dataToMerge: Partial<Value> = {
-          ...(payload.text !== undefined && { text: payload.text }),
-          ...(payload.key !== undefined && { key: payload.key??undefined }),
-          ...(stock !== undefined && { stock: stock > MAX_PRICE ? MAX_PRICE : (stock < 0 ? 0 : stock) }),
-          ...(payload.decreases_stock !== undefined && { decreases_stock: !!payload.decreases_stock }),
-          ...(payload.continue_selling !== undefined && { continue_selling: !!payload.continue_selling }),
-          ...(index !== undefined && { index: index <= 0 ? value.index : index }), // Garder l'ancien si invalide? Ou mettre 1?
-          ...(additional_price !== undefined && { additional_price: additional_price > MAX_PRICE ? MAX_PRICE : (additional_price < 0 ? 0 : additional_price) }),
-          ...(payload.currency !== undefined && { currency: payload.currency }),
+            ...(payload.text !== undefined && { text: payload.text }),
+            ...(payload.key !== undefined && { key: payload.key ?? undefined }),
+            ...(stock !== undefined && { stock: stock > MAX_PRICE ? MAX_PRICE : (stock < 0 ? 0 : stock) }),
+            ...(payload.decreases_stock !== undefined && { decreases_stock: !!payload.decreases_stock }),
+            ...(payload.continue_selling !== undefined && { continue_selling: !!payload.continue_selling }),
+            ...(index !== undefined && { index: index <= 0 ? value.index : index }), // Garder l'ancien si invalide? Ou mettre 1?
+            ...(additional_price !== undefined && { additional_price: additional_price > MAX_PRICE ? MAX_PRICE : (additional_price < 0 ? 0 : additional_price) }),
+            ...(payload.currency !== undefined && { currency: payload.currency }),
         }
 
         // Gestion Fichiers
@@ -229,7 +230,7 @@ export default class ValuesController {
                 lastUrls: value.views || [], newPseudoUrls: payload.views, distinct,
                 options: { throwError: true, min: 0, max: 7, compress: 'img', extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
             });
-             if (updatedViewsUrls.length >= 0) dataToMerge.views = updatedViewsUrls; // Gérer suppression complète
+            if (updatedViewsUrls.length >= 0) dataToMerge.views = updatedViewsUrls; // Gérer suppression complète
         }
         if (payload.icon) {
             const updatedIconUrls = await updateFiles({
@@ -264,12 +265,12 @@ export default class ValuesController {
 
 
     // --- Méthodes Publiques (Contrôleur) ---
-    async create_value({ request, response, auth, bouncer }: HttpContext) {
-         // 🔐 Authentification
-        await auth.authenticate();
+    async create_value({ request, response, auth }: HttpContext) {
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Utiliser edit_product pour les valeurs aussi?
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Utiliser edit_product pour les valeurs aussi?
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -303,15 +304,15 @@ export default class ValuesController {
                 // 🌍 i18n
                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
             }
-             if (error.message === t('feature.notFound')) {
-                 // 🌍 i18n
-                 return response.badRequest({ message: error.message }); // Erreur métier (Feature non trouvée)
-             }
-             if (error.message?.includes(t('value.invalidColorKey', { key: '', value: '' }).substring(0, 10)) || // Check début des messages métier
-                 error.message?.includes(t('value.textRequired').substring(0, 10))) {
-                 // 🌍 i18n
-                 return response.badRequest({ message: error.message }); // Erreur métier de checkValidValue
-             }
+            if (error.message === t('feature.notFound')) {
+                // 🌍 i18n
+                return response.badRequest({ message: error.message }); // Erreur métier (Feature non trouvée)
+            }
+            if (error.message?.includes(t('value.invalidColorKey', { key: '', value: '' }).substring(0, 10)) || // Check début des messages métier
+                error.message?.includes(t('value.textRequired').substring(0, 10))) {
+                // 🌍 i18n
+                return response.badRequest({ message: error.message }); // Erreur métier de checkValidValue
+            }
             // 🌍 i18n
             return response.internalServerError({ message: t('value.creationFailed'), error: error.message })
         }
@@ -321,26 +322,26 @@ export default class ValuesController {
     async get_values({ request, response }: HttpContext) {
         let payload: Infer<typeof this.getValuesSchema>;
         try {
-             // ✅ Validation Vine pour Query Params
-             payload = await this.getValuesSchema.validate(request.qs());
+            // ✅ Validation Vine pour Query Params
+            payload = await this.getValuesSchema.validate(request.qs());
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
             }
             throw error;
         }
 
         try {
             const query = Value.query();
-             // 🔍 GET par ID doit retourner le premier trouvé
+            // 🔍 GET par ID doit retourner le premier trouvé
             if (payload.value_id) {
-                 const value = await query.where('id', payload.value_id).first();
-                 if (!value) {
-                      // 🌍 i18n
-                      return response.notFound({ message: t('value.notFound') });
-                 }
-                 return response.ok(value); // Retourner l'objet unique
+                const value = await query.where('id', payload.value_id).first();
+                if (!value) {
+                    // 🌍 i18n
+                    return response.notFound({ message: t('value.notFound') });
+                }
+                return response.ok(value); // Retourner l'objet unique
             }
 
             // Si pas d'ID spécifique, appliquer les autres filtres et paginer
@@ -355,86 +356,86 @@ export default class ValuesController {
             return response.ok({ list: valuesPaginate.all(), meta: valuesPaginate.getMeta() });
         } catch (error) {
             logger.error({ error: error.message, stack: error.stack }, 'Failed to get values');
-             // 🌍 i18n
+            // 🌍 i18n
             return response.internalServerError({ message: t('value.fetchFailed'), error: error.message });
         }
     }
 
-    async update_value({ request, response, auth, bouncer }: HttpContext) {
-         // 🔐 Authentification
-         await auth.authenticate();
-         // 🛡️ Permissions
-         try {
-             await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
-         } catch (error) {
-             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                  // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') })
-             }
-             throw error;
-         }
+    async update_value({ request, response, auth }: HttpContext) {
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
+        // 🛡️ Permissions
+        try {
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
 
         const trx = await db.transaction();
         let payload: Infer<typeof this.updateValueSchema>;
         try {
-             // ✅ Validation Vine
-             // Utiliser request.all() pour récupérer les pseudo URLs et les fichiers potentiels
-             payload = await this.updateValueSchema.validate(request.all());
-             const valueId = payload.value_id || payload.id; // Utiliser value_id ou id
+            // ✅ Validation Vine
+            // Utiliser request.all() pour récupérer les pseudo URLs et les fichiers potentiels
+            payload = await this.updateValueSchema.validate(request.all());
+            const valueId = payload.value_id || payload.id; // Utiliser value_id ou id
 
-             if (!valueId) {
+            if (!valueId) {
                 // 🌍 i18n
-                 throw new Error(t('value.idRequired')); // Devrait être attrapé par Vine, mais sécurité
-             }
+                throw new Error(t('value.idRequired')); // Devrait être attrapé par Vine, mais sécurité
+            }
 
             // Appel méthode statique
             const value = await ValuesController._update_value(request, valueId, payload, trx);
 
             await trx.commit();
             logger.info({ userId: auth.user!.id, valueId: value.id }, 'Value updated');
-             // 🌍 i18n
+            // 🌍 i18n
             return response.ok({ message: t('value.updateSuccess'), value: value });
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to update value');
-             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
-             }
-             if (error.code === 'E_ROW_NOT_FOUND' || error.message === t('feature.notFound')) {
-                  // 🌍 i18n (Erreur de findOrFail sur Value ou Feature)
-                 return response.notFound({ message: t('value.orFeatureNotFound') }); // Nouvelle clé
-             }
-             if (error.message === t('value.idRequired') ||
-                 error.message?.includes(t('value.invalidColorKey', { key: '', value: '' }).substring(0, 10)) ||
-                 error.message?.includes(t('value.textRequired').substring(0, 10))) {
-                  // 🌍 i18n (Erreurs métier)
-                 return response.badRequest({ message: error.message });
-             }
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+            }
+            if (error.code === 'E_ROW_NOT_FOUND' || error.message === t('feature.notFound')) {
+                // 🌍 i18n (Erreur de findOrFail sur Value ou Feature)
+                return response.notFound({ message: t('value.orFeatureNotFound') }); // Nouvelle clé
+            }
+            if (error.message === t('value.idRequired') ||
+                error.message?.includes(t('value.invalidColorKey', { key: '', value: '' }).substring(0, 10)) ||
+                error.message?.includes(t('value.textRequired').substring(0, 10))) {
+                // 🌍 i18n (Erreurs métier)
+                return response.badRequest({ message: error.message });
+            }
             // 🌍 i18n
             return response.internalServerError({ message: t('value.updateFailed'), error: error.message });
         }
     }
 
-    async delete_value({ params, response, auth, bouncer }: HttpContext) {
-         // 🔐 Authentification
-         await auth.authenticate();
-         // 🛡️ Permissions
-         try {
+    async delete_value({ params, response, request, auth }: HttpContext) {
+        // 🔐 Authentification
+        await securityService.authenticate({ request, auth });
+        // 🛡️ Permissions
+        try {
             // Utiliser la permission de suppression produit ? Ou une plus spécifique ?
-             await bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Ou CREATE_DELETE_PERMISSION
-         } catch (error) {
-             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                  // 🌍 i18n
-                 return response.forbidden({ message: t('unauthorized_action') })
-             }
-             throw error;
-         }
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Ou CREATE_DELETE_PERMISSION
+        } catch (error) {
+            if (error.code === 'E_AUTHORIZATION_FAILURE') {
+                // 🌍 i18n
+                return response.forbidden({ message: t('unauthorized_action') })
+            }
+            throw error;
+        }
 
         let payload: Infer<typeof this.deleteValueParamsSchema>;
         try {
-             // ✅ Validation Vine pour Params
+            // ✅ Validation Vine pour Params
             payload = await this.deleteValueParamsSchema.validate(params);
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
@@ -458,10 +459,10 @@ export default class ValuesController {
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, valueId: payload?.id, error: error.message, stack: error.stack }, 'Failed to delete value');
-             if (error.code === 'E_ROW_NOT_FOUND') {
-                  // 🌍 i18n
-                 return response.notFound({ message: t('value.notFound') });
-             }
+            if (error.code === 'E_ROW_NOT_FOUND') {
+                // 🌍 i18n
+                return response.notFound({ message: t('value.notFound') });
+            }
             // 🌍 i18n
             return response.internalServerError({ message: t('value.deleteFailed'), error: error.message });
         }

@@ -8,6 +8,7 @@ export default class extends BaseSchema {
       table.uuid('id').primary().notNullable()
       table.string('address_name')
       table.string('email')
+      table.jsonb('views')
       table.double('latitude')
       table.double('longitude')
       table.boolean('is_visible').nullable()

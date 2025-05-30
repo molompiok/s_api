@@ -11,6 +11,7 @@ import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
 import { DateTime } from 'luxon'
+import { securityService } from '#services/SecurityService'
 
 // Permissions
 const VIEW_USERS_PERMISSION: keyof TypeJsonRole = 'filter_client'; // Utiliser la permission existante
@@ -36,15 +37,15 @@ export default class UsersController {
 
     // --- Méthode du contrôleur ---
 
-    async get_users({ request, response, auth, bouncer }: HttpContext) {
-        
+    async get_users({ request, response, auth }: HttpContext) {
 
-        
+
+
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions (pour voir la liste des utilisateurs)
         try {
-            await bouncer.authorize('collaboratorAbility', [VIEW_USERS_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_USERS_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -74,10 +75,10 @@ export default class UsersController {
             // Utiliser Lucid ORM pour User
             let query = User.query().select('*'); // Sélectionner toutes les colonnes par défaut
 
-            if(payload.with_phones){
+            if (payload.with_phones) {
                 query.preload('user_phones')
             }
-            if(payload.with_addresses){
+            if (payload.with_addresses) {
                 query.preload('user_addresses')
             }
             // if(payload.whith_phones){
@@ -111,12 +112,12 @@ export default class UsersController {
             let stat_promises: any[] = []
             // Ajouter les stats si demandé
             if (payload.with_client_stats) {
-                 stat_promises = list.map((user) => new Promise(async(rev)=>{
+                stat_promises = list.map((user) => new Promise(async (rev) => {
                     (user as any).stats = await this.calculateClientStats(user.id);
                     rev(user)
                 }));
             }
-            
+
             await Promise.allSettled(stat_promises); // Attendre toutes les promesses
             // Pas de message i18n car on retourne les données
             return response.ok({ list, meta: usersPaginate.getMeta() });
@@ -128,17 +129,17 @@ export default class UsersController {
         }
     }
 
-    
-  /**
-   * Récupère les statistiques globales des utilisateurs
-   */
-  async clients_stats({ request, response, auth ,bouncer}: HttpContext) {
+
+    /**
+     * Récupère les statistiques globales des utilisateurs
+     */
+    async clients_stats({ request, response, auth }: HttpContext) {
 
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions (pour voir la liste des utilisateurs)
         try {
-            await bouncer.authorize('collaboratorAbility', [VIEW_USERS_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_USERS_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -147,73 +148,73 @@ export default class UsersController {
             throw error;
         }
 
-    const {
-      with_active_users,
-      with_total_clients,
-      with_online_clients,
-      with_satisfied_clients
-    } = request.qs()
- 
-    console.log('Client stats',request.qs());
-    
- if(! with_active_users&&
-      !with_total_clients&&
-      !with_online_clients&&
-      !with_satisfied_clients){
-        return {
-          message:'turn true stats selectors, exmple /get_users_stats?with_active_users=true; All selector => with_active_users,with_total_clients,with_online_clients,with_satisfied_clients'
+        const {
+            with_active_users,
+            with_total_clients,
+            with_online_clients,
+            with_satisfied_clients
+        } = request.qs()
+
+        console.log('Client stats', request.qs());
+
+        if (!with_active_users &&
+            !with_total_clients &&
+            !with_online_clients &&
+            !with_satisfied_clients) {
+            return {
+                message: 'turn true stats selectors, exmple /get_users_stats?with_active_users=true; All selector => with_active_users,with_total_clients,with_online_clients,with_satisfied_clients'
+            }
         }
-      }
-    const stats: any = {}
+        const stats: any = {}
 
-    // Utilisateurs actifs (dernière visite < 6 mois et authentifiés)
-    if (with_active_users) {
-      const sixMonthsAgo = DateTime.now().minus({ months: 6 }).toISO()
-      const activeUsersCount = await Visite.query()
-        .where('is_authenticate', true)
-        .andWhere('created_at', '>=', sixMonthsAgo)
-        .countDistinct('user_id as active_users')
-        .first()
-      stats.activeUsers = activeUsersCount?.$extras.active_users || 0
+        // Utilisateurs actifs (dernière visite < 6 mois et authentifiés)
+        if (with_active_users) {
+            const sixMonthsAgo = DateTime.now().minus({ months: 6 }).toISO()
+            const activeUsersCount = await Visite.query()
+                .where('is_authenticate', true)
+                .andWhere('created_at', '>=', sixMonthsAgo)
+                .countDistinct('user_id as active_users')
+                .first()
+            stats.activeUsers = activeUsersCount?.$extras.active_users || 0
+        }
+
+        // Nombre total de clients
+        if (with_total_clients) {
+            const totalClients = await User.query()
+                .count('* as total_clients')
+                .first()
+            stats.totalClients = totalClients?.$extras.total_clients || 0
+        }
+
+        // Clients en ligne (dernière visite < 1 heure)
+        if (with_online_clients) {
+            const oneHourAgo = DateTime.now().minus({ hours: 1 }).toISO()
+            const onlineClientsCount = await Visite.query()
+                .where('is_authenticate', true)
+                .andWhere('created_at', '>=', oneHourAgo)
+                .countDistinct('user_id as online_clients')
+                .first()
+            stats.onlineClients = onlineClientsCount?.$extras.online_clients || 0
+        }
+
+        // Clients satisfaits (moyenne des ratings)
+        if (with_satisfied_clients) {
+
+            const satisfactionStats = await Comment.query()
+                .avg('rating as avg_rating')
+                .countDistinct('user_id as rated_users')
+                .first()
+            stats.averageSatisfaction = satisfactionStats?.$extras.avg_rating ? parseFloat(satisfactionStats.$extras.avg_rating) : 0
+            stats.ratedUsersCount = satisfactionStats?.$extras.rated_users || 0
+        }
+
+        console.log(stats);
+
+
+        return response.ok({
+            stats: Object.keys(stats).length > 0 ? stats : undefined
+        })
     }
-
-    // Nombre total de clients
-    if (with_total_clients) {
-      const totalClients = await User.query()
-        .count('* as total_clients')
-        .first()
-      stats.totalClients = totalClients?.$extras.total_clients || 0
-    }
-
-    // Clients en ligne (dernière visite < 1 heure)
-    if (with_online_clients) {
-      const oneHourAgo = DateTime.now().minus({ hours: 1 }).toISO()
-      const onlineClientsCount = await Visite.query()
-        .where('is_authenticate', true)
-        .andWhere('created_at', '>=', oneHourAgo)
-        .countDistinct('user_id as online_clients')
-        .first()
-      stats.onlineClients = onlineClientsCount?.$extras.online_clients || 0
-    }
-
-    // Clients satisfaits (moyenne des ratings)
-    if (with_satisfied_clients) {
-      
-      const satisfactionStats = await Comment.query()
-        .avg('rating as avg_rating')
-        .countDistinct('user_id as rated_users')
-        .first()
-      stats.averageSatisfaction = satisfactionStats?.$extras.avg_rating ? parseFloat(satisfactionStats.$extras.avg_rating) : 0
-      stats.ratedUsersCount = satisfactionStats?.$extras.rated_users || 0
-    }
-
-    console.log(stats);
-    
-
-    return response.ok({
-      stats: Object.keys(stats).length > 0 ? stats : undefined
-    })
-  }
 
     /**
      * Méthode privée pour calculer les statistiques d'un client
@@ -254,8 +255,8 @@ export default class UsersController {
             lastVisitPromise
         ]);
 
-        console.log(commentStat?.$extras,lastVisit?.$attributes,orderTotals?.$extras,orderCount?.$extras);
-        
+        console.log(commentStat?.$extras, lastVisit?.$attributes, orderTotals?.$extras, orderCount?.$extras);
+
         const stats = {
             avgRating: commentStat?.$extras.average ? parseFloat(commentStat.$extras.average).toFixed(2) : 0, // Arrondir
             commentsCount: commentStat?.$extras.comment_count ? parseInt(String(commentStat.$extras.comment_count)) : 0,

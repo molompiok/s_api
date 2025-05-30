@@ -77,18 +77,24 @@ RUN pnpm install --prod --frozen-lockfile
 # Donner la propriété du répertoire de l'application à l'utilisateur non-root
 RUN chown -R appuser:appgroup /app
 
+
+USER root
+
+RUN apk add --no-cache docker-cli
 # Passer à l'utilisateur non-root
-USER appuser
+# USER appuser
 
 # Exposer le port (sera défini par la variable d'environnement PORT)
 # La variable d'environnement PORT sera injectée par Swarm / s_server
-# EXPOSE 3333 # Ce n'est qu'informatif, le mapping se fait au runtime
+ENV PORT=5555
 
 # Variables d'environnement par défaut (peuvent être surchargées)
 ENV HOST=0.0.0.0
 ENV NODE_ENV=production
 # PORT sera injecté par Swarm ou s_server
 
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget --quiet --spider http://0.0.0.0:${PORT:-5555}/health || exit 1
 # Commande pour démarrer l'application de production
 # AdonisJS 6 utilise `./bin/server.js` après le build
 CMD ["node", "./bin/server.js"]

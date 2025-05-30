@@ -13,6 +13,7 @@ import { t, normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajo
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
+import { securityService } from '#services/SecurityService';
 
 // Permissions (supposant les mêmes que pour les produits)
 const EDIT_CATEGORY_PERMISSION: keyof TypeJsonRole = 'edit_product';
@@ -60,7 +61,7 @@ export default class CategoriesController {
         vine.object({
             name: vine.string().trim().minLength(1).maxLength(255).optional(),
             description: vine.string().trim().maxLength(1000).optional().nullable(),
-            parent_category_id: vine.string().uuid().optional().nullable(),
+            parent_category_id: vine.string().optional().nullable(),
             view: vine.any().optional(),
             icon: vine.any().optional(),
             is_visible: vine.boolean().optional(),
@@ -215,6 +216,7 @@ export default class CategoriesController {
         try {
             // ✅ Validation Vine pour Query Params
             payload = await this.getFiltersSchema.validate(request.qs());
+            console.log(payload);
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
@@ -246,12 +248,12 @@ export default class CategoriesController {
         }
     }
 
-    async create_category({ request, response, auth, bouncer }: HttpContext) {
+    async create_category({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [CREATE_DELETE_CATEGORY_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [CREATE_DELETE_CATEGORY_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -270,12 +272,12 @@ export default class CategoriesController {
             const data = request.all()
             const preparedData = {
                 ...data,
-                parent_category_id: data.parent_category_id === 'null'  ? null:data.parent_category_id === 'undefined'  ? undefined : data.parent_category_id,
+                parent_category_id: data.parent_category_id === 'null' ? null : data.parent_category_id === 'undefined' ? undefined : data.parent_category_id,
                 is_visible: data.is_visible === 'true' ? true : data.is_visible === 'false' ? false : payload.is_visible,
             };
 
             console.log(data);
-            
+
             payload = await this.createCategorySchema.validate(preparedData);
 
 
@@ -331,15 +333,15 @@ export default class CategoriesController {
         }
     }
 
-    async update_category({ request, response, auth, bouncer, params }: HttpContext) {
+    async update_category({ request, response, auth, params }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
 
         console.log({ params });
 
         try {
-            await bouncer.authorize('collaboratorAbility', [EDIT_CATEGORY_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_CATEGORY_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
@@ -358,6 +360,9 @@ export default class CategoriesController {
             category_id = (await this.categoryIdParamsSchema.validate(params)).id;
             payload = await this.updateCategorySchema.validate(request.all());
 
+             if (payload.parent_category_id =='null'|| payload.parent_category_id =='none'){
+                payload.parent_category_id = null
+            }
             console.log({ payload, category_id, files: request.allFiles() });
 
             // --- Logique métier (avec fichiers) ---
@@ -376,7 +381,7 @@ export default class CategoriesController {
                     // 🌍 i18n
                     return response.badRequest({ message: t('category.parentNotFound', { id: payload.parent_category_id }) });
                 }
-            }
+            } 
 
             // Préparer les données à fusionner (hors fichiers)
             const dataToMerge: Partial<Categorie> = {
@@ -422,6 +427,7 @@ export default class CategoriesController {
 
 
             category.useTransaction(trx).merge(dataToMerge);
+           
             await category.save(); // Le hook beforeSave mettra à jour le slug si le nom change
             // --- Fin logique métier ---
 
@@ -446,12 +452,12 @@ export default class CategoriesController {
         }
     }
 
-    async delete_category({ params, response, auth, bouncer }: HttpContext) {
+    async delete_category({ params, response, request, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // 🛡️ Permissions
         try {
-            await bouncer.authorize('collaboratorAbility', [CREATE_DELETE_CATEGORY_PERMISSION]);
+            await request.ctx?.bouncer.authorize('collaboratorAbility', [CREATE_DELETE_CATEGORY_PERMISSION]);
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n

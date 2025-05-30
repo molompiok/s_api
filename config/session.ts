@@ -1,6 +1,5 @@
 import env from '#start/env'
 import { defineConfig, stores } from '@adonisjs/session'
-
 const sessionConfig = defineConfig({
   enabled: true,
   cookieName: 'adonis-session',
@@ -25,7 +24,7 @@ const sessionConfig = defineConfig({
   cookie: {
     path: '/',
     httpOnly: true,
-    sameSite: false,
+    sameSite: 'lax',
     secure: false,
   },
 

@@ -1,7 +1,7 @@
 import hash from '@adonisjs/core/services/hash';
 import User from '#models/user'
 import { type HttpContext } from '@adonisjs/core/http'
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, v4 } from 'uuid';
 import vine from '@vinejs/vine';
 import { DateTime } from 'luxon';
 import string from '@adonisjs/core/helpers/string';
@@ -10,7 +10,9 @@ import BullMQService from '#services/BullMQService';
 import env from '#start/env';
 import logger from '@adonisjs/core/services/logger';
 import { AccessToken } from '@adonisjs/auth/access_tokens';
-import { SecurityService } from '#services/SecurityService';
+import { OAuth2Client } from 'google-auth-library';
+import { GOOGLE_CLIENT_ID } from './Utils/ctrlManager.js';
+import { securityService, SecurityService } from '#services/SecurityService';
 import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import db from '@adonisjs/lucid/services/db';
@@ -18,12 +20,16 @@ import UserAuthentification from '#models/user_authentification';
 import AsyncConfirm, { AsyncConfirmType } from '#models/asyncConfirm';
 import { updateFiles } from './Utils/media/UpdateFiles.js';
 import { EXT_IMAGE, MEGA_OCTET } from './Utils/ctrlManager.js';
+
+import redisService from '#services/RedisService';
 // Bouncer n'est pas utilisé directement ici, les actions sont liées à l'utilisateur lui-même
 
 // Interface spécifique pour delete_account
 interface UserWithToken extends User {
     currentAccessToken: AccessToken // AccessToken doit être importé
 }
+
+const client = new OAuth2Client(GOOGLE_CLIENT_ID)
 
 export default class AuthController {
 
@@ -94,6 +100,7 @@ export default class AuthController {
         })
     );
 
+
     // --- Méthodes du contrôleur ---
 
     // Endpoint interne, pas besoin de traduction pour les erreurs internes.
@@ -126,6 +133,8 @@ export default class AuthController {
                 .preload('user')
                 .first();
 
+            const user_id = uuidv4()
+
             if (authEntry?.user) {
                 user = authEntry.user;
                 logger.info({ userId: user.id, provider: socialData.provider }, 'Existing user found via social provider ID');
@@ -145,10 +154,11 @@ export default class AuthController {
                     isNewUser = true;
                     logger.info({ email: socialData.email, provider: socialData.provider }, 'Creating new user from social login');
                     user = await User.create({
-                        id: uuidv4(),
+                        id: user_id,
                         full_name: socialData.fullName?.trim() || `Utilisateur_${string.generateRandom(6)}`,
                         email: socialData.email,
-                        password: await hash.make(string.random(40)), // Hasher le mot de passe aléatoire
+                        photo: socialData.avatarUrl?[socialData.avatarUrl]:[],
+                        password: v4(), // Hasher le mot de passe aléatoire
                         email_verified_at: DateTime.now(),
                     }, { client: trx });
                     needsLinking = true;
@@ -165,15 +175,16 @@ export default class AuthController {
                 }
             }
 
-            // Génération Token (logique métier inchangée)
+            logger.info({ userId: user.id, isNew: isNewUser }, 'API token generated for user');
+            
+            await trx.commit(); // Commit si tout va bien
+            
+            // Génération Token (logique métier inchangée) // le token doit etre generer apres le trx.commit() pour avoir acces au user 
             const token = await User.accessTokens.create(user, ['*'], {
                 name: `social_login_${socialData.provider}_${user.id}_${DateTime.now().toMillis()}`,
                 expiresIn: '30 days'
             });
-            logger.info({ userId: user.id, isNew: isNewUser }, 'API token generated for user');
-
-            await trx.commit(); // Commit si tout va bien
-
+            
             // Réponse (pas de message i18n car c'est une API interne)
             return response.ok({
                 token: token.value!.release(),
@@ -211,8 +222,11 @@ export default class AuthController {
             if (!user.isEmailVerified) {
                 logger.warn({ user_id: user.id, email: user.email }, 'Login attempt with unverified email');
                 try {
-                    // Tenter de renvoyer l'email si non vérifié
-                    await this.sendVerificationEmail(user);
+                    const minut = 1 * 60 * 1000
+                    const verifier = await EmailVerificationToken.query().where('user_id', user.id).where('expires_at', '>', DateTime.fromMillis(Date.now() + minut).toISO() || '').first();
+                    if (!verifier) {
+                        await this.sendVerificationEmail(user);
+                    }
                 } catch (sendError) {
                     logger.error({ userId: user.id, error: sendError }, "Failed to resend verification email during login attempt");
                 }
@@ -325,7 +339,8 @@ export default class AuthController {
             });
             logger.info({ user_id: user.id, tokenId: verificationToken.id }, 'Email verification token created');
 
-            const verificationUrl = `${env.get('APP_URL')}/api/auth/verify-email?token=${tokenValue}`;
+            const store = await redisService.getMyStore()
+            const verificationUrl = `${store?.slug}.${env.get('SERVER_DOMAINE', 'sublymus-server.com')}/api/auth/verify-email?token=${tokenValue}`;
 
             const queue = BullMQService.getServerToServerQueue();
             await queue.add('send_email', {
@@ -449,6 +464,58 @@ export default class AuthController {
             // return response.internalServerError({ message: t('auth.resendFailedInternal') });
         }
     }
+
+    async google_auth({ request, auth, response }: HttpContext) {
+        const { token } = request.only(['token']) as { token: string }
+
+        if (!token) {
+            return response.badRequest({ message: 'Token manquant' })
+        }
+
+        try {
+            const ticket: any = await client.verifyIdToken({
+                audience: GOOGLE_CLIENT_ID,
+                idToken: token
+            })
+
+            const payload = ticket.getPayload()
+
+            if (!payload) {
+                return response.unauthorized({ message: 'Token invalide' })
+            }
+
+            const { email, name, sub, picture } = payload
+            let user = await User.findBy('email', email)
+            if (!user) {
+                user = await User.create({
+                    id: v4(),
+                    email,
+                    full_name: name,
+                    photo: [picture],
+                    password: sub
+                })
+            }
+            const existingAuth = await UserAuthentification.query()
+                .where('user_id', user.id)
+                .where('provider', 'google')
+                .first()
+
+            if (!existingAuth) {
+                await UserAuthentification.create({
+                    id: v4(),
+                    user_id: user.id,
+                    provider: 'google',
+                    provider_id: sub,
+                })
+            }
+            await auth.use('web').login(user)
+            return response.ok({ user: User.ParseUser(user) })
+        } catch (error) {
+            console.error('Erreur Google Auth:', error)
+            return response.internalServerError({ message: 'Erreur d’authentification', error })
+        }
+    }
+
 
     /**
     * @forgotPassword
@@ -736,9 +803,9 @@ export default class AuthController {
         }
     }
 
-    public async logoutAllDevices({ auth, response, session }: HttpContext) {
+    public async logoutAllDevices({ auth, response, request, session }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         const user = auth.user!;
 
         try {
@@ -783,7 +850,8 @@ export default class AuthController {
         // Si aucun utilisateur n'est authentifié par aucun guard
         if (!userForLogout) {
             // 🌍 i18n
-            return response.unauthorized({ message: t('auth.notAuthenticated') }); // Nouvelle clé
+            // return response.unauthorized({ message: t('auth.notAuthenticated') }); // Nouvelle clé
+            return response.status(401).send({ message: 'je suis ffranfrfr' });
         }
 
         const userId = userForLogout.id; // ID de l'utilisateur qui se déconnecte
@@ -825,10 +893,12 @@ export default class AuthController {
     }
 
 
-    async me({ response, auth }: HttpContext) {
+    async me({ response, auth, request }: HttpContext) {
+
         // 🔐 Authentification (gérée par le middleware ou authenticate())
-        await auth.authenticate();
-        const user = auth.user!; // Garanti non null
+       
+
+        const user = await securityService.authenticate({ request, auth });
 
         try {
             // --- Logique métier (inchangée) ---
@@ -840,8 +910,11 @@ export default class AuthController {
                 addresses: user.user_addresses,
                 phone_numbers: user.user_phones,
             };
+            const token = await User.accessTokens.create(user);
+
+            logger.info('✅ENTRY token', token.value?.release());
             // Pas de message i18n, on retourne les données
-            return response.ok({ user: userData });
+            return response.ok({ user: userData, token: token.value?.release() });
 
         } catch (error) {
             logger.error({ userId: user.id, error: error.message, stack: error.stack }, 'Error fetching user details in /me');
@@ -854,7 +927,11 @@ export default class AuthController {
     async update_user({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
 
-        const user = await auth.authenticate();
+        const user = await securityService.authenticate({ request, auth });
+
+        if (!user) {
+            return response.unauthorized({ error: 'User not authenticated' });
+        }
 
         let payload: Infer<typeof this.updateUserSchema>;
         try {
@@ -906,9 +983,9 @@ export default class AuthController {
     }
 
 
-    async delete_account({ response, auth, session }: HttpContext) {
+    async delete_account({ response, auth, session, request }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         // Caster pour accéder potentiellement à currentAccessToken (même si non utilisé ici)
         const user = auth.user! as UserWithToken;
         const userId = user.id;

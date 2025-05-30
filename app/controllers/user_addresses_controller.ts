@@ -6,6 +6,7 @@ import vine from '@vinejs/vine'; // ✅ Ajout de Vine
 import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
+import { securityService } from '#services/SecurityService';
 // Pas besoin de Bouncer ici, les actions sont liées à l'utilisateur lui-même
 
 export default class UserAddressesController {
@@ -34,17 +35,17 @@ export default class UserAddressesController {
         })
     );
 
-     private deleteAddressParamsSchema = vine.compile(
-         vine.object({
-             id: vine.string().uuid(), // ID de l'adresse dans l'URL
-         })
-     );
+    private deleteAddressParamsSchema = vine.compile(
+        vine.object({
+            id: vine.string().uuid(), // ID de l'adresse dans l'URL
+        })
+    );
 
     // --- Méthodes du contrôleur ---
 
-    async create_user_address({ request, response , auth }: HttpContext) {
+    async create_user_address({ request, response, auth }: HttpContext) {
         // 🔐 Authentification (requise pour ajouter une adresse)
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         const user = auth.user!; // Garanti non null
 
         const id = v4();
@@ -85,7 +86,7 @@ export default class UserAddressesController {
 
     async get_user_address({ request, response, auth }: HttpContext) {
         // 🔐 Authentification (requise pour voir SES adresses)
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         const user = auth.user!;
 
         let payload: Infer<typeof this.getAddressSchema>;
@@ -93,23 +94,23 @@ export default class UserAddressesController {
             // ✅ Validation Vine pour Query Params
             payload = await this.getAddressSchema.validate(request.qs());
         } catch (error) {
-             if (error.code === 'E_VALIDATION_ERROR') {
-                  // 🌍 i18n
-                  return response.badRequest({ message: t('validationFailed'), errors: error.messages });
-             }
-             throw error;
+            if (error.code === 'E_VALIDATION_ERROR') {
+                // 🌍 i18n
+                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            }
+            throw error;
         }
 
         try {
-             // --- Logique métier ---
+            // --- Logique métier ---
             const query = UserAddress.query().where('user_id', user.id); // Filtrer par l'utilisateur
 
             // 🔍 GET par ID
             if (payload.id) {
                 const address = await query.where('id', payload.id).first(); // Utiliser .first()
                 if (!address) {
-                     // 🌍 i18n
-                     return response.notFound({ message: t('address.notFound') }); // Nouvelle clé
+                    // 🌍 i18n
+                    return response.notFound({ message: t('address.notFound') }); // Nouvelle clé
                 }
                 return response.ok(address); // Retourner l'objet unique
             } else {
@@ -124,9 +125,9 @@ export default class UserAddressesController {
         }
     }
 
-    async update_user_address({ request, response , auth }: HttpContext) {
+    async update_user_address({ request, response, auth }: HttpContext) {
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         const user = auth.user!;
 
         let payload: Infer<typeof this.updateAddressSchema> = {} as any
@@ -156,23 +157,23 @@ export default class UserAddressesController {
             await user_address.save();
 
             logger.info({ userId: user.id, addressId: user_address.id }, 'User address updated');
-             // 🌍 i18n
+            // 🌍 i18n
             return response.ok({ message: t('address.updateSuccess'), address: user_address }); // Nouvelle clé
 
         } catch (error) {
             logger.error({ userId: user.id, addressId: payload?.id, error: error.message, stack: error.stack }, 'Failed to update user address');
             if (error.code === 'E_VALIDATION_ERROR') {
-                 // 🌍 i18n
-                 return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                // 🌍 i18n
+                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
             }
             // 🌍 i18n
             return response.internalServerError({ message: t('address.updateFailed'), error: error.message }); // Nouvelle clé
         }
     }
 
-    async delete_user_address({ params, response , auth }: HttpContext) { // Modifier pour utiliser params
+    async delete_user_address({ params, response,request,  auth }: HttpContext) { // Modifier pour utiliser params
         // 🔐 Authentification
-        await auth.authenticate();
+        await securityService.authenticate({ request, auth });
         const user = auth.user!;
 
         let payload: Infer<typeof this.deleteAddressParamsSchema>;

@@ -6,7 +6,8 @@ import vine from '@vinejs/vine'; // ✅ Ajout de Vine
 import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
-// Pas besoin de Bouncer, actions liées à l'utilisateur lui-même
+import { securityService } from '#services/SecurityService';
+// Pas besoin de   actions liées à l'utilisateur lui-même
 
 export default class UserPhonesController {
 
@@ -45,7 +46,7 @@ export default class UserPhonesController {
 
   async create_user_phone({ request, response, auth }: HttpContext) {
     // 🔐 Authentification
-    await auth.authenticate();
+    await securityService.authenticate({ request, auth });
     const user = auth.user!;
 
     const id = v4();
@@ -83,7 +84,7 @@ export default class UserPhonesController {
 
   async get_user_phones({ request, response, auth }: HttpContext) { // Renommé pour la clarté
     // 🔐 Authentification
-    await auth.authenticate();
+    await securityService.authenticate({ request, auth });
     const user = auth.user!;
 
     let payload: Infer<typeof this.getPhonesSchema>;
@@ -119,8 +120,14 @@ export default class UserPhonesController {
 
   async update_user_phone({ request, response, auth }: HttpContext) {
     // 🔐 Authentification
-    await auth.authenticate();
+    await securityService.authenticate({ request, auth });
     const user = auth.user!;
+
+    const id = request.param('id');
+
+    if (!id) {
+        return response.badRequest({ message: 'Phone ID is required' });
+    }
 
     let payload: Infer<typeof this.updatePhoneSchema> = {} as any;
     // Pas besoin de transaction pour une simple mise à jour d'un enregistrement
@@ -129,7 +136,10 @@ export default class UserPhonesController {
       payload = await this.updatePhoneSchema.validate(request.body());
 
       // --- Logique métier ---
-      const user_phone = await UserPhone.find(payload.id); // Utiliser payload.id
+      const user_phone = await UserPhone.find(id); // Utiliser payload.id
+
+      console.log({lodksodkoskdo :user_phone});
+      
 
       if (!user_phone) {
         // 🌍 i18n
@@ -164,9 +174,9 @@ export default class UserPhonesController {
     }
   }
 
-  async delete_user_phone({ params, response, auth }: HttpContext) {
+  async delete_user_phone({ params, response, request, auth }: HttpContext) {
     // 🔐 Authentification
-    await auth.authenticate();
+    await securityService.authenticate({ request, auth });
     const user = auth.user!;
 
     let payload: Infer<typeof this.deletePhoneParamsSchema>;
@@ -192,7 +202,6 @@ export default class UserPhonesController {
         return response.notFound({ message: t('phone.notFound') });
       }
 
-      // Vérifier l'appartenance
       if (user_phone.user_id !== user.id) {
         // 🌍 i18n
         return response.forbidden({ message: t('unauthorized_action') });

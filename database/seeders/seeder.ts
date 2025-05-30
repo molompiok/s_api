@@ -1,58 +1,62 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import { VisiteFactory } from '../factories/visite_factory.js'
+import { CategorieFactory } from '#database/factories/categorie_factory'
+import { ProductFactory } from '#database/factories/product_factory'
+import { FeatureFactory } from '#database/factories/feature_factory'
+import { ValueFactory } from '#database/factories/value_factory'
+import { FeatureType } from '#models/feature'
 export default class extends BaseSeeder {
   async run() {
 
 
 
     /*******************   CATEGORY    **************************/
-    // const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
-    // const categories = await CategorieFactory
-    //   .createMany(5)
+    const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
+    const categories = await CategorieFactory
+      .createMany(5)
 
-    // for (const category of categories) {
-    //   // Créer 5 sous-catégories pour chaque catégorie principale
-    //   const subCategories = await CategorieFactory
-    //     .merge({ parent_category_id: category.id })
+    for (const category of categories) {
+      // Créer 5 sous-catégories pour chaque catégorie principale
+      const subCategories = await CategorieFactory
+        .merge({ parent_category_id: category.id })
 
-    //     .createMany(5)
+        .createMany(5)
 
-    //   for (const subCategory of subCategories) {
-    //     // Créer 5 produits liés à la sous-catégorie et à la catégorie principale
-    //     const products = await ProductFactory
-    //       .merge({ categories_id: [subCategory.id, category.id] })
-    //       .createMany(5)
+      for (const subCategory of subCategories) {
+        // Créer 5 produits liés à la sous-catégorie et à la catégorie principale
+        const products = await ProductFactory
+          .merge({ categories_id: [subCategory.id, category.id] })
+          .createMany(5)
 
-    //     for (const product of products) {
-    //       // Créer entre 2 et 3 features pour chaque produit
-    //       const featureCount = randomInt(2, 3)
-    //       const features = await FeatureFactory
-    //         .merge({ product_id: product.id })
-    //         .createMany(featureCount)
+        for (const product of products) {
+          // Créer entre 2 et 3 features pour chaque produit
+          const featureCount = randomInt(2, 3)
+          const features = await FeatureFactory
+            .merge({ product_id: product.id })
+            .createMany(featureCount)
 
-    //       // Mettre la première feature comme défaut avec type ICON
-    //       const defaultFeature = features[0]
-    //       defaultFeature.is_default = true
-          // defaultFeature.type = FeatureType.ICON_TEXT
-    //       await defaultFeature.save()
+          // Mettre la première feature comme défaut avec type ICON
+          const defaultFeature = features[0]
+          defaultFeature.is_default = true
+          defaultFeature.type = FeatureType.ICON_TEXT
+          await defaultFeature.save()
 
-    //       // Mettre à jour le produit avec le default_feature_id
-    //       product.default_feature_id = defaultFeature.id
-    //       await product.save()
+          // Mettre à jour le produit avec le default_feature_id
+          product.default_feature_id = defaultFeature.id
+          await product.save()
 
-    //       // Créer entre 3 et 5 values pour chaque feature
-    //       for (const feature of features) {
-    //         const valueCount = randomInt(3, 5)
-    //         await ValueFactory
-    //           .merge({ feature_id: feature.id }) // Correction : un seul objet      
-    //           .createMany(valueCount)
-    //       }
-    //     }
-    //   }
-    // }
+          // Créer entre 3 et 5 values pour chaque feature
+          for (const feature of features) {
+            const valueCount = randomInt(3, 5)
+            await ValueFactory
+              .merge({ feature_id: feature.id }) // Correction : un seul objet      
+              .createMany(valueCount)
+          }
+        }
+      }
+    }
 
     /********************   VISITE    **************************/
-    await VisiteFactory.createMany(300)
+    // await VisiteFactory.createMany(300)
 
     /*******************   USER_ORDER_ITEM    **************************/
     // const orders = await UserOrderFactory

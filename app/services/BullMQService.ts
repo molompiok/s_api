@@ -2,6 +2,7 @@
 import { Queue, Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import env from '#start/env'; // Utilise l'import d'AdonisJS si s_api est une app Adonis
+import redisService from './RedisService.js';
 // import { inject } from '@adonisjs/core'; // Si utilisation de l'IoC AdonisJS
 
 // --- Importer les futurs services/handlers d'événements ---
@@ -59,20 +60,9 @@ public async initialize() {
    * Doit être appelée avant startWorker.
    */
   private async initializeConnection() {
-    if (this.connection) return; // Déjà initialisé
-
-    const redisHost = env.get('REDIS_HOST', '127.0.0.1');
-    const redisPort = env.get('REDIS_PORT', 6379);
-    // const redisPassword = env.get('REDIS_PASSWORD');
-
-    console.log(`[ApiBullMQService ${this.storeId}] Connecting to Redis at ${redisHost}:${redisPort}...`);
-    //@ts-ignore
-    this.connection = new IORedis(redisPort, redisHost, {
-      // password: redisPassword,
-      maxRetriesPerRequest: null, // Recommandé pour BullMQ
-      // enableReadyCheck: false,
-      lazyConnect: false, // Connexion immédiate pour le worker/queue
-    });
+    if (this.connection) return; // Déjà ini
+    
+    this.connection = redisService.client
 
     if(!this.connection) throw new Error("Failed to create Redis connection. this.connection = null");
 

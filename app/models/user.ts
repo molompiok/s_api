@@ -105,22 +105,8 @@ export default class User  extends compose(BaseModel, AuthFinder)  {
       return user.serialize()||user
   }
 
-  public static async isOwner(user_id: string, _premision?: Partial<TypeJsonRole>) {
-    return OWNER_ID === user_id
-  }
-  public static async isCollaborator(user_id: string, _premision?: Partial<TypeJsonRole>): Promise<Boolean> {
-    return (await db.query().from(User.table).select('*').where('user_id', user_id).andWhere('type', RoleType.COLLABORATOR).limit(1))[0]!!;
-  }
-
-  public static async isClient(user_id: string, _premision?: Partial<TypeJsonRole>): Promise<Boolean> {
-    return (await db.query().from(User.table).select('*').where('user_id', user_id).andWhere('type', RoleType.CLIENT).limit(1))[0]!!;
-  }
-
-  public static async isStoreManager(user_id: string, _premision?: Partial<TypeJsonRole>) {
-    let isOWner = await this.isOwner(user_id, _premision);
-    let isCollaborator = await this.isCollaborator(user_id, _premision)
-    return isOWner || isCollaborator;
-
+  public isStoreManager() {
+    return (this as any).connection == 'jwt'
   }
 
 }
