@@ -72,6 +72,10 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Installer UNIQUEMENT les dépendances de production
 RUN pnpm install --prod --frozen-lockfile
 
+# Copier le script d'entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Changer le propriétaire des fichiers de l'application
 # Le WORKDIR /app existe déjà
 # Donner la propriété du répertoire de l'application à l'utilisateur non-root
@@ -86,7 +90,7 @@ RUN apk add --no-cache docker-cli
 
 # Exposer le port (sera défini par la variable d'environnement PORT)
 # La variable d'environnement PORT sera injectée par Swarm / s_server
-ENV PORT=5555
+ENV PORT=3334
 
 # Variables d'environnement par défaut (peuvent être surchargées)
 ENV HOST=0.0.0.0
@@ -94,7 +98,7 @@ ENV NODE_ENV=production
 # PORT sera injecté par Swarm ou s_server
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget --quiet --spider http://0.0.0.0:${PORT:-5555}/health || exit 1
+  CMD wget --quiet --spider http://0.0.0.0:${PORT:-3334}/health || exit 1
 # Commande pour démarrer l'application de production
-# AdonisJS 6 utilise `./bin/server.js` après le build
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "./bin/server.js"]

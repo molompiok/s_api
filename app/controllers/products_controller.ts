@@ -270,11 +270,16 @@ export default class ProductsController {
 
   // Lecture publique, pas d'auth/bouncer requis
   public async get_products({ request, response, }: HttpContext) { // Retiré auth, bouncer
+
+      console.log('paylod', request.qs());
     let payload: Infer<typeof this.getProductsQuerySchema>;
 
     try {
       // ✅ Validation Vine pour Query Params
       payload = await this.getProductsQuerySchema.validate(request.qs());
+
+
+      
     } catch (error) {
       if (error.code === 'E_VALIDATION_ERROR') {
         // 🌍 i18n
