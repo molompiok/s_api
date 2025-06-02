@@ -250,6 +250,44 @@ router.group(() => {
         }
     });
 }).prefix('/v1')
+
+// start/routes.ts
+
+router.get('/api/reverse', async ({ request, response }) => {
+    const lat = request.input('lat')
+    const lon = request.input('lon')
+
+    if (!lat || !lon) {
+        return response.badRequest({ error: 'Latitude et longitude obligatoires' })
+    }
+
+    const url = new URL('http://localhost:8003/reverse')
+    url.searchParams.set('lat', lat)
+    url.searchParams.set('lon', lon)
+    url.searchParams.set('format', 'json')
+    url.searchParams.set('addressdetails', '1')
+
+    try {
+        const res = await fetch(url.toString(), {
+            headers: {
+                'User-Agent': 'MyAdonisApp/1.0 (contact@tonsite.com)',
+            },
+        })
+
+        if (!res.ok) {
+            return response.status(res.status).send({ error: 'Erreur de Nominatim' })
+        }
+
+        const data = await res.json()
+        console.log('data' ,data);
+        
+        return response.send(data)
+    } catch (error) {
+        console.error('Erreur reverse geocode:', error)
+        return response.status(500).send({ error: 'Erreur serveur' })
+    }
+})
+
 // .middleware([({request})=>{
 //     console.log(request.completeUrl());
 // }])

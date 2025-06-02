@@ -59,7 +59,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   | JWT Validation
   |----------------------------------------------------------
   */
-  S_SERVER_KEYS_CONTAINER_PATH: Env.schema.string(),
-  
+  S_SECRET_KEYS_CONTAINER_PATH: Env.schema.string(),
+
   SERVER_DOMAINE: Env.schema.string()
 })
