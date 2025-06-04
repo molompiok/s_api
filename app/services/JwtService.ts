@@ -3,7 +3,7 @@ import env from '#start/env'
 import jwt from 'jsonwebtoken'
 import fs from 'fs'
 
-const key_path = env.get('S_SECRET_KEYS_CONTAINER_PATH')
+const key_path = env.get('S_SECRET_KEYS_CONTAINER_PATH','/secret_keys')
 
 const PRIVATE_KEY = fs.readFileSync(key_path + '/private.key')
 const PUBLIC_KEY = fs.readFileSync(key_path + '/public.key')
