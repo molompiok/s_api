@@ -30,6 +30,7 @@ export type StoreInterface = Partial<{
 }>
 
 class RedisService {
+  //@ts-ignore
   client: RedisClient;
  
   queues: Map<string, Queue> = new Map(); // Pour les queues BullMQ
@@ -39,6 +40,7 @@ class RedisService {
    private getStoreIdKey(storeId: string): string { return `store+id+${storeId}`; }
  
   constructor() {
+    if(process.argv.join('').includes('/ace')) return
     //@ts-ignore
     this.client = new Redis({
       host: env.get('REDIS_HOST', '127.0.0.1'),

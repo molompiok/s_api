@@ -4,6 +4,7 @@ import Cart from '#models/cart'
 import { DateTime } from 'luxon'
 
 export function startScheduler() {
+   if (process.argv.join('').includes('/ace')) return
   cron.schedule('0 0 * * *', async () => {
     try {
       await Cart.query()
@@ -18,3 +19,5 @@ export function startScheduler() {
 
   console.log('Scheduler démarré')
 }
+
+startScheduler()

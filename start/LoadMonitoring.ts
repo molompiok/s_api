@@ -2,10 +2,10 @@
 import { LoadMonitorService } from "#services/LoadMonitorService";
 
 async function start() {
-    // if (process.env.ENABLE_AUTO_SCALING === 'true') { // Rendre configurable
-        const apiLoadMonitor = new LoadMonitorService('api');
-        apiLoadMonitor.startMonitoring();
-    // }
+    if (process.argv.join('').includes('/ace')) return
+     console.log('LoadMonitoring',{args:process.argv.join('')});
+    const apiLoadMonitor = new LoadMonitorService('api');
+    apiLoadMonitor.startMonitoring();
 }
 
 start();

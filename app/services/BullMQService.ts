@@ -31,6 +31,9 @@ class ApiBullMQService {
   // ) {
   constructor() { // Constructeur simple pour l'instant
     this.storeId = env.get('STORE_ID');
+    
+    if(process.argv.join('').includes('/ace')) return
+    
     console.log(`[ApiBullMQService ${this.storeId}] Initializing...`);
     this.initializeConnection();
     const shutdown = async () => {

@@ -14,7 +14,6 @@ import './lucid.js'
 
 import '../contracts/context.js'
 // import { Ignitor } from '@adonisjs/core'
-import { startScheduler } from './scheduler.js'
 // import { createServer } from 'node:http'
 
 /**
@@ -54,6 +53,5 @@ export const middleware = router.named({
   visit: () => import('#middleware/log_visits'),
 })
 
-startScheduler()
 
 // BaseModel.boot() // Assure-toi que le modèle est bien chargé

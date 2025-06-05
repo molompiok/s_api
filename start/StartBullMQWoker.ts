@@ -2,6 +2,9 @@
 import BullMQService from '#services/BullMQService'; // Importer l'instance
 
 export async function startBullMQWoker() {
+    
+    if(process.argv.join('').includes('/ace')) return
+    console.log('startBullMQWoker',{args:process.argv.join('')});
     try {
         await BullMQService.initialize(); // Appel explicite !
         await BullMQService.startWorker() // Démarrer le service BullMQ
@@ -13,3 +16,5 @@ export async function startBullMQWoker() {
     }
 
 }
+
+startBullMQWoker();

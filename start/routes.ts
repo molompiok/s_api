@@ -5,7 +5,6 @@
 */
 import router from '@adonisjs/core/services/router'
 import transmit from '@adonisjs/transmit/services/main'
-import { startBullMQWoker } from './StartBullMQWoker.js'
 import env from './env.js'
 import logger from '@adonisjs/core/services/logger'
 
@@ -34,7 +33,9 @@ import DebugController from '#controllers/debug_controller'
 import User from '#models/user'
 import { DateTime } from 'luxon'
 import BullMQService from '#services/BullMQService'
-import './LoadMonitoring.js'
+
+
+
 
 // --- Register Transmit Routes ---
 transmit.registerRoutes();
@@ -363,8 +364,4 @@ router.get('/send_email', async ({ request }) => {
 })
 
 
-
-// --- Démarrage Worker BullMQ ---
-// (Idéalement, cela devrait être dans un processus séparé ou un Service Provider)
-await startBullMQWoker(); // Gardé à la fin comme dans l'original
 
