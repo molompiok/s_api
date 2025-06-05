@@ -254,6 +254,11 @@ router.group(() => {
 
 // start/routes.ts
 
+
+router.get('/health', ({ response }) => {
+  return response.ok({ ok: true, lol: 'true' })
+})
+
 router.get('/api/reverse', async ({ request, response }) => {
     const lat = request.input('lat')
     const lon = request.input('lon')
@@ -317,6 +322,8 @@ router.get('/uploads/*', async ({ request, response }) => {
 router.get('/', () => {
     return { status: 'ok', version: env.get('API_VERSION', '1.0.0'), timestamp: DateTime.now().toISO() };
 });
+
+
 
 // Route Test SSE (gardée pour debug)
 router.get('/test_sse', () => {
