@@ -73,8 +73,8 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm install --prod --frozen-lockfile
 
 # Copier le script d'entrypoint
-# COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-# RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Changer le propriétaire des fichiers de l'application
 # Le WORKDIR /app existe déjà
@@ -100,5 +100,5 @@ ENV NODE_ENV=production
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
   CMD wget --quiet --spider http://0.0.0.0:${PORT:-3334}/health || exit 1
 # Commande pour démarrer l'application de production
-# ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "./bin/server.js"]
