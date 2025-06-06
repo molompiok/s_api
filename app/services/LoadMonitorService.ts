@@ -160,9 +160,3 @@ export class LoadMonitorService {
         }
     }
 }
-
-// Exporter une instance (ou gérer via IoC si dans Adonis)
-// Il faut spécifier le type lors de l'instanciation
-// export const apiLoadMonitor = new LoadMonitorService('api');
-// apiLoadMonitor.startMonitoring();
-// export const themeLoadMonitor = new LoadMonitorService('theme'); // Si thème utilise ce service

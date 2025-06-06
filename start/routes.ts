@@ -302,21 +302,12 @@ router.get('/api/reverse', async ({ request, response }) => {
 // --- Routes Hors API V1 ---
 
 // Route statique pour les uploads (doit être en dehors du groupe /api/v1)
-router.get('/uploads/*', async ({ request, response }) => {
-    const filePath = request.param('*').join('/');
-    const safePath = decodeURIComponent(filePath); // Décoder l'URL
-    try {
-        // Utiliser la méthode 'safe' pour le téléchargement
-        // Il faudra peut-être spécifier le chemin complet vers le dossier 'uploads'
-        // const absolutePath = app.makePath('public/uploads', safePath); // Exemple
-        // return response.download(absolutePath);
-        // Pour l'instant, on garde le chemin relatif mais c'est moins sûr
-        return response.download(`.${request.url()}`);
-    } catch (error) {
-        logger.error({ path: safePath, error }, 'Failed to download file');
-        return response.notFound('File not found');
-    }
-});
+const fs_url = env.get('FILE_STORAGE_URL','/fs')
+router.get(`${fs_url}/*`, ({ request, response }) => {
+
+  return response.download(request.url().replace(fs_url,env.get('FILE_STORAGE_PATH')))
+})
+
 
 // Route de base (Statut/Version?)
 router.get('/', () => {
