@@ -31,11 +31,13 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   STORE_ID: Env.schema.string(),
   OWNER_ID: Env.schema.string(),
+  
   /*
   |----------------------------------------------------------
   | Variables for Server Api
   |----------------------------------------------------------
   */
+
   INTERNAL_API_SECRET: Env.schema.string(),
   FILE_STORAGE_PATH: Env.schema.string(),
   FILE_STORAGE_URL: Env.schema.string(),

@@ -8,7 +8,7 @@ import BaseModel from './base_model.js';
 
 export default class Categorie extends BaseModel {
   @column({ isPrimary: true })
-  declare id: string 
+  declare id: string
 
   @column()
   declare parent_category_id: string | null
@@ -17,12 +17,12 @@ export default class Categorie extends BaseModel {
   declare name: string
 
   @column({
-    prepare: (value) =>{
+    prepare: (value) => {
       const v = value.replaceAll("\n", "§");
       return v
     },
-    consume:(value) => {
-      const v = value.replaceAll("§", "\n");      
+    consume: (value) => {
+      const v = value.replaceAll("§", "\n");
       return v
     }
   })
@@ -71,7 +71,7 @@ export default class Categorie extends BaseModel {
       let count = 0
       while (await Categorie.findBy('slug', slug)) {
         count++
-        if(count > 5) throw new Error('Pas de slug touver pour cette category, changer le nom de la category')
+        if (count > 5) throw new Error('Pas de slug touver pour cette category, changer le nom de la category')
         slug = `${baseSlug}-${count}`
       }
       category.slug = slug
@@ -84,85 +84,141 @@ export default class Categorie extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updated_at: DateTime
 
-  public static async getGlobalFilters(limit: number = 5) {
-    const filters = await db
-      .from('features')
-      .join('products', 'products.id', 'features.product_id')
-      .select(
-        'features.id',
-        'features.name',
-        'features.type',
-        db.raw(`
-          array_agg(
-            json_build_object(
-              'text', values.text,
-              'icon', values.icon,
-              'key', values.key
-            )
-          ) as possible_values
-        `),
-        db.raw('count(distinct products.id) as product_count')
-      )
-      .leftJoin('values', 'values.feature_id', 'features.id')
-      .groupBy('features.id', 'features.name', 'features.type')
-      .whereNotNull('values.text')
-      .orderBy('product_count', 'desc')
-      .limit(limit);
-  
-    return filters.map(filter => ({
-      id: filter.id,
-      name: filter.name,
+  public static async getGlobalFilters(limit: number = 7) { // J'ai augmenté un peu la limite par défaut, à ajuster si besoin
+    // La requête est presque la même que pour getAvailableFilters, sans le filtre sur categoryIds
+    const query = `
+        WITH
+        -- Étape 1: Créer une vue de toutes les paires (produit, feature, valeur) existantes
+        ProductFeatureValues AS (
+            SELECT
+                p.id as product_id,
+                LOWER(f.name) as feature_name,
+                f.type as feature_type,
+                LOWER(v.text) as value_text_lower,
+                FIRST_VALUE(v.text) OVER (PARTITION BY LOWER(v.text) ORDER BY v.created_at) as value_text_original,
+                v.key,
+                v.icon
+            FROM products p
+            JOIN features f ON f.product_id = p.id
+            JOIN "values" v ON v.feature_id = f.id
+            WHERE v.text IS NOT NULL
+            -- Aucune clause WHERE sur la catégorie ici, car ce sont les filtres globaux
+        ),
+        -- Étape 2: Pour chaque paire (feature, valeur), compter le nombre de produits distincts
+        ValueCounts AS (
+            SELECT
+                feature_name,
+                feature_type,
+                value_text_lower,
+                value_text_original,
+                key,
+                icon,
+                COUNT(DISTINCT product_id) as product_count
+            FROM ProductFeatureValues
+            GROUP BY feature_name, feature_type, value_text_lower, value_text_original, key, icon
+        ),
+        -- Étape 3: Agréger les valeurs dans un tableau JSON pour chaque feature
+        AggregatedFilters AS (
+            SELECT
+                feature_name as name,
+                feature_type as type,
+                -- On calcule aussi le nombre total de produits pour cette feature pour pouvoir trier dessus
+                SUM(product_count) as total_product_count,
+                array_agg(
+                    jsonb_build_object(
+                        'text', value_text_original,
+                        'key', key,
+                        'icon', icon,
+                        'product_count', product_count
+                    )
+                ) as "values"
+            FROM ValueCounts
+            GROUP BY feature_name, feature_type
+        )
+        -- Étape 4: Sélection finale avec tri et limite
+        SELECT name, type, "values"
+        FROM AggregatedFilters
+        ORDER BY total_product_count DESC
+        LIMIT ?;
+    `;
+
+    // On passe la limite en paramètre de la requête brute pour la sécurité
+    const filters = await db.rawQuery(query, [limit]).then(result => result.rows);
+
+    return filters.map((filter: any) => ({
+      id: filter.name,
+      name: filter.name.charAt(0).toUpperCase() + filter.name.slice(1),
       type: filter.type,
-      values: filter.possible_values, 
+      values: filter.values,
     }));
   }
 
-  public static async getAvailableFilters(slug: string, limit: number = 5) {
+  public static async getAvailableFilters(slug: string) {
     const categoryIds = await this.get_all_category_ids_by_slug(slug);
-  
+
     if (!categoryIds || categoryIds.length === 0) {
       return [];
     }
-  
-    const filters = await db
-      .from('features')
-      .join('products', 'products.id', 'features.product_id')
-      .whereRaw('"categories_id"::jsonb \\?| ?', [categoryIds])
-      .select(
-        'features.id',
-        'features.name',
-        'features.type',
-        db.raw(`
-          array_agg(
-            json_build_object(
-              'text', values.text,
-              'icon', values.icon,
-              'key', values.key
-            )
-          ) as possible_values
-        `)
-      )
-      .join('values', 'values.feature_id', 'features.id')
-      .groupBy('features.id', 'features.name', 'features.type')
-      .whereNotNull('values.text')
-      .limit(limit);
-  
-    return filters.map(filter => ({
-      id: filter.id,
-      name: filter.name,
+
+    // Requête SQL brute, car elle devient trop complexe pour le Query Builder seul.
+    const query = `
+        WITH 
+        -- Étape 1: Créer une vue de toutes les paires (produit, feature, valeur) pertinentes pour la catégorie
+        ProductFeatureValues AS (
+            SELECT
+                p.id as product_id,
+                LOWER(f.name) as feature_name,
+                f.type as feature_type,
+                LOWER(v.text) as value_text_lower,
+                -- On garde une version originale du texte pour l'affichage (la première trouvée)
+                FIRST_VALUE(v.text) OVER (PARTITION BY LOWER(v.text) ORDER BY v.created_at) as value_text_original,
+                v.key,
+                v.icon
+            FROM products p
+            JOIN features f ON f.product_id = p.id
+            JOIN "values" v ON v.feature_id = f.id
+            WHERE p."categories_id"::jsonb \\?| ? AND v.text IS NOT NULL
+        ),
+        -- Étape 2: Pour chaque paire (feature, valeur), compter le nombre de produits distincts
+        ValueCounts AS (
+            SELECT
+                feature_name,
+                feature_type,
+                value_text_lower,
+                value_text_original,
+                key,
+                icon,
+                COUNT(DISTINCT product_id) as product_count
+            FROM ProductFeatureValues
+            GROUP BY feature_name, feature_type, value_text_lower, value_text_original, key, icon
+        )
+        -- Étape 3: Agréger les valeurs (maintenant avec leur compte) dans un tableau JSON pour chaque feature
+        SELECT
+            feature_name as name,
+            feature_type as type,
+            array_agg(
+                jsonb_build_object(
+                    'text', value_text_original,
+                    'key', key,
+                    'icon', icon,
+                    'product_count', product_count
+                )
+            ) as "values"
+        FROM ValueCounts
+        GROUP BY feature_name, feature_type
+        ORDER BY feature_name;
+    `;
+
+    const filters = await db.rawQuery(query, [categoryIds]).then(result => result.rows);
+
+    return filters.map((filter: any) => ({
+      id: filter.name,
+      name: filter.name.charAt(0).toUpperCase() + filter.name.slice(1),
       type: filter.type,
-      values: filter.possible_values, // Maintenant un tableau d'objets avec text, icon, key
+      values: filter.values,
     }));
   }
-  /*
-  TODO
-  if (slug_cat) {
-  const category = await Categorie.query().where('slug', slug_cat).first()
-  if (category) {
-    query = query.whereJsonSuperset('categories_id', [category.id])
-  }
-}
-  */
+
   public static async get_all_category_ids_by_slug(slug: string): Promise<string[]> {
     const result = await db.rawQuery(`
       WITH RECURSIVE category_tree AS (

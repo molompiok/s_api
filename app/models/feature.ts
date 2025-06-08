@@ -1,8 +1,8 @@
 import { DateTime } from 'luxon'
-import { column, hasMany} from '@adonisjs/lucid/orm'
-import {  type HasMany } from '@adonisjs/lucid/types/relations'
+import { beforeSave, column, hasMany } from '@adonisjs/lucid/orm'
+import { type HasMany } from '@adonisjs/lucid/types/relations'
 import Value from './value.js'
-import BaseModel from './base_model.js'; 
+import BaseModel from './base_model.js';
 
 export default class Feature extends BaseModel {
   @column({ isPrimary: true })
@@ -15,7 +15,7 @@ export default class Feature extends BaseModel {
   declare name: string
 
   @column()
-  declare type: FeatureType 
+  declare type: FeatureType
 
   @column({
     prepare: (value) => JSON.stringify(value),
@@ -29,14 +29,14 @@ export default class Feature extends BaseModel {
   declare default_value: string | null
 
   @column()
-  declare is_default : boolean|null
-  
+  declare is_default: boolean | null
+
   @column()
   declare regex: string
-    
+
   @column()
   declare index: number
-  
+
   @column()
   declare min: number
 
@@ -63,6 +63,13 @@ export default class Feature extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updated_at: DateTime
+
+  @beforeSave()
+  public static standardizeName(feature: Feature) {
+    if (feature.$dirty.name) { // On ne le fait que si le nom a été modifié
+      feature.name = feature.name.trim().toLowerCase(); // ou une autre logique de capitalisation
+    }
+  }
 }
 
 
@@ -73,9 +80,9 @@ export enum FeatureType {
   TEXT = 'text',
   ICON = 'icon',
   INPUT = 'input',
-  DATE ='date',
-  DOUBLE_DATE ='double_date',
+  DATE = 'date',
+  DOUBLE_DATE = 'double_date',
   RANGE = 'range',
-  LEVEL='level',
+  LEVEL = 'level',
   FILE = ' file',
 }

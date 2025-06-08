@@ -160,7 +160,7 @@ export default class ValuesController {
             table_id: id,
             table_name: Value.table,
             distinct,
-            options: { throwError: true, compress: 'img', min: 0, max: 5, extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
+            options: { throwError: true, compress: 'img', min: 0, max: 10, extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
         });
         let iconUrls = await createFiles({
             request,
@@ -228,7 +228,7 @@ export default class ValuesController {
             const updatedViewsUrls = await updateFiles({
                 request, table_name: Value.table, table_id: value_id, column_name: 'views',
                 lastUrls: value.views || [], newPseudoUrls: payload.views, distinct,
-                options: { throwError: true, min: 0, max: 7, compress: 'img', extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
+                options: { throwError: true, min: 0, max: 10, compress: 'img', extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET, },
             });
             if (updatedViewsUrls.length >= 0) dataToMerge.views = updatedViewsUrls; // Gérer suppression complète
         }

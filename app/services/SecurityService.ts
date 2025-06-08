@@ -45,11 +45,11 @@ export class SecurityService {
     console.log('SecurityService: Internal request verified successfully.')
   }
 
-  async authenticate({ auth, request }: {response?: HttpContext['response'], auth: HttpContext['auth'], request: HttpContext['request'] }) {
+  async authenticate({ auth, request }: { response?: HttpContext['response'], auth: HttpContext['auth'], request: HttpContext['request'] }) {
     let user;
-    
+
     console.log('request.authorization', request.headers()['authorization']);
-    
+
     try {
       user = await this.authenticateJWT(request);
       (user as any).connection = 'jwt';
@@ -80,16 +80,16 @@ export class SecurityService {
         value: user,
         writable: false,
       });
-      
+
       Object.defineProperty(ctx, 'bouncer', {
         value: new Bouncer(
-        () => ctx.auth.user || null,
-        abilities,
-        policies
-      ).setContainerResolver(ctx.containerResolver),
+          () => ctx.auth.user || null,
+          abilities,
+          policies
+        ).setContainerResolver(ctx.containerResolver),
         writable: true,
-        configurable:true,
-        enumerable:true
+        configurable: true,
+        enumerable: true
       });
     }
     // if (convert = 'to-web') {
@@ -119,7 +119,7 @@ export class SecurityService {
 
     let payload: ServerJwtPayload
     try {
-      payload = JwtService.verify<ServerJwtPayload>(token)
+      payload = JwtService.decode(token) as any
     } catch {
       throw new Error('Invalid or expired token')
     }

@@ -131,7 +131,7 @@ export default class ProductsController {
         column_name: 'views',
         table_id: value_id,
         table_name: Value.table,
-        options: { throwError: true, min: 1, max: 5, extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET },
+        options: { throwError: true, min: 1, max: 10, extname: [...EXT_IMAGE, ...EXT_VIDEO], maxSize: 12 * MEGA_OCTET },
       })
       const icon = await createFiles({
         request,
@@ -242,27 +242,27 @@ export default class ProductsController {
     }
     return query
   }
-
   private applyFilters(query: ModelQueryBuilderContract<typeof Product>, filters: Record<string, {
     text: string;
     key: string | null;
   }[]>) {
-    Object.entries(filters).forEach(([featureId, filterValues]) => {
-      query.whereHas('features', (featureQuery: ModelQueryBuilderContract<typeof Feature>) => {
-        featureQuery.where('id', featureId).whereHas('values', (valueQuery) => {
-          valueQuery.where((subQuery) => {
-            filterValues.forEach((filterValue) => {
-              subQuery.orWhere((clause) => {
-                clause.where('text', filterValue.text);
-                if (filterValue.key !== null) {
-                  clause.where('key', filterValue.key);
-                } else {
-                  clause.whereNull('key');
-                }
+    Object.entries(filters).forEach(([featureName, filterValues]) => {
+      query.whereHas('features', (featureQuery) => {
+        featureQuery.whereRaw('LOWER(name) = ?', [featureName.toLowerCase()])
+          .whereHas('values', (valueQuery) => {
+            valueQuery.where((subQuery) => {
+              filterValues.forEach((filterValue) => {
+                subQuery.orWhere((clause) => {
+                  clause.whereRaw('LOWER(text) = ?', [filterValue.text.toLowerCase()]);
+                  if (filterValue.key !== null) {
+                    clause.andWhere('key', filterValue.key);
+                  } else {
+                    clause.andWhereNull('key');
+                  }
+                });
               });
             });
           });
-        });
       });
     });
     return query;
@@ -271,15 +271,14 @@ export default class ProductsController {
   // Lecture publique, pas d'auth/bouncer requis
   public async get_products({ request, response, }: HttpContext) { // Retiré auth, bouncer
 
-      console.log('paylod', request.qs());
     let payload: Infer<typeof this.getProductsQuerySchema>;
 
     try {
       // ✅ Validation Vine pour Query Params
       payload = await this.getProductsQuerySchema.validate(request.qs());
 
+      console.log('PAYLOAD REÇU:', JSON.stringify(payload, null, 2)); // Log n°1
 
-      
     } catch (error) {
       if (error.code === 'E_VALIDATION_ERROR') {
         // 🌍 i18n
@@ -302,7 +301,6 @@ export default class ProductsController {
       }
     }
 
-    console.log(payload);
 
     const { pageNum, limitNum } = this.getPaginationParams(payload.page, payload.limit)
 
@@ -310,10 +308,9 @@ export default class ProductsController {
       let products: ModelPaginatorContract<Product>
       let category: Categorie | null = null
 
-      let query = Product.query().select('*')
+      let query = Product.query().select('*').where('is_visible', true)
 
-      // --- Logique métier (utilise payload validé/normalisé) ---
-      if (payload.with_feature) { // Utiliser le booléen validé
+      if (payload.with_feature) {
         query = query.preload('features', (featureQuery) => {
           featureQuery
             .orderBy('features.created_at', 'asc')
@@ -324,6 +321,7 @@ export default class ProductsController {
       }
 
       if (payload.slug_cat) {
+        console.log('Application du filtre de catégorie...');
         const categoryIds = await Categorie.get_all_category_ids_by_slug(payload.slug_cat)
         query = query.whereRaw('"categories_id"::jsonb \\?| ?', [categoryIds]);
         category = await Categorie.query()
@@ -350,33 +348,33 @@ export default class ProductsController {
       if (payload.min_price || payload.max_price) {
         query = query.whereBetween('price', [
           payload.min_price ?? 0,
-          payload.max_price ?? MAX_PRICE, // Utilisation de MAX_PRICE
+          payload.max_price ?? MAX_PRICE,
         ]);
       }
 
       if (payload.filters) {
-        // La transformation de filters semble correcte, laissons-la telle quelle pour le moment
         const filtersTransformed: Record<string, { text: string; key: string | null }[]> = {};
-        Object.entries(payload.filters).forEach(([featureId, values]) => {
-          // Assurer que 'values' est bien un objet avant d'essayer Object.values
-          if (typeof values === 'object' && values !== null && !Array.isArray(values)) {
-            filtersTransformed[featureId] = Object.values(values as Record<string, { text: string; key: string | null }>).map(
-              (val) => ({
-                text: val.text,
-                key: val.key === 'null' ? null : val.key,
-              })
-            );
+        Object.entries(payload.filters).forEach(([featureName, values]) => {
+          if (featureName === 'min_price' || featureName === 'max_price' || featureName === 's' || featureName === 'order_by') {
+            return;
+          }
+          if (Array.isArray(values)) {
+            filtersTransformed[featureName] = values.map(val => ({
+              text: val.text,
+              key: val.key === 'null' ? null : val.key,
+            }));
           } else {
-            logger.warn({ featureId, values }, "Invalid format for filters value, expected an object.");
+            logger.warn({ featureName, values }, "Invalid format for filters value, expected an array.");
           }
         });
         if (Object.keys(filtersTransformed).length > 0) {
-          query = this.applyFilters(query, filtersTransformed)
+          query = this.applyFilters(query, filtersTransformed);
         }
       }
       query = this.applySearch(query, payload.search)
 
       query = applyOrderBy(query, payload.order_by || 'date_desc', Product.table)
+
 
       products = await query.paginate(pageNum, limitNum)
 
@@ -389,11 +387,10 @@ export default class ProductsController {
       if (error.message?.includes("Aucune catégorie trouvée avec le slug") || error.code === 'E_ROW_NOT_FOUND') {
         return response.notFound({ message: t('category.notFound') }); // Nouvelle clé
       }
-      return response.status(500).json({ // Utiliser 500 pour erreur serveur
+      return response.status(500).json({
         success: false,
-        // 🌍 i18n
-        message: t('product.fetchFailed'), // Nouvelle clé
-        error: error.message // Garder le détail pour le debug
+        message: t('product.fetchFailed'),
+        error: error.message
       })
     }
   }
@@ -437,7 +434,6 @@ export default class ProductsController {
 
       const product = await Product.findOrFail(product_id)
 
-      // --- Logique métier (utilise payload validé/normalisé) ---
       const updates: Partial<Product> = {}
       if (payload.name !== undefined) {
         updates.name = payload.name.replace(/\s+/g, ' ').substring(0, 56);
@@ -446,8 +442,7 @@ export default class ProductsController {
       if (normalizedCategories !== undefined) updates.categories_id = normalizedCategories || []
 
       if (payload.barred_price !== undefined) {
-        const barredPriceNum = payload.barred_price // Déjà number ou null via Vine
-        // Vérifications métier supplémentaires
+        const barredPriceNum = payload.barred_price
         if (barredPriceNum && (barredPriceNum <= 0 || barredPriceNum > MAX_PRICE)) {
           // 🌍 i18n
           return response.badRequest({ message: t('product.barredPriceInvalidRange', { max: MAX_PRICE }) }) // Nouvelle clé
@@ -496,7 +491,7 @@ export default class ProductsController {
 
   async delete_product({ params, response, request, auth }: HttpContext) {
     // 🔐 Authentification
-   const user = await securityService.authenticate({ request, auth });
+    const user = await securityService.authenticate({ request, auth });
     // 🛡️ Permissions
     try {
       await request.ctx?.bouncer.authorize('collaboratorAbility', ['create_delete_product'])
@@ -536,12 +531,12 @@ export default class ProductsController {
       await Promise.allSettled(details.map(detail => DetailsController._delete_detail(detail.id)))
 
       const favorites = await Favorite.query({ client: trx }).where('product_id', product.id);
-      await Promise.allSettled(favorites.map(favory => FavoritesController._delete_favorite(user,favory.id,trx)))
+      await Promise.allSettled(favorites.map(favory => FavoritesController._delete_favorite(user, favory.id, trx)))
 
       const favorites2 = await Favorite.query({ client: trx }).where('product_id', product.id);
 
-      console.log({favorites2});
-      
+      console.log({ favorites2 });
+
       await product.useTransaction(trx).delete();
 
       await trx.commit(); // Commit avant suppression fichiers
