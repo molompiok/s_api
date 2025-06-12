@@ -2,7 +2,8 @@
 import Factory from '@adonisjs/lucid/factories'
 import Feature from '#models/feature'
 import { FeatureType } from '#models/feature'
-import { PRODUCT_IMAGES, ValueFactory } from './value_factory.js'
+import {  ValueFactory } from './value_factory.js'
+import { getRandomPicsum } from './utils.js'
 
 export const FeatureFactory = Factory
   .define(Feature, ({ faker }) => {
@@ -12,7 +13,7 @@ export const FeatureFactory = Factory
       product_id: faker.string.uuid(),
       name: faker.commerce.productMaterial(),
       type: featureTypes[Math.floor(Math.random() * featureTypes.length)],
-      icon: [faker.helpers.arrayElement(PRODUCT_IMAGES)],
+      icon: [getRandomPicsum()],
       required: faker.datatype.boolean(),
       default_value: faker.datatype.boolean() ? faker.word.sample() : null,
       is_default: faker.datatype.boolean(),

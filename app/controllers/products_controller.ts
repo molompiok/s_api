@@ -267,9 +267,32 @@ export default class ProductsController {
     });
     return query;
   }
+  /**
+       * Récupère des produits similaires (cross-selling) basés sur les catégories.
+       */
+  public async get_similar_products({ params, response }: HttpContext) {
+    try {
+      const { slug } = params;
+      if (!slug) {
+        return response.badRequest({ message: 'Le slug du produit est requis.' })
+      }
 
+      // On appelle notre nouvelle méthode plus claire.
+      const similarProducts = await Product.getSimilarProductsByCategory(slug, 8);
+
+      return response.ok(similarProducts);
+
+    } catch (error) {
+      if (error.code === 'E_ROW_NOT_FOUND') {
+        return response.notFound({ message: t('product.notFound') });
+      }
+
+      logger.error({ slug: params.slug, error: error.message, stack: error.stack }, 'Failed to get similar products');
+      return response.internalServerError({ message: t('product.fetchRelatedFailed') }); // Vous pouvez créer une clé i18n dédiée.
+    }
+  }
   // Lecture publique, pas d'auth/bouncer requis
-  public async get_products({ request, response, }: HttpContext) { // Retiré auth, bouncer
+  public async get_products({ request, response, auth }: HttpContext) { // Retiré auth, bouncer
 
     let payload: Infer<typeof this.getProductsQuerySchema>;
 
@@ -301,6 +324,15 @@ export default class ProductsController {
       }
     }
 
+    let isManager = false;
+
+    try {
+      await securityService.authenticate({ auth, request })
+      await request.ctx?.bouncer.authorize('collaboratorAbility', ['edit_product'])
+      console.log('collaboratorAbility');
+
+      isManager = true;
+    } catch { }
 
     const { pageNum, limitNum } = this.getPaginationParams(payload.page, payload.limit)
 
@@ -308,7 +340,10 @@ export default class ProductsController {
       let products: ModelPaginatorContract<Product>
       let category: Categorie | null = null
 
-      let query = Product.query().select('*').where('is_visible', true)
+      let query = Product.query().select('*')
+      if (!isManager) {
+        query.where('is_visible', true);
+      }
 
       if (payload.with_feature) {
         query = query.preload('features', (featureQuery) => {

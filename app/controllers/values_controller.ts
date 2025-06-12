@@ -66,7 +66,7 @@ const checkValidValue = (feature: FeatureInterface | null, value: Partial<ValueI
     if (feature.type === FeatureType.COLOR) {
         if (!value.key || !/^#[0-9A-Fa-f]{6}$/i.test(value.key)) {
             // 🌍 i18n
-            throw new Error(t('value.invalidColorKey', { key: value.key, value: JSON.stringify(value) }));
+            value.key = '#FFFFFF'
         }
         if (!value.text || value.text.trim().length < 1) {
             // 🌍 i18n

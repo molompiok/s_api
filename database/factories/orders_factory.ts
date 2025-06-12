@@ -133,5 +133,5 @@ export const UserOrderFactory = Factory.define(UserOrder, ({ faker }) => {
         updated_at: date,
     }
 })
-    .relation('items', () => UserOrderItemFactory)
+    // .relation('items', () => UserOrderItemFactory)
     .build()

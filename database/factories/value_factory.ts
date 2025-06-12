@@ -2,22 +2,20 @@
 // database/factories/value_factory.ts
 import Factory from '@adonisjs/lucid/factories'
 import Value from '#models/value'
-
-
-
-
-export const PRODUCT_IMAGES = [
-    
-]
-
-
+import { getRandomPicsum } from './utils.js'
 
 export const ValueFactory = Factory.define(Value, ({ faker }) => {
     const img = faker.image.urlLoremFlickr({ category: 'product' })
     return {
         id: faker.string.uuid(),
         feature_id: faker.string.uuid(),
-        views: [faker.helpers.arrayElement(PRODUCT_IMAGES), faker.helpers.arrayElement(PRODUCT_IMAGES), faker.helpers.arrayElement(PRODUCT_IMAGES), faker.helpers.arrayElement(PRODUCT_IMAGES), faker.helpers.arrayElement(PRODUCT_IMAGES)],
+        views: [
+            getRandomPicsum(),
+            getRandomPicsum(),
+            getRandomPicsum(),
+            getRandomPicsum(),
+            getRandomPicsum()
+        ],
         icon: [img],
         text: faker.commerce.productAdjective(),
         key: faker.color.rgb(),
@@ -28,5 +26,4 @@ export const ValueFactory = Factory.define(Value, ({ faker }) => {
         continue_selling: faker.datatype.boolean(),
         index: faker.number.int({ min: 0, max: 10 }),
     }
-})
-    .build()
+}).build()

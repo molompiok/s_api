@@ -84,65 +84,63 @@ export default class Categorie extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updated_at: DateTime
 
-  public static async getGlobalFilters(limit: number = 7) { // J'ai augmenté un peu la limite par défaut, à ajuster si besoin
-    // La requête est presque la même que pour getAvailableFilters, sans le filtre sur categoryIds
+  public static async getGlobalFilters(limit: number = 7) {
     const query = `
         WITH
-        -- Étape 1: Créer une vue de toutes les paires (produit, feature, valeur) existantes
         ProductFeatureValues AS (
             SELECT
                 p.id as product_id,
                 LOWER(f.name) as feature_name,
                 f.type as feature_type,
                 LOWER(v.text) as value_text_lower,
-                FIRST_VALUE(v.text) OVER (PARTITION BY LOWER(v.text) ORDER BY v.created_at) as value_text_original,
+                v.text as value_text_original,
                 v.key,
-                v.icon
+                v.icon,
+                v.created_at
             FROM products p
             JOIN features f ON f.product_id = p.id
             JOIN "values" v ON v.feature_id = f.id
-            WHERE v.text IS NOT NULL
-            -- Aucune clause WHERE sur la catégorie ici, car ce sont les filtres globaux
+             WHERE 
+                p.is_visible = true
+                AND v.text IS NOT NULL AND v.text <> ''
         ),
-        -- Étape 2: Pour chaque paire (feature, valeur), compter le nombre de produits distincts
-        ValueCounts AS (
+
+        AggregatedValues AS (
             SELECT
                 feature_name,
                 feature_type,
                 value_text_lower,
-                value_text_original,
-                key,
-                icon,
+                (array_agg(value_text_original ORDER BY created_at ASC))[1] as display_text,
+                (array_agg(key ORDER BY created_at ASC))[1] as display_key,
+                (array_agg(icon ORDER BY created_at ASC))[1] as display_icon,
                 COUNT(DISTINCT product_id) as product_count
             FROM ProductFeatureValues
-            GROUP BY feature_name, feature_type, value_text_lower, value_text_original, key, icon
+            GROUP BY feature_name, feature_type, value_text_lower
         ),
-        -- Étape 3: Agréger les valeurs dans un tableau JSON pour chaque feature
+        
         AggregatedFilters AS (
             SELECT
                 feature_name as name,
                 feature_type as type,
-                -- On calcule aussi le nombre total de produits pour cette feature pour pouvoir trier dessus
                 SUM(product_count) as total_product_count,
                 array_agg(
                     jsonb_build_object(
-                        'text', value_text_original,
-                        'key', key,
-                        'icon', icon,
+                        'text', display_text,
+                        'key', display_key,
+                        'icon', display_icon,
                         'product_count', product_count
-                    )
+                    ) ORDER BY product_count DESC, display_text ASC
                 ) as "values"
-            FROM ValueCounts
+            FROM AggregatedValues
             GROUP BY feature_name, feature_type
         )
-        -- Étape 4: Sélection finale avec tri et limite
+
         SELECT name, type, "values"
         FROM AggregatedFilters
         ORDER BY total_product_count DESC
         LIMIT ?;
     `;
 
-    // On passe la limite en paramètre de la requête brute pour la sécurité
     const filters = await db.rawQuery(query, [limit]).then(result => result.rows);
 
     return filters.map((filter: any) => ({
@@ -156,61 +154,74 @@ export default class Categorie extends BaseModel {
   public static async getAvailableFilters(slug: string) {
     const categoryIds = await this.get_all_category_ids_by_slug(slug);
 
+    // Si pas de catégorie, on retourne un tableau vide pour éviter une erreur SQL.
     if (!categoryIds || categoryIds.length === 0) {
+      // Vous pourriez aussi choisir de lever une erreur ici si une catégorie est attendue.
+      // throw new Error(`Aucune catégorie trouvée avec le slug : ${slug}`);
       return [];
     }
 
-    // Requête SQL brute, car elle devient trop complexe pour le Query Builder seul.
     const query = `
         WITH 
-        -- Étape 1: Créer une vue de toutes les paires (produit, feature, valeur) pertinentes pour la catégorie
+        -- Étape 1: Créer une vue de toutes les paires (produit, feature, valeur) pertinentes.
+        -- On ajoute created_at pour pouvoir choisir la plus ancienne entrée comme canonique.
         ProductFeatureValues AS (
             SELECT
                 p.id as product_id,
                 LOWER(f.name) as feature_name,
                 f.type as feature_type,
                 LOWER(v.text) as value_text_lower,
-                -- On garde une version originale du texte pour l'affichage (la première trouvée)
-                FIRST_VALUE(v.text) OVER (PARTITION BY LOWER(v.text) ORDER BY v.created_at) as value_text_original,
+                v.text as value_text_original,
                 v.key,
-                v.icon
+                v.icon,
+                v.created_at -- Important pour un tri déterministe
             FROM products p
             JOIN features f ON f.product_id = p.id
             JOIN "values" v ON v.feature_id = f.id
-            WHERE p."categories_id"::jsonb \\?| ? AND v.text IS NOT NULL
+           WHERE 
+                p.is_visible = true
+                AND p."categories_id"::jsonb \\?| ? 
+                AND v.text IS NOT NULL AND v.text <> ''
         ),
-        -- Étape 2: Pour chaque paire (feature, valeur), compter le nombre de produits distincts
-        ValueCounts AS (
+
+        -- Étape 2: Regrouper par valeur SÉMANTIQUE (texte en minuscule) pour la déduplication et le comptage.
+        AggregatedValues AS (
             SELECT
                 feature_name,
                 feature_type,
                 value_text_lower,
-                value_text_original,
-                key,
-                icon,
+                -- On choisit UNE SEULE représentation pour l'affichage (la plus ancienne).
+                -- La syntaxe (array_agg(...))[1] est un moyen efficace en PostgreSQL de faire un "FIRST".
+                (array_agg(value_text_original ORDER BY created_at ASC))[1] as display_text,
+                (array_agg(key ORDER BY created_at ASC))[1] as display_key,
+                (array_agg(icon ORDER BY created_at ASC))[1] as display_icon,
+                -- On compte le nombre de produits uniques pour cette valeur.
                 COUNT(DISTINCT product_id) as product_count
             FROM ProductFeatureValues
-            GROUP BY feature_name, feature_type, value_text_lower, value_text_original, key, icon
+            GROUP BY feature_name, feature_type, value_text_lower
         )
-        -- Étape 3: Agréger les valeurs (maintenant avec leur compte) dans un tableau JSON pour chaque feature
+
+        -- Étape 3: Agréger ces valeurs uniques dans un tableau JSON pour chaque feature.
         SELECT
             feature_name as name,
             feature_type as type,
+            -- Trier les valeurs à l'intérieur du filtre par popularité (nombre de produits)
             array_agg(
                 jsonb_build_object(
-                    'text', value_text_original,
-                    'key', key,
-                    'icon', icon,
+                    'text', display_text,
+                    'key', display_key,
+                    'icon', display_icon,
                     'product_count', product_count
-                )
+                ) ORDER BY product_count DESC, display_text ASC
             ) as "values"
-        FROM ValueCounts
+        FROM AggregatedValues
         GROUP BY feature_name, feature_type
-        ORDER BY feature_name;
+        ORDER BY feature_name; -- Ou un autre tri global si vous préférez
     `;
 
     const filters = await db.rawQuery(query, [categoryIds]).then(result => result.rows);
 
+    // Le mapping reste le même, c'est parfait.
     return filters.map((filter: any) => ({
       id: filter.name,
       name: filter.name.charAt(0).toUpperCase() + filter.name.slice(1),

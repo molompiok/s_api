@@ -152,6 +152,7 @@ router.group(() => {
         router.put('/:id', [ProductsController, 'update_product']) // ID dans l'URL pour PUT
         // Le code d'update attendait product_id dans le body. Adapter contrôleur.
         router.delete('/:id', [ProductsController, 'delete_product'])
+        router.get('/similar/:slug', [ProductsController, 'get_similar_products'])
     }).prefix('/products')
 
     // == Roles & Collaborators ==
@@ -256,7 +257,7 @@ router.group(() => {
 
 
 router.get('/health', ({ response }) => {
-  return response.ok({ ok: true, lol: 'true' })
+    return response.ok({ ok: true, lol: 'true' })
 })
 
 router.get('/api/reverse', async ({ request, response }) => {
@@ -285,8 +286,8 @@ router.get('/api/reverse', async ({ request, response }) => {
         }
 
         const data = await res.json()
-        console.log('data' ,data);
-        
+        console.log('data', data);
+
         return response.send(data)
     } catch (error) {
         console.error('Erreur reverse geocode:', error)
@@ -302,10 +303,10 @@ router.get('/api/reverse', async ({ request, response }) => {
 // --- Routes Hors API V1 ---
 
 // Route statique pour les uploads (doit être en dehors du groupe /api/v1)
-const fs_url = env.get('FILE_STORAGE_URL','/fs')
+const fs_url = env.get('FILE_STORAGE_URL', '/fs')
 router.get(`${fs_url}/*`, ({ request, response }) => {
 
-  return response.download(request.url().replace(fs_url,env.get('FILE_STORAGE_PATH')))
+    return response.download(request.url().replace(fs_url, env.get('FILE_STORAGE_PATH')))
 })
 
 
