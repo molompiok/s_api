@@ -52,6 +52,8 @@ export default class ProductsController {
       min_price: vine.number().min(0).optional(),
       max_price: vine.number().min(0).optional(),
       with_feature: vine.boolean().optional(),
+      with_categories: vine.boolean().optional(),
+      with_all:vine.boolean().optional(),
       is_visible: vine.boolean().optional(),
     })
   );
@@ -109,6 +111,7 @@ export default class ProductsController {
         is_visible: data.is_visible === 'true' ? true : false,
         view: data.view, // reste tel quel
         icon: data.icon, // reste tel quel
+        description :data.description||''
       };
 
       const payload = await this.createProductSchema.validate(preparedData)
@@ -171,18 +174,21 @@ export default class ProductsController {
       const feature = await Feature.create({
         id: feature_id,
         product_id,
-        name: t('product.defaultVariantFeatureName'), // Nom par défaut de la feature
+        name: 'Les variantes visuels du produit', // Nom par défaut de la feature
         required: false,
         type: FeatureType.ICON_TEXT,
         default_value: null,
         icon: [],
         is_default: true,
+        index:0,
       }, { client: trx })
 
       const newValue = await Value.create({
         id: value_id,
         feature_id,
         views,
+        text:'Texture',
+        index:0,
         icon: ((!icon || icon.length == 0) ? views[0] && [views[0]] : icon) || [],
       }, { client: trx })
 
@@ -213,18 +219,7 @@ export default class ProductsController {
       limitNum: limit && limit > 0 ? limit : 20, // Augmenté la limite par défaut
     }
   }
-  private formatResponse(
-    response: HttpContext['response'],
-    products: ModelPaginatorContract<Product>,
-    category?: Categorie | null
-  ) {
-    const baseResponse = {
-      list: products.all(),
-      category,
-      meta: products.getMeta(),
-    }
-    return response.ok(baseResponse)
-  }
+  
   private applySearch(query: ModelQueryBuilderContract<typeof Product>, search?: string) {
     if (search) {
       if (search.startsWith('#')) {
@@ -345,16 +340,16 @@ export default class ProductsController {
         query.where('is_visible', true);
       }
 
-      if (payload.with_feature) {
+      if (payload.with_all ||payload.with_feature) {
         query = query.preload('features', (featureQuery) => {
           featureQuery
-            .orderBy('features.created_at', 'asc')
+            .orderBy('features.index', 'asc')
             .preload('values', (valueQuery) => {
-              valueQuery.orderBy('values.created_at', 'asc')
+              valueQuery.orderBy('values.index', 'asc')
             });
         })
       }
-
+      
       if (payload.slug_cat) {
         console.log('Application du filtre de catégorie...');
         const categoryIds = await Categorie.get_all_category_ids_by_slug(payload.slug_cat)
@@ -412,8 +407,23 @@ export default class ProductsController {
 
 
       products = await query.paginate(pageNum, limitNum)
+      const list = products.all()
+      if (payload.with_all ||payload.with_categories) {
+        const promises = products.all().map((p)=>new Promise(async(rev)=>{
+          const cats = await Categorie.findMany(p.categories_id);
+          console.log(cats);
+          (p as any).categories = cats.filter(Boolean);
+          rev(true)
+        }))
+        await Promise.allSettled(promises);
+      }
 
-      return this.formatResponse(response, products, category)
+      return  {
+      list,
+      category,
+      meta: products.getMeta(),
+    }
+
 
     } catch (error) {
       logger.error({ error: error.message, stack: error.stack }, 'Failed to get products');
@@ -476,13 +486,13 @@ export default class ProductsController {
       if (payload.description !== undefined) updates.description = payload.description?.trim().substring(0, 1024) || null
       if (normalizedCategories !== undefined) updates.categories_id = normalizedCategories || []
 
-      if (payload.barred_price !== undefined) {
-        const barredPriceNum = payload.barred_price
-        if (barredPriceNum && (barredPriceNum <= 0 || barredPriceNum > MAX_PRICE)) {
+      if (payload.barred_price) {
+        const price = (product.price||0)
+        if (payload.barred_price <= price || payload.barred_price > MAX_PRICE ) {
           // 🌍 i18n
           return response.badRequest({ message: t('product.barredPriceInvalidRange', { max: MAX_PRICE }) }) // Nouvelle clé
         }
-        updates.barred_price = barredPriceNum
+        updates.barred_price = payload.barred_price
       }
       if (payload.price !== undefined) {
         const priceNum = payload.price // Déjà number via Vine

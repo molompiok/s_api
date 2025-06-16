@@ -33,11 +33,11 @@ export default class Product extends BaseModel {
 
   @column({
     prepare: (value) => {
-      const v = value.replaceAll("\n", "§");
+      const v = value?.replaceAll("\n", "§")||'';
       return v
     },
     consume: (value) => {
-      const v = value.replaceAll("§", "\n");
+      const v = value?.replaceAll("§", "\n")||'';
       return v
     }
   })

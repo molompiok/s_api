@@ -155,7 +155,7 @@ export default class FeaturesController {
             max_size: isNaN(max_size) ? 0 : max_size,
             max: isNaN(max) ? 0 : max,
             min: isNaN(min) ? 0 : min,
-            index: isNaN(index) ? 1 : index > 0 ? index : 1,
+            index: isNaN(index) ? 0 : index,
             required: !!featureData.required,
             multiple: !!featureData.multiple,
             is_double: !!featureData.is_double,
@@ -184,7 +184,7 @@ export default class FeaturesController {
             ...(max_size !== undefined && { max_size: isNaN(max_size) ? f.max_size : max_size }),
             ...(max !== undefined && { max: isNaN(max) ? f.max : max }),
             ...(min !== undefined && { min: isNaN(min) ? f.min : min }),
-            ...(index !== undefined && { index: isNaN(index) ? f.index : (index > 0 ? index : 1) }),
+            ...(index !== undefined && { index: isNaN(index) ? f.index : index }),
             ...(featureData.required !== undefined && { required: !!featureData.required }),
             ...(featureData.multiple !== undefined && { multiple: !!featureData.multiple }),
             ...(featureData.is_double !== undefined && { is_double: !!featureData.is_double }),
@@ -442,13 +442,14 @@ export default class FeaturesController {
         console.log(payload);
 
         const trx = await db.transaction();
+
         try {
             // Parsing du JSON string après validation
             let Allfeatures: {
-                values: Record<string, { create_values: any[]; update_values: any[]; delete_values_id: string[] }>;
-                create_features: FeatureInterface[];
-                update_features: FeatureInterface[];
-                delete_features_id: string[];
+                values: Record<string, { create_values: any[]; update_values: any[]; delete_values_id: string[] }> | undefined;
+                create_features: FeatureInterface[] | undefined;
+                update_features: FeatureInterface[] | undefined;
+                delete_features_id: string[] | undefined;
             };
             try {
                 Allfeatures = JSON.parse(payload.multiple_update_features);
@@ -462,6 +463,33 @@ export default class FeaturesController {
 
             const product = await Product.findOrFail(payload.product_id, { client: trx });
 
+            const verifyDefaultFeature = async () => {
+                let defautFeature = await Feature.query({ client: trx }).where('id', product.default_feature_id).preload('values').first();
+                if(!product.default_feature_id) throw new Error('product.default_feature_id required, delelet product and create new')
+                if (!defautFeature) {
+                    defautFeature = await Feature.create({
+                        id: product.default_feature_id,
+                        product_id: product.id,
+                        name: 'Les variantes visuels du produit', // Nom par défaut de la feature
+                        required: false,
+                        type: FeatureType.ICON_TEXT,
+                        default_value: null,
+                        icon: [],
+                        is_default: true,
+                        index: 0,
+                    }, { client: trx })
+                }
+                if (defautFeature && defautFeature.values.length == 0) {
+                    const id = v4()
+                    await ValuesController._create_value(request, {
+                        index: 0,
+                        text: 'Texture',
+                        feature_id: defautFeature.id
+                    }, id, trx); // Utiliser targetFeature.id
+                }
+            }
+
+            await verifyDefaultFeature()
             // --- Logique métier (inchangée) ---
             const localFeatures = await Feature.query({ client: trx }).preload('values').where('product_id', payload.product_id); // Utiliser payload.product_id
 
@@ -509,7 +537,7 @@ export default class FeaturesController {
             // Bulk update feature values
             for (const [feature_id_from_payload, { create_values, update_values, delete_values_id }] of Object.entries(Allfeatures.values || {})) {
                 // Vérifier que feature_id_from_payload appartient bien au produit
-                const targetFeature = await Feature.query({ client: trx }).where('id', feature_id_from_payload).where('product_id', payload.product_id).first();
+                const targetFeature = await Feature.query({ client: trx }).where('id', feature_id_from_payload).first();
                 if (!targetFeature) {
                     logger.warn({ featureId: feature_id_from_payload, productId: payload.product_id }, "Attempted to modify values for a non-existent or non-matching feature in multiple_update");
                     continue;
@@ -521,13 +549,17 @@ export default class FeaturesController {
                     await ValuesController._create_value(request, { ...value, feature_id: targetFeature.id }, id, trx); // Utiliser targetFeature.id
                 }
                 for (const value of update_values || []) {
+                    console.log('update_values[', value.id, ']', { value });
+
                     if (!value.id && !value.value_id) continue; // Nécessite un ID
-                    // TODO: Valider les données de 'value' avant de les passer à _update_value
-                    // Vérifier que la value appartient bien à targetFeature? (sécurité supplémentaire)
+                    if (targetFeature.id !== value.feature_id) continue
                     await ValuesController._update_value(request, value.id || value.value_id, value, trx);
                 }
                 for (const value_id of delete_values_id || []) {
+                    const featureD = await Feature.query({ client: trx }).where('id', feature_id_from_payload).preload('values').first();
+                    if (!featureD) continue;
                     try {
+                        if (featureD.is_default && featureD.values.length == 1) continue;
                         // Vérifier que la value appartient bien à targetFeature? (sécurité supplémentaire)
                         await ValuesController._delete_value(value_id, trx);
                     } catch (error) {
@@ -535,6 +567,10 @@ export default class FeaturesController {
                     }
                 }
             }
+
+            
+            await verifyDefaultFeature();
+
             // --- Fin logique métier ---
 
             await trx.commit();

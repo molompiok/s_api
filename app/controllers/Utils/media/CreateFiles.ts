@@ -42,7 +42,11 @@ async function createFiles({
   const promises: Promise<any>[] = [];
   const filesList: FileType[] = [];
   const { min, max, throwError } = options
+  console.log(request.allFiles());
+  
   for (const [name, file] of Object.entries(request.allFiles())) {
+    console.log({distinct,name,column_name},name.startsWith(`${distinct ? distinct + ':' : ''}${column_name}_`));
+    
     if (name.startsWith(`${distinct ? distinct + ':' : ''}${column_name}_`))
       filesList.push(Array.isArray(file) ? file[0] : file);
   }

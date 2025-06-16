@@ -70,12 +70,11 @@ const checkValidValue = (feature: FeatureInterface | null, value: Partial<ValueI
         }
         if (!value.text || value.text.trim().length < 1) {
             // 🌍 i18n
-            throw new Error(t('value.textRequired'));
+            value.text = 'sans text'
         }
     } else if (feature.type && [FeatureType.ICON_TEXT, FeatureType.TEXT, FeatureType.ICON].includes(feature.type)) {
         if (!value.text || value.text.trim().length < 1) {
-            // 🌍 i18n
-            throw new Error(t('value.textRequired'));
+            value.text = 'sans text'
         }
     }
     // Ajouter d'autres validations métier si nécessaire pour d'autres FeatureType
@@ -96,8 +95,9 @@ export default class ValuesController {
             stock: vine.number().min(0).optional().nullable(),
             decreases_stock: vine.boolean().optional(),
             continue_selling: vine.boolean().optional(),
-            index: vine.number().positive().optional(),
-            // 'views' et 'icon' gérés par createFiles
+            index: vine.number().optional(),
+            views: vine.array(vine.string()).optional(),
+            icon: vine.array(vine.string()).optional(),
         })
     );
 
@@ -106,8 +106,8 @@ export default class ValuesController {
             feature_id: vine.string().uuid().optional(),
             value_id: vine.string().uuid().optional(),
             text: vine.string().trim().optional(),
-            page: vine.number().positive().optional(),
-            limit: vine.number().positive().optional(),
+            page: vine.number().optional(),
+            limit: vine.number().optional(),
         })
     );
 
@@ -123,7 +123,7 @@ export default class ValuesController {
             stock: vine.number().min(0).optional().nullable(),
             decreases_stock: vine.boolean().optional(),
             continue_selling: vine.boolean().optional(),
-            index: vine.number().positive().optional(),
+            index: vine.number().optional(),
             views: vine.array(vine.string()).optional(), // Pour updateFiles (pseudo URLs)
             icon: vine.array(vine.string()).optional(), // Pour updateFiles (pseudo URLs)
         })
@@ -151,7 +151,7 @@ export default class ValuesController {
         checkValidValue(feature as any, payload); // Validation métier
 
         // Gestion Fichiers
-        let distinct = ([...(request.input('views', [])), ...(request.input('icon', []))])?.find(f => f.includes(':'))
+        let distinct = Object.keys(request.allFiles()).find(f => f.includes(':'))
         distinct = distinct?.substring(0, distinct.indexOf(':'));
 
         let viewsUrls = await createFiles({
@@ -173,7 +173,7 @@ export default class ValuesController {
 
         // Préparation données (défaults)
         const stock = payload.stock;
-        const index = payload.index ?? 1; // Default index 1
+        const index = parseFloat(payload.index?.toString()||'0'); // Default index 1
         const additional_price = payload.additional_price;
 
         const newValue = await Value.create({
@@ -182,7 +182,7 @@ export default class ValuesController {
             stock: stock ?? undefined,
             decreases_stock: !!payload.decreases_stock,
             continue_selling: !!payload.continue_selling,
-            index: index <= 0 ? 1 : index, // Assurer positif
+            index: index ?? 0,
             additional_price: additional_price,
             currency: payload.currency,
             text: payload.text, // Utiliser directement car validé
@@ -206,7 +206,7 @@ export default class ValuesController {
 
         // Préparation données (défaults/parsing)
         const stock = payload.stock ?? undefined;
-        const index = payload.index;
+        const index = parseFloat(payload.index?.toString()||'0');
         const additional_price = payload.additional_price;
 
         const dataToMerge: Partial<Value> = {
@@ -215,14 +215,14 @@ export default class ValuesController {
             ...(stock !== undefined && { stock: stock > MAX_PRICE ? MAX_PRICE : (stock < 0 ? 0 : stock) }),
             ...(payload.decreases_stock !== undefined && { decreases_stock: !!payload.decreases_stock }),
             ...(payload.continue_selling !== undefined && { continue_selling: !!payload.continue_selling }),
-            ...(index !== undefined && { index: index <= 0 ? value.index : index }), // Garder l'ancien si invalide? Ou mettre 1?
+            ...(index !== undefined && { index: index }),
             ...(additional_price !== undefined && { additional_price: additional_price > MAX_PRICE ? MAX_PRICE : (additional_price < 0 ? 0 : additional_price) }),
             ...(payload.currency !== undefined && { currency: payload.currency }),
         }
 
         // Gestion Fichiers
         let distinct = ([...(payload.views || []), ...(payload.icon || [])])?.find(f => f.includes(':'))
-        distinct = distinct?.substring(0, distinct.indexOf(':'));
+        distinct = value_id;
 
         if (payload.views) {
             const updatedViewsUrls = await updateFiles({
