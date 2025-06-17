@@ -176,7 +176,7 @@ export default class GlobaleServicesController {
                 commandsQuery,
             ]);
 
-            console.log(productsRes);
+            console.log(productsRes); 
             
             // Formater la réponse (mettre dans un tableau même si .first() a retourné un seul objet ou null)
             return response.ok({
