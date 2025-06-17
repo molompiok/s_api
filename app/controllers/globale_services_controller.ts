@@ -127,9 +127,13 @@ export default class GlobaleServicesController {
                     .where((query) => {
                         query.whereILike('name', searchTerm)
                             .orWhereILike('description', searchTerm);
+                    }).preload('features', (featureQuery) => {
+                        featureQuery
+                            .orderBy('features.index', 'asc')
+                            .preload('values', (valueQuery) => {
+                                valueQuery.orderBy('values.index', 'asc')
+                            });
                     })
-                    // Pas de preload ici pour la recherche rapide, le front fera un appel détaillé si besoin
-                    // .preload('features', ...)
                     .limit(searchLimit)
                     .exec(); // Utiliser exec() pour obtenir le tableau directement
 
@@ -172,6 +176,8 @@ export default class GlobaleServicesController {
                 commandsQuery,
             ]);
 
+            console.log(productsRes);
+            
             // Formater la réponse (mettre dans un tableau même si .first() a retourné un seul objet ou null)
             return response.ok({
                 products: productsRes ? (Array.isArray(productsRes) ? productsRes : [productsRes]) : [],
