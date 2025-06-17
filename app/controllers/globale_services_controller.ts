@@ -174,7 +174,7 @@ export default class GlobaleServicesController {
                 categoriesQuery,
                 clientsQuery,
                 commandsQuery,
-            ]);
+            ]); 
 
             console.log(productsRes); 
             
