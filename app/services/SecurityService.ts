@@ -48,7 +48,7 @@ export class SecurityService {
   async authenticate({ auth, request }: { response?: HttpContext['response'], auth: HttpContext['auth'], request: HttpContext['request'] }) {
     let user;
 
-    console.log('request.authorization', request.headers()['authorization']);
+    // console.log('request.authorization', request.headers()['authorization']);
 
     try {
       user = await this.authenticateJWT(request);

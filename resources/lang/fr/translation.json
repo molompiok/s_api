@@ -18,6 +18,32 @@
     "barredPriceInvalidRange": "Le prix barré doit être un nombre positif inférieur ou égal à {{max}}.",
     "priceInvalidRange": "Le prix doit être un nombre positif inférieur ou égal à {{max}}."
   },
+  "productFaq": {
+    "createdSuccess": "FAQ ajoutée avec succès.",
+    "creationFailed": "Échec de la création de la FAQ.",
+    "fetchFailed": "Échec de la récupération des FAQs.",
+    "fetchOneFailed": "Échec de la récupération de la FAQ.",
+    "notFound": "FAQ non trouvée.",
+    "updateSuccess": "FAQ mise à jour avec succès.",
+    "updateFailed": "Échec de la mise à jour de la FAQ.",
+    "deleteSuccess": "FAQ supprimée avec succès.",
+    "deleteFailed": "Échec de la suppression de la FAQ.",
+    "mismatchInReorder": "Certaines FAQs fournies pour la réorganisation n'appartiennent pas au produit ou au groupe spécifié, ou sont introuvables.",
+    "reorderSuccess": "L'ordre des FAQs a été mis à jour avec succès.",
+    "reorderFailed": "Échec de la mise à jour de l'ordre des FAQs."
+  },
+  "productCharacteristic": {
+    "createdSuccess": "Caractéristique ajoutée avec succès.",
+    "creationFailed": "Échec de la création de la caractéristique.",
+    "fetchFailed": "Échec de la récupération des caractéristiques.",
+    "fetchOneFailed": "Échec de la récupération de la caractéristique.",
+    "notFound": "Caractéristique non trouvée.",
+    "keyConflict": "La clé '{{key}}' est déjà utilisée pour une autre caractéristique de ce produit.",
+    "updateSuccess": "Caractéristique mise à jour avec succès.",
+    "updateFailed": "Échec de la mise à jour de la caractéristique.",
+    "deleteSuccess": "Caractéristique supprimée avec succès.",
+    "deleteFailed": "Échec de la suppression de la caractéristique."
+  },
   "feature": {
     "createdSuccess": "Caractéristique créée avec succès.",
     "creationFailed": "La création de la caractéristique a échoué.",
@@ -178,11 +204,11 @@
     "deleteFailed": "La suppression du commentaire a échoué."
   },
   "auth": {
-    "setupAccount": { 
-        "invalidToken": "Ce lien d'activation est invalide ou a expiré. Veuillez contacter l'administrateur de la boutique.",
-        "alreadyActive": "Ce compte est déjà actif. Vous pouvez vous connecter directement.",
-        "success": "Votre compte a été activé et votre mot de passe défini avec succès. Vous pouvez maintenant vous connecter.",
-        "genericError": "Une erreur est survenue lors de l'activation du compte."
+    "setupAccount": {
+      "invalidToken": "Ce lien d'activation est invalide ou a expiré. Veuillez contacter l'administrateur de la boutique.",
+      "alreadyActive": "Ce compte est déjà actif. Vous pouvez vous connecter directement.",
+      "success": "Votre compte a été activé et votre mot de passe défini avec succès. Vous pouvez maintenant vous connecter.",
+      "genericError": "Une erreur est survenue lors de l'activation du compte."
     },
     "socialCallbackFailed": "Erreur interne lors du traitement de la connexion sociale.",
     "emailNotVerified": "Veuillez vérifier votre adresse email avant de vous connecter.",

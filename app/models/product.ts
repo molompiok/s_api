@@ -4,6 +4,8 @@ import limax from "limax";
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import Feature from './feature.js';
 import BaseModel from './base_model.js';
+import ProductFaq from './product_faq.js';
+import ProductCharacteristic from './product_characteristic.js';
 export default class Product extends BaseModel {
 
   @column({ isPrimary: true })
@@ -33,11 +35,11 @@ export default class Product extends BaseModel {
 
   @column({
     prepare: (value) => {
-      const v = value?.replaceAll("\n", "§")||'';
+      const v = value?.replaceAll("\n", "§") || '';
       return v
     },
     consume: (value) => {
-      const v = value?.replaceAll("§", "\n")||'';
+      const v = value?.replaceAll("§", "\n") || '';
       return v
     }
   })
@@ -62,11 +64,23 @@ export default class Product extends BaseModel {
   declare slug: string
 
   @hasMany(() => Feature, {
-    foreignKey: 'product_id', // La clé étrangère dans la table features
-    localKey: 'id',          // La clé primaire dans la table products
+    foreignKey: 'product_id', 
+    localKey: 'id',
   })
-
   declare features: HasMany<typeof Feature>
+
+  @hasMany(() => ProductFaq,{
+    foreignKey: 'product_id', 
+    localKey: 'id',
+  })
+  declare faqs: HasMany<typeof ProductFaq>
+
+  @hasMany(() => ProductCharacteristic,{
+    foreignKey: 'product_id', 
+    localKey: 'id',
+  })
+  declare characteristics: HasMany<typeof ProductCharacteristic>
+
 
   @beforeCreate()
   public static async generateSlug(product: Product) {

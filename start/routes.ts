@@ -33,6 +33,7 @@ import DebugController from '#controllers/debug_controller'
 import User from '#models/user'
 import { DateTime } from 'luxon'
 import BullMQService from '#services/BullMQService'
+import ProductFaqsController from '#controllers/product_faqs_controller'
 
 
 
@@ -144,6 +145,16 @@ router.group(() => {
         // Le code d'update attendait id/detail_id dans le body. Adapter contrôleur.
         router.delete('/:id', [DetailsController, 'delete_detail'])
     }).prefix('/details')
+    
+    // ==  FAQs ==
+    router.group(() => {
+        router.post('/', [ProductFaqsController,'createFaq']);
+        router.post('/reorder', [ProductFaqsController,'reorderFaqs']); 
+        router.get('/', [ProductFaqsController,'listFaqs']); 
+        router.get('/:faqId', [ProductFaqsController,'getFaq']);
+        router.put('/:faqId', [ProductFaqsController,'updateFaq']);
+        router.delete('/:faqId', [ProductFaqsController,'deleteFaq']);
+    }).prefix('/product-faqs')
 
     // == Products ==
     router.group(() => {
