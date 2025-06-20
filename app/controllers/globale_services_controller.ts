@@ -134,17 +134,15 @@ export default class GlobaleServicesController {
                                 valueQuery.orderBy('values.index', 'asc')
                             });
                     })
-                    .limit(searchLimit)
-                    .exec(); // Utiliser exec() pour obtenir le tableau directement
-
+                    .paginate(1,searchLimit)
+                    
                 categoriesQuery = Categorie.query()
                     .where((query) => {
                         query.whereILike('name', searchTerm)
                             .orWhereILike('description', searchTerm);
                     })
-                    .limit(searchLimit)
-                    .exec();
-
+                    .paginate(1,searchLimit)
+                
                 // Recherche Client par Nom/Email
                 clientsQuery = User.query()
                     // .where('role_type', 'client')
@@ -152,9 +150,8 @@ export default class GlobaleServicesController {
                         query.whereILike('full_name', searchTerm)
                             .orWhereILike('email', searchTerm);
                     })
-                    .limit(searchLimit)
-                    .exec();
-
+                    .paginate(1,searchLimit)
+                
                 // Recherche Commande par infos client ou référence
                 commandsQuery = UserOrder.query()
                     .whereILike('reference', searchTerm)
@@ -164,9 +161,8 @@ export default class GlobaleServicesController {
                             .orWhereILike('email', searchTerm);
                     })
                     .preload('user', (userQuery) => userQuery.select(['id', 'full_name', 'email'])) // Preload user pour affichage
-                    .limit(searchLimit)
-                    .exec();
-            }
+                    .paginate(1,searchLimit)
+             }
 
             // Exécuter les requêtes en parallèle
             const [productsRes, categoriesRes, clientsRes, commandsRes] = await Promise.all([
@@ -174,16 +170,22 @@ export default class GlobaleServicesController {
                 categoriesQuery,
                 clientsQuery,
                 commandsQuery,
-            ]); 
+            ]);
 
-            console.log(productsRes); 
-            
+            console.log(productsRes);
+
             // Formater la réponse (mettre dans un tableau même si .first() a retourné un seul objet ou null)
             return response.ok({
-                products: productsRes ? (Array.isArray(productsRes) ? productsRes : [productsRes]) : [],
-                categories: categoriesRes ? (Array.isArray(categoriesRes) ? categoriesRes : [categoriesRes]) : [],
-                clients: clientsRes ? (Array.isArray(clientsRes) ? clientsRes : [clientsRes]) : [],
-                commands: commandsRes ? (Array.isArray(commandsRes) ? commandsRes : [commandsRes]) : [],
+                products: productsRes.all(),
+                categories: categoriesRes.all(),
+                clients: clientsRes.all(),
+                commands: commandsRes.all(),
+                meta: {
+                    products: productsRes.getMeta().total,
+                    categories: categoriesRes.getMeta().total,
+                    clients: clientsRes.getMeta().total,
+                    commands: commandsRes.getMeta().total,
+                }
             });
 
         } catch (error) {

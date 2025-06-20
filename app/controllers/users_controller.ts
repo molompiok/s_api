@@ -6,7 +6,7 @@ import Comment from '#models/comment'
 import UserOrder from '#models/user_order'
 import Visite from '#models/visite' // Importer Visite pour lastVisit
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+import { normalizeStringArrayInput, t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
@@ -25,6 +25,7 @@ export default class UsersController {
         vine.object({
             user_id: vine.string().uuid().optional(),
             name: vine.string().trim().optional(),
+            status: vine.any().optional(),
             order_by: vine.string().trim().optional(),
             page: vine.number().positive().optional(),
             limit: vine.number().positive().optional(),
@@ -86,9 +87,15 @@ export default class UsersController {
             // }
             // 🔍 GET par ID
             if (payload.user_id) {
-                query.where('id', payload.user_id).limit(1) // Utiliser .first()
+                query.where('id', payload.user_id).limit(1)
             }
 
+            if (payload.status) {
+                
+                query.whereIn('status', normalizeStringArrayInput({
+                    status: payload.status
+                }).status.map(n=>n.toLowerCase())).limit(1)
+            }
             // Appliquer les filtres si pas de user_id
             if (payload.name) {
                 const searchTerm = `%${payload.name.toLowerCase().split(' ').join('%')}%`;
