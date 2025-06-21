@@ -32,15 +32,17 @@ export type StoreInterface = Partial<{
 class RedisService {
   //@ts-ignore
   client: RedisClient;
- 
+
   queues: Map<string, Queue> = new Map(); // Pour les queues BullMQ
   workers: Map<string, Worker> = new Map(); // Pour les workers BullMQ
   emitter: EventEmitter = new EventEmitter(); // EventEmitter pour les messages reçus par workers
+  // Méthodes pour obtenir les clés de cache standardisées
+  // private getStoreNameKey(storeName: string): string { return `store+name:+${storeName}`; }
 
-   private getStoreIdKey(storeId: string): string { return `store+id+${storeId}`; }
- 
+  private getStoreIdKey(storeId: string): string { return `store+id+${storeId}`; }
+
   constructor() {
-    if(process.argv.join('').includes('/ace')) return
+    if (process.argv.join('').includes('/ace')) return
     //@ts-ignore
     this.client = new Redis({
       host: env.get('REDIS_HOST', '127.0.0.1'),
@@ -117,9 +119,9 @@ class RedisService {
     } catch (error) {
       // Peut être une erreur JSON.parse ou une erreur Redis
       if (error instanceof SyntaxError) {
-         console.log(`⚠️ Valeur non JSON dans le cache pour la clé`, { key }, error);
+        console.log(`⚠️ Valeur non JSON dans le cache pour la clé`, { key }, error);
       } else {
-         console.log('❌ Erreur getCache Redis', { key }, error);
+        console.log('❌ Erreur getCache Redis', { key }, error);
       }
       return null;
     }
@@ -131,20 +133,20 @@ class RedisService {
    * @returns Le nombre de clés supprimées.
    */
   async deleteCache(...keys: string[]): Promise<number> {
-   if (keys.length === 0) return 0;
+    if (keys.length === 0) return 0;
     try {
       const count = await this.client.del(keys);
       // logs.log(`🗑️ Cache supprimé(s) : ${count}.`);
       return count;
     } catch (error) {
-       console.log('❌ Erreur deleteCache Redis', { keys }, error);
+      console.log('❌ Erreur deleteCache Redis', { keys }, error);
       return 0;
     }
   }
   async getStoreCacheById(storeId: string): Promise<StoreInterface | null> {
     return this.getCache<StoreInterface>(this.getStoreIdKey(storeId));
   }
-  async getMyStore(){
+  async getMyStore() {
     return this.getStoreCacheById(env.get('STORE_ID'))
   }
 }

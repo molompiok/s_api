@@ -34,6 +34,8 @@ import User from '#models/user'
 import { DateTime } from 'luxon'
 import BullMQService from '#services/BullMQService'
 import ProductFaqsController from '#controllers/product_faqs_controller'
+import ProductCharacteristicsController from '#controllers/product_characteristics_controller'
+// import redisService from '#services/RedisService'
 
 
 
@@ -156,6 +158,16 @@ router.group(() => {
         router.delete('/:faqId', [ProductFaqsController,'deleteFaq']);
     }).prefix('/product-faqs')
 
+    // ==  FAQs ==
+    router.group(() => {
+        router.post('/', [ProductCharacteristicsController,'createCharacteristic']);
+        // router.post('/reorder', [ProductCharacteristicsController,'reorder']); 
+        router.get('/', [ProductCharacteristicsController,'listCharacteristics']); 
+        router.get('/:id', [ProductCharacteristicsController,'getCharacteristic']);
+        router.put('/:id', [ProductCharacteristicsController,'updateCharacteristic']);
+        router.delete('/:id', [ProductCharacteristicsController,'deleteCharacteristic']);
+    }).prefix('/product-characteristics')
+
     // == Products ==
     router.group(() => {
         router.post('/', [ProductsController, 'create_product'])
@@ -263,8 +275,6 @@ router.group(() => {
         }
     });
 }).prefix('/v1')
-
-// start/routes.ts
 
 
 router.get('/health', ({ response }) => {

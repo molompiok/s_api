@@ -11,10 +11,11 @@ import logger from '@adonisjs/core/services/logger'
 import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import BullMQService from '#services/BullMQService'
-import AsyncConfirm, { AsyncConfirmType } from '#models/asyncConfirm'
-import { DateTime } from 'luxon'
-import hash from '@adonisjs/core/services/hash'
+// import AsyncConfirm, { AsyncConfirmType } from '#models/asyncConfirm'
+// import { DateTime } from 'luxon'
+// import hash from '@adonisjs/core/services/hash'
 import { securityService } from '#services/SecurityService'
+import redisService from '#services/RedisService'
 
 // Permission requise pour gérer les collaborateurs (ajouter, modifier perms, supprimer)
 const MANAGE_COLLABORATORS_PERMISSION: keyof TypeJsonRole = 'create_delete_collaborator';
@@ -68,7 +69,17 @@ export default class RolesController {
         // 🔐 Authentification et 🛡️ Autorisation gérées par middleware sur la route
         const owner = await securityService.authenticate({ request, auth }); // L'owner qui effectue l'action
 
-        const trx = await db.transaction(); // Transaction pour opérations multiples
+        // try {
+        //     // Utiliser la permission de suppression produit ?
+        //     await request.ctx?.bouncer.authorize('collaboratorAbility', ['ban_collaborator'])
+        // } catch (error) {
+        //     if (error.code === 'E_AUTHORIZATION_FAILURE') {
+        //         // 🌍 i18n
+        //         return response.forbidden({ message: t('unauthorized_action') })
+        //     }
+        //     throw error;
+        // }
+
         let payload: Infer<typeof this.createCollaboratorSchema>;
         try {
             // ✅ Validation Vine
@@ -82,11 +93,12 @@ export default class RolesController {
             return response.internalServerError({ message: t('error_occurred') });
         }
 
-        const { email, full_name, dashboard_url, setup_account_url } = payload;
-
+        const { email, full_name, dashboard_url } = payload;
+        
+        const trx = await db.transaction(); // Transaction pour opérations multiples
         try {
             // 1. Vérifier si l'email correspond à l'Owner
-            if (email === owner.email) {
+            if (owner.id !== env.get('OWNER_ID')) {
                 await trx.rollback();
                 return response.conflict({ message: t('collaborator.cannotAddOwner') });
             }
@@ -128,10 +140,15 @@ export default class RolesController {
                 // Envoyer Email de Notification à l'utilisateur existant
                 try {
                     const queue = BullMQService.getServerToServerQueue();
-                    const storeName = env.get('STORE_NAME', 'Votre Boutique'); // Récupérer nom du store
+                    const store = await redisService.getMyStore();
+                    const storeName = store?.name || 'Boutique en ligne' // Récupérer nom du store
+                    
+                    console.log({storeName});
+                    
                     await queue.add('send_email', {
                         event: 'send_email',
                         data: {
+                            server_action:'addStoreCollaborator',
                             to: existingUser.email,
                             subject: t('emails.collaboratorAddedSubject', { storeName }), // Nouvelle clé
                             template: 'emails/collaborator_added_notification', // Nouveau template
@@ -179,45 +196,25 @@ export default class RolesController {
                     ...defaultPermissions,
                 }, { client: trx });
 
-                // c. Invalider anciens tokens de setup (sécurité)
-                await AsyncConfirm.query({ client: trx })
-                    .where('userId', newUser.id)
-                    .where('type', AsyncConfirmType.ACCOUNT_SETUP)
-                    .update({ usedAt: DateTime.now() });
-
-                // d. Générer et stocker le token de setup
-                const tokenBrut = uuidv4() + uuidv4(); // + sécurisé que random
-                const tokenHash = await hash.make(tokenBrut);
-                const expiresAt = DateTime.now().plus({ days: 2 }); // Durée de vie 48h
-
-                await AsyncConfirm.create({
-                    userId: newUser.id,
-                    tokenHash: tokenHash,
-                    type: AsyncConfirmType.ACCOUNT_SETUP, // Nouveau type
-                    expiresAt: expiresAt,
-                }, { client: trx });
-                logger.info({ userId: newUser.id }, "Account setup token created");
-
-                // e. Construire l'URL de setup pour le frontend
-                const setupUrl = `${setup_account_url || dashboard_url}/${setup_account_url ? '' : 'setup-account'}?token=${tokenBrut}`; // Token BRUT dans l'URL
-
                 await trx.commit(); // Commit après création user/role/token
 
                 // f. Envoyer l'email d'invitation/setup via BullMQ
                 try {
                     const queue = BullMQService.getServerToServerQueue();
-                    const storeName = env.get('STORE_NAME', 'Votre Boutique');
+                     const store = await redisService.getMyStore();
+                    const storeName = store?.name || 'Boutique en ligne'
                     await queue.add('send_email', {
                         event: 'send_email',
                         data: {
+                            server_action:'addUser',
                             to: newUser.email,
-                            subject: t('emails.collaboratorInviteSubject', { storeName }), // Nouvelle clé
+                            subject: `Invitation à rejoindre l'équipe ${storeName} sur Sublymus`,//t('emails.collaboratorInviteSubject', { storeName }), // Nouvelle clé
                             template: 'emails/collaborator_invitation_setup', // Nouveau template
                             context: {
+                                store_slug:store?.slug,
                                 invitedUserName: newUser.full_name, // Nom de l'invité
                                 storeName: storeName,
                                 inviterName: owner.full_name, // Nom de l'owner
-                                setupUrl: setupUrl // Lien pour définir le mot de passe
                             }
                         }
                     }, { jobId: `collab-invite-${newUser.id}-${Date.now()}` });

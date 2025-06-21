@@ -189,7 +189,10 @@ export default class StatisticsController {
   */
   public async getOrderDetails({ request, response, auth, i18n: { t } }: HttpContext) {
     // 🔐 Authentification & 🛡️ Autorisation
-    await securityService.authenticate({ request, auth });
+    const user = await securityService.authenticate({ request, auth });
+
+    console.log(user.id, user.$attributes);
+    
     try {
       await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_STATS_PERMISSION]);
     } catch (error) {

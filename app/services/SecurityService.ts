@@ -16,6 +16,7 @@ import { DateTime } from 'luxon';
 interface ServerJwtPayload {
   userId: string;
   email: string;
+  full_name?: string,
   sub: string;
   iss: string;
   aud: string;
@@ -123,7 +124,7 @@ export class SecurityService {
     } catch {
       throw new Error('Invalid or expired token')
     }
-    // console.log({ payload });
+    console.log({ payload });
 
     if (!payload || typeof payload !== 'object' || !payload.userId) {
       throw new Error('Invalid token payload')
@@ -141,21 +142,33 @@ export class SecurityService {
     }
     let user;
     try {
-      user = await User.findByOrFail('email', payload.email)
-    } catch (error) {
+      user = await User.query().where('email', payload.email).preload('roles').first();
+      console.log(user?.$attributes);
+      
       if (!user && payload.userId == env.get('OWNER_ID')) {
         user = await User.create({
           email: payload.email,
           id: payload.userId,
           email_verified_at: DateTime.now(),
-          full_name: 'Propriétaire',
+          full_name: payload.full_name || 'Propriétaire',
           password: v4()
         })
       }
+    } catch (error) {
+      throw new Error('User not found for token, loading error');
     }
 
     if (!user) {
       throw new Error('User not found for token');
+    }
+
+    if (!user.roles?.length) {
+      if (user.id !== env.get('OWNER_ID')) throw new Error('Role not found for user');
+    }
+
+    if (!user.email_verified_at) {
+      user.email_verified_at = DateTime.now();
+      await user.save();
     }
     return user
   }
