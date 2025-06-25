@@ -31,7 +31,8 @@ server.use([
   () => import('#middleware/container_bindings_middleware'),
   () => import('#middleware/force_json_response_middleware'),
   () => import('@adonisjs/cors/cors_middleware'),
-])
+  () => import('#middleware/LogOrigin'),
+]);
 /**
  * The router middleware stack runs middleware on all the HTTP
  * requests with a registered route.
@@ -39,9 +40,9 @@ server.use([
 router.use([
   () => import('@adonisjs/core/bodyparser_middleware'), 
   () => import('@adonisjs/auth/initialize_auth_middleware'), 
-  () => import('@adonisjs/session/session_middleware'), 
-  // () => import('#middleware/initialize_bouncer_middleware'), 
-  () => import('#middleware/detect_user_locale_middleware')
+  () => import('@adonisjs/session/session_middleware'),  
+  () => import('#middleware/cookieTracker'),
+  () => import('#middleware/detect_user_locale_middleware'),
 ])
 
 /**

@@ -6,11 +6,10 @@ import { defineConfig } from '@adonisjs/cors'
  *
  * https://docs.adonisjs.com/guides/security/cors
  */
-
 const corsConfig = defineConfig({
   enabled: true,
-  origin: true, // ✅ Autorise toutes les origines
-  methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE','OPTIONS'],
+  origin: true,
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE','OPTION','OPTIONS'],
   headers: true,
   exposeHeaders: [],
   credentials: true,

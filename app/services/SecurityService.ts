@@ -124,8 +124,6 @@ export class SecurityService {
     } catch {
       throw new Error('Invalid or expired token')
     }
-    console.log({ payload });
-
     if (!payload || typeof payload !== 'object' || !payload.userId) {
       throw new Error('Invalid token payload')
     }
@@ -143,8 +141,6 @@ export class SecurityService {
     let user;
     try {
       user = await User.query().where('email', payload.email).preload('roles').first();
-      console.log(user?.$attributes);
-      
       if (!user && payload.userId == env.get('OWNER_ID')) {
         user = await User.create({
           email: payload.email,

@@ -41,6 +41,7 @@ export default class ProductsController {
   private getProductsQuerySchema = vine.compile(
     vine.object({
       product_id: vine.string().uuid().optional(),
+      list_product_ids: vine.any().optional(),
       search: vine.string().trim().optional(),
       order_by: vine.string().trim().optional(),
       categories_id: vine.any().optional(), // Sera normalisé plus tard
@@ -53,7 +54,7 @@ export default class ProductsController {
       max_price: vine.number().min(0).optional(),
       with_feature: vine.boolean().optional(),
       with_categories: vine.boolean().optional(),
-      with_all:vine.boolean().optional(),
+      with_all: vine.boolean().optional(),
       is_visible: vine.boolean().optional(),
     })
   );
@@ -111,7 +112,7 @@ export default class ProductsController {
         is_visible: data.is_visible === 'true' ? true : false,
         view: data.view, // reste tel quel
         icon: data.icon, // reste tel quel
-        description :data.description||''
+        description: data.description || ''
       };
 
       const payload = await this.createProductSchema.validate(preparedData)
@@ -180,15 +181,15 @@ export default class ProductsController {
         default_value: null,
         icon: [],
         is_default: true,
-        index:0,
+        index: 0,
       }, { client: trx })
 
       const newValue = await Value.create({
         id: value_id,
         feature_id,
         views,
-        text:'Texture',
-        index:0,
+        text: 'Texture',
+        index: 0,
         icon: ((!icon || icon.length == 0) ? views[0] && [views[0]] : icon) || [],
       }, { client: trx })
 
@@ -219,7 +220,7 @@ export default class ProductsController {
       limitNum: limit && limit > 0 ? limit : 20, // Augmenté la limite par défaut
     }
   }
-  
+
   private applySearch(query: ModelQueryBuilderContract<typeof Product>, search?: string) {
     if (search) {
       if (search.startsWith('#')) {
@@ -308,9 +309,11 @@ export default class ProductsController {
     console.log(request.qs(), payload);
     // 📦 Normalisation (après validation)
     let normalizedCategories: string[] | undefined = undefined;
+    let normalizedListProductsIds: string[] = [];
     if (payload.categories_id) {
       try {
         normalizedCategories = normalizeStringArrayInput({ categories_id: payload.categories_id }).categories_id;
+        normalizedListProductsIds = normalizeStringArrayInput({ list_product_ids: payload.list_product_ids }).list_product_ids;
       } catch (error) {
         // 🌍 i18n
         console.log(error);
@@ -324,8 +327,7 @@ export default class ProductsController {
     try {
       await securityService.authenticate({ auth, request })
       await request.ctx?.bouncer.authorize('collaboratorAbility', ['edit_product'])
-      console.log('collaboratorAbility');
-
+     
       isManager = true;
     } catch { }
 
@@ -340,7 +342,7 @@ export default class ProductsController {
         query.where('is_visible', true);
       }
 
-      if (payload.with_all ||payload.with_feature) {
+      if (payload.with_all || payload.with_feature) {
         query = query.preload('features', (featureQuery) => {
           featureQuery
             .orderBy('features.index', 'asc')
@@ -349,7 +351,11 @@ export default class ProductsController {
             });
         })
       }
-      
+
+      if (normalizedListProductsIds?.length > 0) {
+        query.whereIn('id', normalizedListProductsIds)
+      }
+
       if (payload.slug_cat) {
         console.log('Application du filtre de catégorie...');
         const categoryIds = await Categorie.get_all_category_ids_by_slug(payload.slug_cat)
@@ -408,8 +414,8 @@ export default class ProductsController {
 
       products = await query.paginate(pageNum, limitNum)
       const list = products.all()
-      if (payload.with_all ||payload.with_categories) {
-        const promises = products.all().map((p)=>new Promise(async(rev)=>{
+      if (payload.with_all || payload.with_categories) {
+        const promises = products.all().map((p) => new Promise(async (rev) => {
           const cats = await Categorie.findMany(p.categories_id);
           console.log(cats);
           (p as any).categories = cats.filter(Boolean);
@@ -418,11 +424,11 @@ export default class ProductsController {
         await Promise.allSettled(promises);
       }
 
-      return  {
-      list,
-      category,
-      meta: products.getMeta(),
-    }
+      return {
+        list,
+        category,
+        meta: products.getMeta(),
+      }
 
 
     } catch (error) {
@@ -487,8 +493,8 @@ export default class ProductsController {
       if (normalizedCategories !== undefined) updates.categories_id = normalizedCategories || []
 
       if (payload.barred_price) {
-        const price = (product.price||0)
-        if (payload.barred_price <= price || payload.barred_price > MAX_PRICE ) {
+        const price = (product.price || 0)
+        if (payload.barred_price <= price || payload.barred_price > MAX_PRICE) {
           // 🌍 i18n
           return response.badRequest({ message: t('product.barredPriceInvalidRange', { max: MAX_PRICE }) }) // Nouvelle clé
         }

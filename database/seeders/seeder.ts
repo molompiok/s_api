@@ -4,6 +4,9 @@ import { ProductFactory } from '#database/factories/product_factory'
 import { FeatureFactory } from '#database/factories/feature_factory'
 import { ValueFactory } from '#database/factories/value_factory'
 import { FeatureType } from '#models/feature'
+import { ProductFaqFactory } from '#database/factories/product_faq_factory'
+import { DetailFactory } from '#database/factories/detail_factory'
+import { ProductCharacteristicFactory } from '#database/factories/product_characteristic_factory'
 export default class extends BaseSeeder {
   async run() {
 
@@ -18,8 +21,7 @@ export default class extends BaseSeeder {
       // Créer 5 sous-catégories pour chaque catégorie principale
       const subCategories = await CategorieFactory
         .merge({ parent_category_id: category.id })
-
-        .createMany(5)
+        .createMany(5);
 
       for (const subCategory of subCategories) {
         // Créer 5 produits liés à la sous-catégorie et à la catégorie principale
@@ -28,8 +30,20 @@ export default class extends BaseSeeder {
           .createMany(5)
 
         for (const product of products) {
+          await ProductFaqFactory
+            .merge({ product_id: product.id })
+            .createMany( randomInt(3, 6) )
+          
+          await DetailFactory
+            .merge({ product_id: product.id })
+            .createMany( randomInt(3, 6) )
+          
+          await ProductCharacteristicFactory
+            .merge({ product_id: product.id })
+            .createMany( randomInt(3, 6) )
+          
           // Créer entre 2 et 3 features pour chaque produit
-          const featureCount = randomInt(2, 3)
+          const featureCount = randomInt(3, 5) 
           const features = await FeatureFactory
             .merge({ product_id: product.id })
             .createMany(featureCount)
