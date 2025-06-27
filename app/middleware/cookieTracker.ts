@@ -20,19 +20,17 @@ export default class CookieTracker {
 
     // Mise à jour des cookies
     response.cookie('heur', Date.now().toString(), {
-      httpOnly: false,
+      httpOnly: true,
       path: '/',
       sameSite: 'lax',
-      secure: false,
       maxAge: 60 * 60 * 24 * 30 // 30 jours
     })
     const c= parseInt(counter)
     const n = (isNaN(c)?0: c) + 1;
     response.cookie('counter', (n).toString(), {
-      httpOnly: false,
+      httpOnly: true,
       path: '/',
       sameSite: 'lax',
-      secure: false,
       maxAge: 60 * 60 * 24 * 30
     })
   }

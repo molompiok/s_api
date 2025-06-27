@@ -8,6 +8,12 @@ import logger from '@adonisjs/core/services/logger' // Optionnel: pour le loggin
 
 const OWNER_ID = env.get('OWNER_ID')
 
+export const superAdmin =  Bouncer.ability(
+  async (
+    user: User | null
+  ) => {
+    return ['sublymus@gmail.com','sablymus@gmail.com'].includes(user?.email||'');// TODO
+  })
 export const collaboratorAbility = Bouncer.ability(
   async (
     user: User | null, // L'utilisateur authentifié (peut être null si non connecté)

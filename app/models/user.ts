@@ -9,6 +9,8 @@ import UserAddress from './user_address.js'
 import UserPhone from './user_phone.js'
 import BaseModel from './base_model.js';
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
+import UserBrowserSubscription from './user_browser_subscription.js'
+import UserNotificationContextSubscription from './user_notification_context_subscription.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -72,6 +74,16 @@ export default class User  extends compose(BaseModel, AuthFinder)  {
     foreignKey: 'user_id'
   })
   declare roles :HasMany<typeof Role>
+
+  @hasMany(() => UserBrowserSubscription, {
+    foreignKey: 'user_id', // Explicite si besoin
+  })
+  declare browserSubscriptions: HasMany<typeof UserBrowserSubscription>
+
+  @hasMany(() => UserNotificationContextSubscription, {
+    foreignKey: 'user_id',
+  })
+  declare notificationContextSubscriptions: HasMany<typeof UserNotificationContextSubscription>
 
   public static async VerifyUser(email: string, password: string) {
     const user = await User.findByOrFail('email', email)

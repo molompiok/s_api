@@ -12,6 +12,9 @@ export default class LogVisit {
         const ua = request.header('User-Agent') || ''
         const uaResult = parser.setUA(ua).getResult()
 
+
+        console.log('✨✨✨',session.get('visite_id'));
+        
         // Création d'une nouvelle entrée de visite
         const visit = new Visite()
 
@@ -20,7 +23,7 @@ export default class LogVisit {
         try {
             const user = await securityService.authenticate({ request, auth })
             visit.user_id = user.id
-            visit.is_authenticate = true
+            visit.is_authenticate = true;
         } catch {
             const visite_id = session.get('visite_id')
             if (visite_id) {
@@ -32,6 +35,7 @@ export default class LogVisit {
             }
         }
 
+        session.put('visite_id', visit.user_id)
         visit.ip_address = request.ip()
 
         const deviceType = uaResult.device.type || 'desktop' // "mobile", "tablet", ou "desktop" par défaut
@@ -47,7 +51,6 @@ export default class LogVisit {
         visit.referrer = referrer
 
         visit.landing_page = request.url() // Chemin uniquement (ex. : "/dashboard")
-
 
         await visit.save()
 

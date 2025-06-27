@@ -47,17 +47,18 @@ export class SecurityService {
   }
 
   async authenticate({ auth, request }: { response?: HttpContext['response'], auth: HttpContext['auth'], request: HttpContext['request'] }) {
-    let user;
+    let user = auth.user;
 
     // console.log('request.authorization', request.headers()['authorization']);
 
     try {
-      user = await this.authenticateJWT(request);
-      (user as any).connection = 'jwt';
-    } catch { }
-    try {
       if (!user) {
-        user = await auth.use('web').authenticate();
+        user = await this.authenticateJWT(request);
+        (user as any).connection = 'jwt';
+        Object.defineProperty(auth, 'authenticatedViaGuard', {
+          value: 'jwt',
+          writable: false,
+        });
       }
     } catch { }
     try {
@@ -70,6 +71,12 @@ export class SecurityService {
     } catch (error) {
       console.log({ authError: error });
     }
+    try {
+      if (!user) {
+        user = await auth.use('web').authenticate();
+      }
+    } catch { }
+    
 
     if (!user) throw new Exception('Unauthorized access', { code: 'E_UNAUTHORIZED', status: 401 })
 

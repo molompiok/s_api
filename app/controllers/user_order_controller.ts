@@ -18,6 +18,7 @@ import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
 import { securityService } from '#services/SecurityService'
+import PushNotificationService, { PushPayload } from '#services/PushNotificationService'
 
 // Permissions
 const VIEW_ALL_ORDERS_PERMISSION: keyof TypeJsonRole = 'filter_command';
@@ -167,7 +168,7 @@ export default class UserOrdersController {
                 })
             );
 
-            const itemsTotalPrice =  itemsWithRealBind.reduce((total, item) => {
+            const itemsTotalPrice = itemsWithRealBind.reduce((total, item) => {
                 const basePrice = item.product?.price || 0;
                 const additionalPrice = item.additional_price || 0;
                 const quantity = item.quantity || 1;
@@ -554,9 +555,25 @@ export default class UserOrdersController {
             logger.info({ actorId: user.id, orderId: order.id, from: currentStatus, to: newStatus }, 'Order status updated successfully');
 
             // Recharger et répondre (inchangé)
-            const updatedCommand = await this._get_users_orders({ command_id: order.id, with_items: true });
+            // const updatedCommand = await this._get_users_orders({ command_id: order.id, with_items: true });
+            
+            const notificationPayload: PushPayload = {
+                title: t('notifications.orderStatusUpdate.title', { ref: order.reference }), // "Commande #REF123 Mise à Jour"
+                options: {
+                    body: t('notifications.orderStatusUpdate.body', { status: t(`orderStatus.${newStatus.toLowerCase()}`) }), // "Votre commande est maintenant : En cours de préparation"
+                    icon: '', // URL du logo du store
+                    tag: `order-${order.id}`, // Pour remplacer les notifs précédentes pour cette commande
+                    data: { url: `/profile/orders/${order.id}` } // URL à ouvrir au clic
+                }
+            };
+            // Envoyer au propriétaire de la commande
+            PushNotificationService.sendNotificationToUser(order.user_id, notificationPayload)
+                .catch(err => logger.error({ err, userId: order.user_id, orderId: order.id }, "Failed to send order update push notification"));
+            
             transmit.broadcast(`store/${env.get('STORE_ID')}/update_command`, { id: order.id });
-            return response.ok({ message: t('order.updateSuccess'), order: updatedCommand.list[0] });
+
+
+            return response.ok({ message: t('order.updateSuccess')});
 
         } catch (error) { // ... gestion erreur interne
             await trx.rollback();

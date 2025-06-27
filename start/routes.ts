@@ -35,6 +35,8 @@ import { DateTime } from 'luxon'
 import BullMQService from '#services/BullMQService'
 import ProductFaqsController from '#controllers/product_faqs_controller'
 import ProductCharacteristicsController from '#controllers/product_characteristics_controller'
+import { middleware } from './kernel.js'
+import NotificationSettingsController from '#controllers/notification_settings_controller'
 // import redisService from '#services/RedisService'
 
 
@@ -82,9 +84,9 @@ router.group(() => {
 
     // == Cart ==
     router.group(() => {
-        router.post('/update', [CartsController, 'update_cart']) // Renommé pour clarté
+        router.post('/update', [CartsController, 'update_cart']).use(middleware.visit()) // Renommé pour clarté
         router.get('/', [CartsController, 'view_cart'])
-        router.post('/merge', [CartsController, 'merge_cart_on_login']) // Renommé pour clarté
+        router.post('/merge', [CartsController, 'merge_cart_on_login']).use(middleware.visit()) // Renommé pour clarté
     }).prefix('/cart')
 
     // == Categories ==
@@ -111,7 +113,7 @@ router.group(() => {
 
     // == Favorites ==
     router.group(() => {
-        router.post('/', [FavoritesController, 'create_favorite'])
+        router.post('/', [FavoritesController, 'create_favorite']).use(middleware.visit())
         router.get('/', [FavoritesController, 'get_favorites']) // Liste ou par ID via query
         router.put('/:id', [FavoritesController, 'update_favorites']) // ID dans l'URL pour PUT
         // Le code d'update attendait favorite_id dans le body. Adapter contrôleur.
@@ -147,32 +149,32 @@ router.group(() => {
         // Le code d'update attendait id/detail_id dans le body. Adapter contrôleur.
         router.delete('/:id', [DetailsController, 'delete_detail'])
     }).prefix('/details')
-    
+
     // ==  FAQs ==
     router.group(() => {
-        router.post('/', [ProductFaqsController,'createFaq']);
-        router.post('/reorder', [ProductFaqsController,'reorderFaqs']); 
-        router.get('/', [ProductFaqsController,'listFaqs']); 
-        router.get('/:faqId', [ProductFaqsController,'getFaq']);
-        router.put('/:faqId', [ProductFaqsController,'updateFaq']);
-        router.delete('/:faqId', [ProductFaqsController,'deleteFaq']);
+        router.post('/', [ProductFaqsController, 'createFaq']);
+        router.post('/reorder', [ProductFaqsController, 'reorderFaqs']);
+        router.get('/', [ProductFaqsController, 'listFaqs']);
+        router.get('/:faqId', [ProductFaqsController, 'getFaq']);
+        router.put('/:faqId', [ProductFaqsController, 'updateFaq']);
+        router.delete('/:faqId', [ProductFaqsController, 'deleteFaq']);
     }).prefix('/product-faqs')
 
     // ==  FAQs ==
     router.group(() => {
-        router.post('/', [ProductCharacteristicsController,'createCharacteristic']);
+        router.post('/', [ProductCharacteristicsController, 'createCharacteristic']);
         // router.post('/reorder', [ProductCharacteristicsController,'reorder']); 
-        router.get('/', [ProductCharacteristicsController,'listCharacteristics']); 
-        router.get('/:id', [ProductCharacteristicsController,'getCharacteristic']);
-        router.put('/:id', [ProductCharacteristicsController,'updateCharacteristic']);
-        router.delete('/:id', [ProductCharacteristicsController,'deleteCharacteristic']);
+        router.get('/', [ProductCharacteristicsController, 'listCharacteristics']);
+        router.get('/:id', [ProductCharacteristicsController, 'getCharacteristic']);
+        router.put('/:id', [ProductCharacteristicsController, 'updateCharacteristic']);
+        router.delete('/:id', [ProductCharacteristicsController, 'deleteCharacteristic']);
     }).prefix('/product-characteristics')
 
     // == Products ==
     router.group(() => {
         router.post('/', [ProductsController, 'create_product'])
-        router.get('/', [ProductsController, 'get_products']) // Liste ou par ID/Slug via query
-        router.put('/:id', [ProductsController, 'update_product']) // ID dans l'URL pour PUT
+        router.get('/', [ProductsController, 'get_products']).use(middleware.visit()) // Liste ou par ID/Slug via query
+        router.put('/:id', [ProductsController, 'update_product']).use(middleware.visit()) // ID dans l'URL pour PUT
         // Le code d'update attendait product_id dans le body. Adapter contrôleur.
         router.delete('/:id', [ProductsController, 'delete_product'])
         router.get('/similar/:slug', [ProductsController, 'get_similar_products'])
@@ -240,16 +242,31 @@ router.group(() => {
         router.get('/clients_stats', [UsersController, 'clients_stats']) // Route principale pour les stats détaillées
     }).prefix('/stats')
 
+     // == Notifications & Browsers  ==
+    router.group(() => {
+        router.put('/device', [NotificationSettingsController,'registerOrUpdateDevice'])
+        router.get('/devices', [NotificationSettingsController,'listUserDevices'])
+        router.put('/devices/:deviceId', [NotificationSettingsController,'updateDeviceStatus'])
+        router.delete('/devices/:deviceId', [NotificationSettingsController,'removeDevice'])
+
+        router.post('/contexts', [NotificationSettingsController,'subscribeToContext'])
+        router.get('/contexts', [NotificationSettingsController,'listContextSubscriptions'])
+        router.delete('/contexts/:subscriptionId', [NotificationSettingsController,'unsubscribeFromContext'])
+        
+        router.post('/ping-test', [NotificationSettingsController,'pingNotification']);
+
+        // Endpoints pour enable/disable all (non implémentés dans le contrôleur ci-dessus, à ajouter si besoin)
+        // router.put('/notifications/settings/enable-all', [NotificationSettingsController,'enableAllNotifications'])
+        // router.put('/notifications/settings/disable-all', [NotificationSettingsController,'disableAllNotifications'])
+    }).prefix('/notifications')
+
     // == Debug ==
     router.group(() => {
         router.get('/scale-up', [DebugController, 'requestScaleUp'])
         router.get('/scale-down', [DebugController, 'requestScaleDown'])
     }).prefix('/debug')
 
-    // == Uploads (Route générique pour servir les fichiers uploadés) ==
-    // Doit être DÉFINIE AVANT le préfixe /api/v1 si les URLs upload sont /uploads/*
-    // router.get('/uploads/*', ...) // Cette route est définie plus bas
-
+   
     // == Send Email (Debug/Test - À déplacer) ==
     router.get('/_test/send-email', async ({ request, response, i18n }) => { // Route de test préfixée
         const { email } = request.qs();
