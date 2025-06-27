@@ -1,3 +1,4 @@
+//app/services/PushNotificationService.ts
 import webpush, { PushSubscription } from 'web-push'
 import env from '#start/env'
 import logger from '@adonisjs/core/services/logger'
@@ -23,15 +24,15 @@ export interface PushPayload {
 }
 
 class PushNotificationService {
-    private vapidPublicKey: string;
-    private vapidPrivateKey: string;
-    private vapidSubject: string;
+    private vapidPublicKey: string|undefined;
+    private vapidPrivateKey: string|undefined;
+    private vapidSubject: string|undefined;
     private isConfigured: boolean = false;
 
     constructor() {
-        this.vapidPublicKey = env.get('VAPID_PUBLIC_KEY', '');
-        this.vapidPrivateKey = env.get('VAPID_PRIVATE_KEY', '');
-        this.vapidSubject = env.get('VAPID_SUBJECT', ''); // ex: 'mailto:contact@votresite.com'
+        this.vapidPublicKey = env.get('VAPID_PUBLIC_KEY');
+        this.vapidPrivateKey = env.get('VAPID_PRIVATE_KEY');
+        this.vapidSubject = env.get('VAPID_SUBJECT'); // ex: 'mailto:contact@votresite.com'
 
         if (this.vapidPublicKey && this.vapidPrivateKey && this.vapidSubject) {
             try {
@@ -67,6 +68,14 @@ class PushNotificationService {
         }
 
         try {
+            console.log({
+                vapidSubject:this.vapidSubject,
+                vapidPublicKey:this.vapidPublicKey,
+                vapidPrivateKey:this.vapidPrivateKey
+            });
+            
+            console.log({payload},subscriptionObject);
+            
             logger.info({ endpoint: subscriptionObject.endpoint, title: payload.title }, 'Attempting to send push notification');
             await webpush.sendNotification(subscriptionObject, JSON.stringify(payload));
             logger.info({ endpoint: subscriptionObject.endpoint, title: payload.title }, 'Push notification sent successfully');

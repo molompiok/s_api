@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
+import { BaseModel, column, belongsTo, beforeCreate } from '@adonisjs/lucid/orm'
 import User from '#models/user'
 import UserBrowserSubscription from '#models/user_browser_subscription'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { v4 } from 'uuid'
 
 export default class UserNotificationContextSubscription extends BaseModel {
   static selfAssignPrimaryKey = true
@@ -30,6 +31,13 @@ export default class UserNotificationContextSubscription extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updated_at: DateTime
+
+  @beforeCreate()
+  public static assignUuid(subscription: UserBrowserSubscription) {
+    if (!subscription.id) {
+      subscription.id = v4()
+    }
+  }
 
   // Relations
   @belongsTo(() => User)

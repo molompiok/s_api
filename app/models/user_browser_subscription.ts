@@ -1,7 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
+import { BaseModel, column, belongsTo, beforeCreate } from '@adonisjs/lucid/orm'
 import User from '#models/user' // Ton modèle User dans s_api
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { v4 } from 'uuid'
 
 export default class UserBrowserSubscription extends BaseModel {
   static selfAssignPrimaryKey = true // Si tu utilises defaultTo pour l'ID dans la migration
@@ -56,12 +57,12 @@ export default class UserBrowserSubscription extends BaseModel {
   declare user: BelongsTo<typeof User>
 
   // Hook pour l'ID (si tu ne comptes pas sur defaultTo de la DB pour la génération avant l'insert)
-  // @beforeCreate()
-  // public static assignUuid(subscription: UserBrowserSubscription) {
-  //   if (!subscription.id) {
-  //     subscription.id = uuid()
-  //   }
-  // }
+  @beforeCreate()
+  public static assignUuid(subscription: UserBrowserSubscription) {
+    if (!subscription.id) {
+      subscription.id = v4()
+    }
+  }
 
   // Méthode pour convertir en objet PushSubscriptionJSON pour la librairie web-push
   public toPushSubscriptionJSON(): { endpoint: string; keys: { p256dh: string; auth: string } } {

@@ -5,7 +5,7 @@ export default class CreateUserBrowserSubscriptionsTable extends BaseSchema {
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      table.uuid('id').primary().defaultTo(this.raw('uuid_generate_v4()'))
+      table.uuid('id').primary()
       table.uuid('user_id').references('id').inTable('users').onDelete('CASCADE').notNullable()
       
       table.text('endpoint').notNullable().unique() // L'URL du service push, doit être unique

@@ -5,7 +5,7 @@ export default class CreateUserNotificationContextSubscriptionsTable extends Bas
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      table.uuid('id').primary().defaultTo(this.raw('uuid_generate_v4()'))
+      table.uuid('id').primary()
       table.uuid('user_id').references('id').inTable('users').onDelete('CASCADE').notNullable()
       
       // Optionnel: Lier à un appareil spécifique. Si omis, le contexte s'applique à tous les appareils actifs de l'utilisateur.
@@ -21,7 +21,7 @@ export default class CreateUserNotificationContextSubscriptionsTable extends Bas
       table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(this.now())
 
       // Index unique pour éviter les doublons d'abonnement au même contexte (par appareil ou globalement)
-      table.unique(['user_id', 'context_name', 'context_id', 'user_browser_subscription_id'])
+      // table.unique(['user_id', 'context_name', 'context_id', 'user_browser_subscription_id'])
     })
 
     this.schema.alterTable(this.tableName, (table) => {
