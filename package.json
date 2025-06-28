@@ -44,7 +44,7 @@
     "@swc/core": "1.10.7",
     "@types/event-loop-lag": "^1.0.33",
     "@types/luxon": "^3.4.2",
-    "@types/node": "^22.13.2",
+    "@types/node": "^22.13.2", 
     "@types/node-cron": "^3.0.11",
     "@types/web-push": "^3.6.4",
     "eslint": "^9.20.1",
