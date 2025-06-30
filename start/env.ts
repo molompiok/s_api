@@ -63,5 +63,13 @@ export default await Env.create(new URL('../', import.meta.url), {
   */
   S_SECRET_KEYS_CONTAINER_PATH: Env.schema.string(),
 
-  SERVER_DOMAINE: Env.schema.string()
+  SERVER_DOMAINE: Env.schema.string(),
+/*
+  |----------------------------------------------------------
+  | WEB-PUSH Notification
+  |----------------------------------------------------------
+  */
+  VAPID_PUBLIC_KEY: Env.schema.string(),
+  VAPID_PRIVATE_KEY: Env.schema.string(),
+  VAPID_SUBJECT: Env.schema.string(),
 })

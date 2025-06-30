@@ -16,9 +16,10 @@ import vine from '@vinejs/vine'; // ✅ Ajout de Vine
 import { normalizeStringArrayInput, t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
-import { TypeJsonRole } from '#models/role' // Pour type permissions
+import Role, { TypeJsonRole } from '#models/role' // Pour type permissions
 import { securityService } from '#services/SecurityService'
 import PushNotificationService, { PushPayload } from '#services/PushNotificationService'
+import redisService from '#services/RedisService'
 
 // Permissions
 const VIEW_ALL_ORDERS_PERMISSION: keyof TypeJsonRole = 'filter_command';
@@ -137,8 +138,7 @@ export default class UserOrdersController {
 
     async create_user_order({ request, response, auth }: HttpContext) {
         // 🔐 Authentification (Seul un utilisateur connecté peut créer une commande)
-        await securityService.authenticate({ request, auth });
-        const user = auth.user!; // Garanti non null
+        const user = await securityService.authenticate({ request, auth });
 
         const trx = await db.transaction();
         let payload: Infer<typeof this.createOrderSchema>;
@@ -273,6 +273,32 @@ export default class UserOrdersController {
 
             await trx.commit();
             logger.info({ userId: user.id, orderId: userOrder.id }, 'Order created successfully');
+            
+            const store = await redisService.getMyStore();
+
+            const notificationPayload: PushPayload = {
+                title: 'Une Nouvelle command : '+userOrder.reference,
+                options: {
+                    body: 'Commande en attente de confirmation : '+ userOrder.total_price +' '+userOrder.currency , 
+                    icon: store?.logo?.[0] as string||'',
+                    tag: userOrder.reference, // Pour remplacer les notifs précédentes pour cette commande
+                    data: { url: `/commands/${userOrder.id}` } // dasboard
+                }
+            };
+            // Envoyer au propriétaire de la commande
+            const owner_id = env.get('OWNER_ID');
+            const collaboratorsWithPermission = await Role.query()
+            .where('manage_command', true) // Filtre directement sur la permission
+            .select('user_id');
+            const collaboratorIds = collaboratorsWithPermission.map(role => role.user_id);
+
+            // Assembler tous les IDs d'admins/owners, en s'assurant qu'il n'y a pas de doublons
+            const adminUserIds = [owner_id,...collaboratorIds];
+            adminUserIds.forEach(manager_id=>{
+                PushNotificationService.sendNotificationToUser(manager_id, notificationPayload)
+                    .catch(err => logger.error({ err, userId: manager_id, orderId: userOrder.id }, "Failed to send order update push notification"));
+            })
+            
             // Diffusion SSE
             transmit.broadcast(`store/${env.get('STORE_ID')}/new_command`, { id: userOrder.id });
 
@@ -556,12 +582,12 @@ export default class UserOrdersController {
 
             // Recharger et répondre (inchangé)
             // const updatedCommand = await this._get_users_orders({ command_id: order.id, with_items: true });
-            
+            const store = await redisService.getMyStore();
             const notificationPayload: PushPayload = {
-                title: t('notifications.orderStatusUpdate.title', { ref: order.reference }), // "Commande #REF123 Mise à Jour"
+                title: 'Commande '+order.reference+' Mise à Jour',
                 options: {
-                    body: t('notifications.orderStatusUpdate.body', { status: t(`orderStatus.${newStatus.toLowerCase()}`) }), // "Votre commande est maintenant : En cours de préparation"
-                    icon: '', // URL du logo du store
+                    body: 'Votre commande est maintenant en : '+ newStatus.toLowerCase(), 
+                    icon: store?.logo?.[0] as string||'',
                     tag: `order-${order.id}`, // Pour remplacer les notifs précédentes pour cette commande
                     data: { url: `/profile/orders/${order.id}` } // URL à ouvrir au clic
                 }
