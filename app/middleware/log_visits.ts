@@ -52,6 +52,8 @@ export default class LogVisit {
 
         visit.landing_page = request.url() // Chemin uniquement (ex. : "/dashboard")
 
+        console.log('visit',visit);
+        
         await visit.save()
 
         await next()
