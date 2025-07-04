@@ -13,8 +13,8 @@ export default class LogVisit {
         const uaResult = parser.setUA(ua).getResult()
 
 
-        console.log('✨✨✨',session.get('visite_id'));
-        
+        console.log('✨✨✨', session.get('visite_id'));
+
         // Création d'une nouvelle entrée de visite
         const visit = new Visite()
 
@@ -52,10 +52,13 @@ export default class LogVisit {
 
         visit.landing_page = request.url() // Chemin uniquement (ex. : "/dashboard")
 
-        console.log('visit',visit);
-        
-        await visit.save()
+        try {
+            console.log('visit', visit);
 
+            await visit.save()
+
+        } catch (error) { }
+        
         await next()
     }
 }
