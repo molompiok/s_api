@@ -143,8 +143,8 @@ export class SecurityService {
       // console.log('REVOKED TOKEN, ');
       // console.log('REVOKED TOKEN (issued before global revocation)');
       throw new Error('Token has been revoked globally');
-
     }
+    
     let user;
     try {
       user = await User.query().where('email', payload.email).preload('roles').first();

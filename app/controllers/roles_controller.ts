@@ -209,7 +209,7 @@ export default class RolesController {
                             server_action:'addUser',
                             to: newUser.email,
                             subject: `Invitation à rejoindre l'équipe ${storeName} sur Sublymus`,//t('emails.collaboratorInviteSubject', { storeName }), // Nouvelle clé
-                            template: 'emails/collaborator_invitation_setup', // Nouveau template
+                            template: 'emails/collaborator_added_notification', 
                             context: {
                                 store_slug:store?.slug,
                                 invitedUserName: newUser.full_name, // Nom de l'invité
