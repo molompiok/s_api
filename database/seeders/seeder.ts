@@ -1,12 +1,4 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import { CategorieFactory } from '#database/factories/categorie_factory'
-import { ProductFactory } from '#database/factories/product_factory'
-import { FeatureFactory } from '#database/factories/feature_factory'
-import { ValueFactory } from '#database/factories/value_factory'
-import { FeatureType } from '#models/feature'
-import { ProductFaqFactory } from '#database/factories/product_faq_factory'
-import { DetailFactory } from '#database/factories/detail_factory'
-import { ProductCharacteristicFactory } from '#database/factories/product_characteristic_factory'
 import { VisiteFactory } from '#database/factories/visite_factory'
 import { UserOrderFactory } from '#database/factories/orders_factory'
 export default class extends BaseSeeder {
