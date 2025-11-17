@@ -4,12 +4,13 @@ import UserOrderItem from '#models/user_order_item'
 import UserOrder, { OrderStatus, PaymentMethod, PaymentStatus } from '#models/user_order'
 
 export const USER_IDS = [
-    '3bbbc28e-b9c5-443f-827d-76049dfeb49c',
+    '8093cae2-1134-4d2a-b3f0-257bb740b441',
     // 'ca230d53-a3e1-43bf-89a9-14e596f977d3',
     // 'dfbbb0cc-15b5-44f9-954d-4356de30c5b9',
     // '57fd53cb-30a8-43a2-90fb-bfab5e10ae1d',
 ]
-export const PRODUCT_ID = '3bbbc28e-b9c5-443f-827d-76049dfeb49c'
+
+export const PRODUCT_ID = "986275e8-1efc-4484-940f-c9eef68dd358"
 function getRandomDateBetween() {
 
     const start = DateTime.fromISO('2025-01-01') // Date de début
@@ -133,5 +134,5 @@ export const UserOrderFactory = Factory.define(UserOrder, ({ faker }) => {
         updated_at: date,
     }
 })
-    // .relation('items', () => UserOrderItemFactory)
+    .relation('items', () => UserOrderItemFactory)
     .build()

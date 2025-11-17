@@ -8,7 +8,6 @@ import { Queue } from 'bullmq';
 /*
 TODO
 trouver un moyen de faire appele seulement appele down s'il y a d'autres services
-
 */
 
 const CHECK_INTERVAL_MS = 30 * 1000; // Vérifier toutes les 30 secondes
