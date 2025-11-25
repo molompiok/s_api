@@ -1,6 +1,4 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import { VisiteFactory } from '#database/factories/visite_factory'
-import { UserOrderFactory } from '#database/factories/orders_factory'
 import { CategorieFactory } from '#database/factories/categorie_factory'
 import { ProductFactory } from '#database/factories/product_factory'
 import { ProductCharacteristicFactory } from '#database/factories/product_characteristic_factory'
