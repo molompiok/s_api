@@ -149,7 +149,7 @@
   //     if (!product_id) return response.badRequest({ message: 'product_id is required' });
 
   //     const query = GroupProduct.query()
-  //       .select('*')
+  //       .select("*")
   //       .where('product_id', product_id);
 
   //     if (feature_key && feature_value) {
@@ -269,8 +269,7 @@
   //     const pageNum = Math.max(1, parseInt(page))
   //     const limitNum = Math.max(1, parseInt(limit))
 
-  //     let query = db.from(GroupProduct.table).select('*')
-
+  //     let query = db.from(GroupProduct.table).select("*")
   //     if (product_id) {
   //       query = query.where('product_id', product_id)
   //     }

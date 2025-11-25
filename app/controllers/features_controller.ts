@@ -10,7 +10,7 @@ import db from '@adonisjs/lucid/services/db';
 import ValuesController from './values_controller.js'; // Conservé pour appels internes
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+
 import { Infer } from '@vinejs/vine/types';
 import { securityService } from '#services/SecurityService';
 
@@ -222,7 +222,7 @@ export default class FeaturesController {
         const feature = await Feature.query({ client: trx }).preload('values').where('id', feature_id).first();
         if (!feature) {
             // 🌍 i18n
-            throw new Error(t('feature.notFound')); // Le message sera propagé
+            throw new Error("Caractéristique n'a pas été trouvé(e)."); // Le message sera propagé
         }
 
         // Delete feature values first
@@ -243,7 +243,7 @@ export default class FeaturesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -265,7 +265,7 @@ export default class FeaturesController {
             await trx.commit();
             logger.info({ userId: auth.user!.id, featureId: feature.id, productId: product.id }, 'Feature created');
             // 🌍 i18n
-            return response.created({ message: t('feature.createdSuccess'), feature: feature }); // Retourne OK avec l'objet créé
+            return response.created({ message: "Caractéristique créé(e) avec succès.", feature: feature }); // Retourne OK avec l'objet créé
 
         } catch (error) {
             await trx.rollback();
@@ -275,14 +275,14 @@ export default class FeaturesController {
             logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to create feature');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n (si findOrFail échoue sur Product)
-                return response.notFound({ message: t('product.notFound') });
+                return response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('feature.creationFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la création du/de la caractéristique.", error: error.message });
         }
     }
 
@@ -295,7 +295,7 @@ export default class FeaturesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -320,7 +320,7 @@ export default class FeaturesController {
         } catch (error) {
             logger.error({ error: error.message, stack: error.stack }, 'Failed to get features');
             // 🌍 i18n
-            return response.internalServerError({ message: t('feature.fetchFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la caractéristique.", error: error.message });
         }
     }
 
@@ -334,7 +334,7 @@ export default class FeaturesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -356,14 +356,14 @@ export default class FeaturesController {
 
             if (!features.length && (payload.feature_id || payload.product_id)) {
                 // 🌍 i18n
-                return response.notFound({ message: t('feature.notFound') });
+                return response.notFound({ message: "Caractéristique n'a pas été trouvé(e)." });
             }
 
             return response.ok(features); // Renvoie directement le tableau des features avec leurs valeurs
         } catch (error) {
             logger.error({ error: error.message, stack: error.stack }, 'Failed to get features with values');
             // 🌍 i18n
-            return response.internalServerError({ message: t('feature.fetchWithValuesFailed'), error: error.message, });
+            return response.internalServerError({ message: "fetchWithValuesFailed.", error: error.message, });
         }
     }
 
@@ -376,7 +376,7 @@ export default class FeaturesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -393,21 +393,21 @@ export default class FeaturesController {
             await trx.commit();
             logger.info({ userId: auth.user!.id, featureId: feature.id }, 'Feature updated');
             // 🌍 i18n
-            return response.ok({ message: t('feature.updateSuccess'), feature: feature });
+            return response.ok({ message: "Caractéristique mis(e) à jour avec succès.", feature: feature });
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to update feature');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('feature.notFound') });
+                return response.notFound({ message: "Caractéristique n'a pas été trouvé(e)." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('feature.updateFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la mise à jour du/de la caractéristique.", error: error.message });
         }
     }
 
@@ -420,7 +420,7 @@ export default class FeaturesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -434,7 +434,7 @@ export default class FeaturesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -456,7 +456,7 @@ export default class FeaturesController {
                 // TODO: Ajouter une validation plus fine de la structure interne de Allfeatures si nécessaire
             } catch (jsonError) {
                 // 🌍 i18n
-                throw new Error(t('feature.invalidJsonPayload'));
+                throw new Error("invalidJsonPayload.");
             }
 
             console.log(Allfeatures);
@@ -577,7 +577,7 @@ export default class FeaturesController {
             logger.info({ userId: auth.user!.id, productId: payload.product_id }, 'Multiple features/values updated');
 
             // Recharger le produit avec toutes ses dépendances triées
-            const updatedProduct = await Product.query().select('*').preload('features', (featureQuery) => {
+            const updatedProduct = await Product.query().select("*").preload('features', (featureQuery) => {
                 featureQuery
                     .orderBy('index', 'asc') // Trier par index
                     .preload('values', (valueQuery) => {
@@ -588,7 +588,7 @@ export default class FeaturesController {
                 .first();
 
             // 🌍 i18n 
-            return response.ok({ message: t('feature.multipleUpdateSuccess'), product: updatedProduct?.toObject() });
+            return response.ok({ message: "multipleUpdateSuccess.", product: updatedProduct?.toObject() });
         } catch (error) {
             console.log(error);
 
@@ -596,14 +596,14 @@ export default class FeaturesController {
             logger.error({ userId: auth.user?.id, productId: payload?.product_id, error: error.message, stack: error.stack }, 'Failed multiple_update_features_values');
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('product.notFound') });
+                return response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
             }
-            if (error.message === t('feature.invalidJsonPayload')) {
+            if (error.message === "invalidJsonPayload.") {
                 // 🌍 i18n
                 return response.badRequest({ message: error.message });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('feature.multipleUpdateFailed'), error: error.message });
+            return response.internalServerError({ message: "multipleUpdateFailed.", error: error.message });
         }
     }
 
@@ -616,7 +616,7 @@ export default class FeaturesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -628,7 +628,7 @@ export default class FeaturesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -640,7 +640,7 @@ export default class FeaturesController {
             const product = await Product.find(featureToDelete.product_id, { client: trx });
             if (product && product.default_feature_id === featureToDelete.id) {
                 // 🌍 i18n
-                throw new Error(t('feature.cannotDeleteDefault'));
+                throw new Error("cannotDeleteDefault.");
             }
 
             // Appel méthode statique (contient la logique + throw si not found)
@@ -649,20 +649,20 @@ export default class FeaturesController {
 
             logger.info({ userId: auth.user!.id, featureId: payload.feature_id }, 'Feature deleted');
             // 🌍 i18n
-            return response.ok({ message: t('feature.deleteSuccess') });
+            return response.ok({ message: "Caractéristique supprimé(e) avec succès." });
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, featureId: payload?.feature_id, error: error.message, stack: error.stack }, 'Failed to delete feature');
-            if (error.message === t('feature.notFound') || error.code === 'E_ROW_NOT_FOUND') {
+            if (error.message === "Caractéristique n'a pas été trouvé(e)." || error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('feature.notFound') });
+                return response.notFound({ message: "Caractéristique n'a pas été trouvé(e)." });
             }
-            if (error.message === t('feature.cannotDeleteDefault')) {
+            if (error.message === "cannotDeleteDefault.") {
                 // 🌍 i18n
                 return response.badRequest({ message: error.message });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('feature.deleteFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la suppression du/de la caractéristique.", error: error.message });
         }
     }
 }

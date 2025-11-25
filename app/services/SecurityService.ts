@@ -5,6 +5,8 @@ import { Exception } from '@adonisjs/core/exceptions'
 import redisService from './RedisService.js'
 import JwtService from './JwtService.js';
 import User from '#models/user';
+import logger from '@adonisjs/core/services/logger';
+import db from '@adonisjs/lucid/services/db';
 
 import { policies } from '#policies/main'
 import * as abilities from '#abilities/main'
@@ -106,6 +108,100 @@ export class SecurityService {
     return user
   }
 
+  /**
+   * Trouve ou crée le owner de manière idempotente.
+   * Gère proprement les race conditions lors de créations parallèles.
+   */
+  private async findOrCreateOwner(payload: ServerJwtPayload): Promise<User> {
+    const ownerId = env.get('OWNER_ID');
+    
+    // Si ce n'est pas le owner, ne pas créer
+    if (payload.userId !== ownerId) {
+      throw new Error('This method should only be called for owner creation');
+    }
+
+    // Tentative 1: Chercher d'abord sans transaction (cas le plus fréquent)
+    let user = await User.query()
+      .where('email', payload.email)
+      .preload('roles')
+      .first();
+
+    if (user) {
+      return user;
+    }
+
+    // Tentative 2: Créer avec transaction pour gérer les race conditions
+    const trx = await db.transaction();
+    try {
+      // Re-vérifier dans la transaction (pour éviter les créations parallèles)
+      user = await User.query({ client: trx })
+        .where('email', payload.email)
+        .preload('roles')
+        .first();
+
+      if (user) {
+        await trx.rollback();
+        return user;
+      }
+
+      // Créer le user dans la transaction
+      user = await User.create({
+        email: payload.email,
+        id: payload.userId,
+        email_verified_at: DateTime.now(),
+        full_name: payload.full_name || 'Propriétaire',
+        password: v4()
+      }, { client: trx });
+
+      await trx.commit();
+      logger.info({ userId: user.id, email: user.email }, 'Owner user created successfully');
+      return user;
+
+    } catch (error: any) {
+      await trx.rollback();
+      
+      // Si erreur de duplicate (race condition), récupérer le user existant
+      if (this.isDuplicateEntryError(error)) {
+        logger.debug({ userId: payload.userId, email: payload.email }, 'Race condition: owner already created, fetching from DB');
+        user = await User.query()
+          .where('email', payload.email)
+          .preload('roles')
+          .first();
+        
+        if (user) {
+          return user;
+        }
+        // Si toujours pas trouvé, c'est un vrai problème
+        logger.error({ userId: payload.userId, email: payload.email, error }, 'Owner creation failed: duplicate entry but user not found');
+        throw new Error('Owner creation failed: duplicate entry but user not found');
+      }
+      
+      // Autre erreur, la propager
+      logger.error({ userId: payload.userId, email: payload.email, error }, 'Failed to create owner user');
+      throw error;
+    }
+  }
+
+  /**
+   * Vérifie si une erreur est une erreur de contrainte unique (duplicate entry)
+   */
+  private isDuplicateEntryError(error: any): boolean {
+    if (!error) return false;
+    
+    // Codes d'erreur MySQL
+    if (error.code === 'ER_DUP_ENTRY') return true;
+    
+    // Codes d'erreur PostgreSQL
+    if (error.code === '23505') return true;
+    
+    // Messages d'erreur communs
+    const errorMessage = String(error.message || '').toLowerCase();
+    if (errorMessage.includes('duplicate entry')) return true;
+    if (errorMessage.includes('unique constraint')) return true;
+    if (errorMessage.includes('duplicate key')) return true;
+    
+    return false;
+  }
 
   async authenticateJWT(request: HttpContext['request']) {
     const authHeader = request.header('authorization')
@@ -145,19 +241,21 @@ export class SecurityService {
       throw new Error('Token has been revoked globally');
     }
     
-    let user;
+    let user: User | null = null;
+    
     try {
-      user = await User.query().where('email', payload.email).preload('roles').first();
-      if (!user && payload.userId == env.get('OWNER_ID')) {
-        user = await User.create({
-          email: payload.email,
-          id: payload.userId,
-          email_verified_at: DateTime.now(),
-          full_name: payload.full_name || 'Propriétaire',
-          password: v4()
-        })
+      // Chercher l'utilisateur existant
+      user = await User.query()
+        .where('email', payload.email)
+        .preload('roles')
+        .first();
+
+      // Si pas trouvé et que c'est le owner, créer avec gestion de race condition
+      if (!user && payload.userId === env.get('OWNER_ID')) {
+        user = await this.findOrCreateOwner(payload);
       }
-    } catch (error) {
+    } catch (error: any) {
+      logger.error({ userId: payload.userId, email: payload.email, error }, 'Failed to authenticate user from JWT');
       throw new Error('User not found for token, loading error');
     }
 

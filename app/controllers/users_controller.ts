@@ -6,7 +6,7 @@ import Comment from '#models/comment'
 import UserOrder from '#models/user_order'
 import Visite from '#models/visite' // Importer Visite pour lastVisit
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { normalizeStringArrayInput, t } from '../utils/functions.js'; // ✅ Ajout de t
+import { normalizeStringArrayInput} from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
@@ -50,7 +50,7 @@ export default class UsersController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -62,7 +62,7 @@ export default class UsersController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -74,7 +74,7 @@ export default class UsersController {
             const limitNum = payload.limit ?? 10;
 
             // Utiliser Lucid ORM pour User
-            let query = User.query().select('*'); // Sélectionner toutes les colonnes par défaut
+            let query = User.query().select("*"); // Sélectionner toutes les colonnes par défaut
 
             if (payload.with_phones) {
                 query.preload('user_phones')
@@ -98,7 +98,7 @@ export default class UsersController {
             }
             // Appliquer les filtres si pas de user_id
             if (payload.name) {
-                const searchTerm = `%${payload.name.toLowerCase().split(' ').join('%')}%`;
+                const searchTerm = `%${payload.name.toLowerCase().split(" ").join('%')}%`;
                 query.where((q) => {
                     // Recherche sur nom et email (plus utile)
                     q.whereILike('full_name', searchTerm)
@@ -132,7 +132,7 @@ export default class UsersController {
         } catch (error) {
             logger.error({ userId: auth.user!.id, params: payload, error: error.message, stack: error.stack }, 'Failed to get users');
             // 🌍 i18n
-            return response.internalServerError({ message: t('user.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la utilisateur.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -150,7 +150,7 @@ export default class UsersController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -180,7 +180,7 @@ export default class UsersController {
             const activeUsersCount = await Visite.query()
                 .where('is_authenticate', true)
                 .andWhere('created_at', '>=', sixMonthsAgo)
-                .countDistinct('user_id as active_users')
+                .countDistinct("user_id as active_users")
                 .first()
             stats.activeUsers = activeUsersCount?.$extras.active_users || 0
         }
@@ -188,7 +188,7 @@ export default class UsersController {
         // Nombre total de clients
         if (with_total_clients) {
             const totalClients = await User.query()
-                .count('* as total_clients')
+                .count("* as total_clients")
                 .first()
             stats.totalClients = totalClients?.$extras.total_clients || 0
         }
@@ -199,7 +199,7 @@ export default class UsersController {
             const onlineClientsCount = await Visite.query()
                 .where('is_authenticate', true)
                 .andWhere('created_at', '>=', oneHourAgo)
-                .countDistinct('user_id as online_clients')
+                .countDistinct("user_id as online_clients")
                 .first()
             stats.onlineClients = onlineClientsCount?.$extras.online_clients || 0
         }
@@ -209,7 +209,7 @@ export default class UsersController {
 
             const satisfactionStats = await Comment.query()
                 .avg('rating as avg_rating')
-                .countDistinct('user_id as rated_users')
+                .countDistinct("user_id as rated_users")
                 .first()
             stats.averageSatisfaction = satisfactionStats?.$extras.avg_rating ? parseFloat(satisfactionStats.$extras.avg_rating) : 0
             stats.ratedUsersCount = satisfactionStats?.$extras.rated_users || 0
@@ -230,12 +230,12 @@ export default class UsersController {
         const commentStatPromise = Comment.query()
             .where('user_id', userId)
             .avg('rating as average')
-            .count('id as comment_count')
+            .count("id as comment_count")
             .first();
 
         const orderCountPromise = UserOrder.query()
             .where('user_id', userId)
-            .count('id as order_count')
+            .count("id as order_count")
             .first();
 
         // Calculer total dépensé (statut payé ?) et nombre total d'articles
@@ -251,7 +251,7 @@ export default class UsersController {
         const lastVisitPromise = Visite.query()
             .where('user_id', userId)
             .orderBy('created_at', 'desc')
-            .select('created_at')
+            .select("created_at")
             .first();
 
         // Exécuter en parallèle

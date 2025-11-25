@@ -9,7 +9,7 @@ import { updateFiles } from './Utils/media/UpdateFiles.js';
 import { applyOrderBy } from './Utils/query.js'; // Gardé tel quel
 import { deleteFiles } from './Utils/media/DeleteFiles.js';
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
@@ -72,7 +72,7 @@ export default class DetailsController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -89,7 +89,7 @@ export default class DetailsController {
             const product = await Product.find(payload.product_id);
             if (!product) {
                 // 🌍 i18n
-                return response.notFound({ message: t('product.notFound') });
+                return response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
             }
 
             // Gestion fichier 'view'
@@ -129,7 +129,7 @@ export default class DetailsController {
             await trx.commit()
             logger.info({ userId: auth.user!.id, detailId: detail.id, productId: detail.product_id }, 'Detail created');
             // 🌍 i18n
-            return response.created({ message: t('detail.createdSuccess'), detail: detail }); // Nouvelle clé
+            return response.created({ message: "Détail créé(e) avec succès.", detail: detail }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback()
@@ -139,14 +139,14 @@ export default class DetailsController {
             logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to create detail');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
             if (error.code === 'E_ROW_NOT_FOUND') { // Peut arriver si Product.find échoue entretemps
                 // 🌍 i18n
-                return response.notFound({ message: t('product.notFound') });
+                return response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('detail.creationFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la création du/de la détail.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -159,7 +159,7 @@ export default class DetailsController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -169,7 +169,7 @@ export default class DetailsController {
 
         if (!detail_id && !product_id) {
             // 🌍 i18n
-            return response.badRequest({ message: t('detail.idOrProductIdRequired') }); // Nouvelle clé
+            return response.badRequest({ message: "idOrProductIdRequired." }); // Nouvelle clé
         }
 
         try {
@@ -180,7 +180,7 @@ export default class DetailsController {
                 const detail = await query.where('id', detail_id).first(); // Utiliser .first()
                 if (!detail) {
                     // 🌍 i18n
-                    return response.notFound({ message: t('detail.notFound') }); // Nouvelle clé
+                    return response.notFound({ message: "Détail n'a pas été trouvé(e)." }); // Nouvelle clé
                 }
                 return response.ok(detail); // Retourner l'objet unique
             }
@@ -202,7 +202,7 @@ export default class DetailsController {
         } catch (error) {
             logger.error({ error: error.message, stack: error.stack }, 'Failed to get details');
             // 🌍 i18n
-            return response.internalServerError({ message: t('detail.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la détail.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -215,7 +215,7 @@ export default class DetailsController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -223,7 +223,7 @@ export default class DetailsController {
         const detailId = params.id; // ID depuis les paramètres d'URL
         if (!detailId) {
             // 🌍 i18n
-            return response.badRequest({ message: t('detail.idRequired') }); // Nouvelle clé
+            return response.badRequest({ message: "L'identifiant est requis." }); // Nouvelle clé
         }
 
         const trx = await db.transaction(); // Utiliser transaction pour la réindexation potentielle
@@ -308,21 +308,21 @@ export default class DetailsController {
             await trx.commit();
             logger.info({ userId: auth.user!.id, detailId: detail.id }, 'Detail updated');
             // 🌍 i18n
-            return response.ok({ message: t('detail.updateSuccess'), detail: detail }); // Nouvelle clé
+            return response.ok({ message: "Détail mis(e) à jour avec succès.", detail: detail }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user?.id, detailId, error: error.message, stack: error.stack }, 'Failed to update detail');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('detail.notFound') });
+                return response.notFound({ message: "Détail n'a pas été trouvé(e)." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('detail.updateFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la mise à jour du/de la détail.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -362,7 +362,7 @@ export default class DetailsController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -374,7 +374,7 @@ export default class DetailsController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -388,17 +388,17 @@ export default class DetailsController {
 
             logger.info({ userId: auth.user!.id, detailId: payload.id }, 'Detail deleted');
             // 🌍 i18n
-            return response.ok({ message: t('detail.deleteSuccess') }); // Utiliser OK avec message
+            return response.ok({ message: "Détail supprimé(e) avec succès." }); // Utiliser OK avec message
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, detailId: payload?.id, error: error.message, stack: error.stack }, 'Failed to delete detail');
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('detail.notFound') });
+                return response.notFound({ message: "Détail n'a pas été trouvé(e)." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('detail.deleteFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la suppression du/de la détail.", error: error.message }); // Nouvelle clé
         }
     }
 }

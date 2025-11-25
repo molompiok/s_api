@@ -6,7 +6,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db';
 // import { features } from 'process'; // Supprimé car non utilisé et potentiellement conflictuel
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
@@ -48,7 +48,7 @@ export default class GlobaleServicesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -60,7 +60,7 @@ export default class GlobaleServicesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -121,7 +121,7 @@ export default class GlobaleServicesController {
 
             } else {
                 // 🔍 Recherche par nom/description/email etc.
-                const searchTerm = `%${text.toLowerCase().split(' ').join('%')}%`;
+                const searchTerm = `%${text.toLowerCase().split(" ").join('%')}%`;
 
                 productsQuery = Product.query()
                     .where((query) => {
@@ -191,7 +191,7 @@ export default class GlobaleServicesController {
         } catch (error) {
             logger.error({ userId: auth.user!.id, searchText: text, error: error.message, stack: error.stack }, 'Global search failed');
             // 🌍 i18n
-            return response.internalServerError({ message: t('globalSearch.searchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "searchFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -204,7 +204,7 @@ export default class GlobaleServicesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -216,7 +216,7 @@ export default class GlobaleServicesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -225,7 +225,7 @@ export default class GlobaleServicesController {
 
         if (!products && !categories) {
             // 🌍 i18n
-            return response.badRequest({ message: t('importExport.noDataToImport') }); // Nouvelle clé
+            return response.badRequest({ message: "noDataToImport." }); // Nouvelle clé
         }
 
         const trx = await db.transaction();
@@ -271,13 +271,13 @@ export default class GlobaleServicesController {
             await trx.commit();
             logger.info({ userId: auth.user!.id }, 'Store data imported successfully');
             // 🌍 i18n
-            return response.ok({ message: t('importExport.importSuccess') }); // Nouvelle clé
+            return response.ok({ message: "importSuccess." }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, error: error.message, stack: error.stack }, 'Store import failed');
             // 🌍 i18n
-            return response.internalServerError({ message: t('importExport.importFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "importFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -290,7 +290,7 @@ export default class GlobaleServicesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -298,7 +298,7 @@ export default class GlobaleServicesController {
         try {
             // --- Logique métier (inchangée) ---
             const categories = await Categorie.all();
-            const products = await Product.query().select('*').preload('features', (featureQuery) => {
+            const products = await Product.query().select("*").preload('features', (featureQuery) => {
                 featureQuery
                     .orderBy('created_at', 'asc')
                     .preload('values', (valueQuery) => {
@@ -317,7 +317,7 @@ export default class GlobaleServicesController {
         } catch (error) {
             logger.error({ userId: auth.user!.id, error: error.message, stack: error.stack }, 'Store export failed');
             // 🌍 i18n
-            return response.internalServerError({ message: t('importExport.exportFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "exportFailed.", error: error.message }); // Nouvelle clé
         }
     }
 }

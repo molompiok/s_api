@@ -7,6 +7,13 @@ import { securityService } from '#services/SecurityService'
 
 export default class LogVisit {
     public async handle({ request, auth, session }: HttpContext, next: () => Promise<void>) {
+        // Ignorer les visites du dashboard
+        const clientType = request.header('X-Client-Type');
+        if (clientType === 'dashboard') {
+            await next();
+            return;
+        }
+
         // Initialisation du parser pour l'User-Agent
         const parser = new UAParser()
         const ua = request.header('User-Agent') || ''

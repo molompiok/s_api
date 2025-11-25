@@ -66,13 +66,13 @@ export default class StatisticsController {
    * Retourne les KPIs principaux pour une période donnée.
    * Endpoint: GET /stats/kpi
    */
-  public async getKpi({ request, response, auth, i18n: { t } }: HttpContext) {
+  public async getKpi({ request, response, auth }: HttpContext) {
     // 🔐 Authentification & 🛡️ Autorisation
     await securityService.authenticate({ request, auth });
     try {
       await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_STATS_PERMISSION]);
     } catch (error) {
-      return response.forbidden({ message: t('unauthorized_action') });
+      return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
     }
 
     let params: Infer<typeof kpiStatsSchema>;
@@ -81,7 +81,7 @@ export default class StatisticsController {
       params = await kpiStatsSchema.validate(request.qs());
     } catch (error) {
       if (error.code === 'E_VALIDATION_ERROR') {
-        return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+        return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
       }
       throw error;
     }
@@ -118,7 +118,7 @@ export default class StatisticsController {
 
     } catch (error) {
       logger.error({ error, params }, "Failed to fetch KPI statistics");
-      return response.internalServerError({ message: t('stats.fetchFailed'), error: error.message });
+      return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la stats.", error: error.message });
     }
   }
 
@@ -126,14 +126,14 @@ export default class StatisticsController {
    * Retourne les statistiques de visites détaillées pour une période.
    * Endpoint: GET /stats/visits
    */
-  public async getVisitDetails({ request, response, auth, i18n: { t } }: HttpContext) {
+  public async getVisitDetails({ request, response, auth }: HttpContext) {
     // 🔐 Authentification & 🛡️ Autorisation
 
     await securityService.authenticate({ request, auth });
     try {
       await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_STATS_PERMISSION]);
     } catch (error) {
-      return response.forbidden({ message: t('unauthorized_action') });
+      return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
     }
 
     let params: Infer<typeof visitStatsSchema>;
@@ -144,7 +144,7 @@ export default class StatisticsController {
       console.log(error);
 
       if (error.code === 'E_VALIDATION_ERROR') {
-        return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+        return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
       }
       throw error;
     }
@@ -179,7 +179,7 @@ export default class StatisticsController {
       console.log(error);
 
       logger.error({ error, params }, "Failed to fetch detailed visit statistics");
-      return response.internalServerError({ message: t('stats.fetchFailed'), error: error.message });
+      return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la stats.", error: error.message });
     }
   }
 
@@ -187,7 +187,7 @@ export default class StatisticsController {
   * Retourne les statistiques de commandes détaillées pour une période.
   * Endpoint: GET /stats/orders
   */
-  public async getOrderDetails({ request, response, auth, i18n: { t } }: HttpContext) {
+  public async getOrderDetails({ request, response, auth }: HttpContext) {
     // 🔐 Authentification & 🛡️ Autorisation
     const user = await securityService.authenticate({ request, auth });
 
@@ -196,7 +196,7 @@ export default class StatisticsController {
     try {
       await request.ctx?.bouncer.authorize('collaboratorAbility', [VIEW_STATS_PERMISSION]);
     } catch (error) {
-      return response.forbidden({ message: t('unauthorized_action') });
+      return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
     }
 
     let params: Infer<typeof orderStatsSchema>;
@@ -205,7 +205,7 @@ export default class StatisticsController {
       params = await orderStatsSchema.validate(request.qs());
     } catch (error) {
       if (error.code === 'E_VALIDATION_ERROR') {
-        return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+        return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
       }
       throw error;
     }
@@ -235,7 +235,7 @@ export default class StatisticsController {
 
     } catch (error) {
       logger.error({ error, params }, "Failed to fetch detailed order statistics");
-      return response.internalServerError({ message: t('stats.fetchFailed'), error: error.message });
+      return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la stats.", error: error.message });
     }
   }
 } // Fin StatisticsController

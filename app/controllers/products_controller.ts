@@ -13,7 +13,7 @@ import { CURRENCY } from '#models/user_order';
 import FeaturesController from './features_controller.js'; // Gardé tel quel
 import { MAX_PRICE } from './Utils/constants.js'; // Gardé tel quel
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t, normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajout de t et normalize
+import { normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajout de normalize
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { Infer } from '@vinejs/vine/types';
 import Detail from '#models/detail';
@@ -87,8 +87,7 @@ export default class ProductsController {
       await request.ctx?.bouncer.authorize('collaboratorAbility', ['create_delete_product'])
     } catch (error) {
       if (error.code === 'E_AUTHORIZATION_FAILURE') {
-        // 🌍 i18n
-        return response.forbidden({ message: t('unauthorized_action') })
+        return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
       }
       throw error; // Relancer les autres erreurs
     }
@@ -124,8 +123,7 @@ export default class ProductsController {
           normalizedCategories = normalizeStringArrayInput({ categories_id: payload.categories_id }).categories_id;
           // Optionnel: Vérifier que ce sont bien des UUIDs si nécessaire ici
         } catch (error) {
-          // 🌍 i18n
-          return response.badRequest({ message: t('invalid_value', { key: 'categories_id', value: payload.categories_id }) })
+          return response.badRequest({ message: `La valeur du champ 'categories_id' est invalide: ${payload.categories_id}` })
         }
       }
 
@@ -146,8 +144,7 @@ export default class ProductsController {
       })
 
       if (!views.length) {
-        // 🌍 i18n
-        throw new Error(t('product.viewRequired')) // Nouvelle clé i18n
+        throw new Error("Au moins une image ou vidéo est requise pour le produit.")
       }
 
       // --- Logique métier (inchangée mais utilise payload validé/normalisé) ---
@@ -155,15 +152,15 @@ export default class ProductsController {
       let barred_price = payload.barred_price; // Déjà number ou null grâce à Vine
 
       // Les vérifications MAX_PRICE et prix > 0 restent valides comme logique métier supplémentaire
-      if (price > MAX_PRICE) throw new Error(t('product.priceTooHigh', { max: MAX_PRICE })); // Nouvelle clé
-      if (barred_price && barred_price > MAX_PRICE) throw new Error(t('product.barredPriceTooHigh', { max: MAX_PRICE })); // Nouvelle clé
-      if (barred_price && (barred_price <= 0)) throw new Error(t('product.barredPriceInvalid')); // Nouvelle clé
-      if (price <= 0) throw new Error(t('product.priceInvalid')); // Nouvelle clé
+      if (price > MAX_PRICE) throw new Error(`Le prix ne peut pas dépasser ${MAX_PRICE}.`);
+      if (barred_price && barred_price > MAX_PRICE) throw new Error(`Le prix barré ne peut pas dépasser ${MAX_PRICE}.`);
+      if (barred_price && (barred_price <= 0)) throw new Error("Le prix barré doit être supérieur à 0.");
+      if (price <= 0) throw new Error("Le prix doit être supérieur à 0.");
 
       const product = await Product.create({
         id: product_id,
         name: payload.name.replace(/\s+/g, ' '), // Utiliser payload validé
-        description: payload.description?.trim().substring(0, 1024),
+        description: payload.description?.trim().substring(0, 2024),
         price: price,
         categories_id: normalizedCategories, // Utiliser le tableau normalisé
         barred_price: barred_price,
@@ -188,6 +185,10 @@ export default class ProductsController {
         id: value_id,
         feature_id,
         views,
+        continue_selling: true,
+        decreases_stock: true,
+        additional_price: 0,
+        currency: CURRENCY.FCFA,
         text: 'Texture',
         index: 0,
         icon: ((!icon || icon.length == 0) ? views[0] && [views[0]] : icon) || [],
@@ -195,9 +196,8 @@ export default class ProductsController {
 
       await trx.commit()
       logger.info({ userId: auth.user!.id, productId: product.id }, 'Product created');
-      // 🌍 i18n
       return response.created({
-        message: t('product.createdSuccess'), // Nouvelle clé
+        message: "Produit créé avec succès.",
         product: { ...product.toJSON(), features: [{ ...feature.toJSON(), values: [newValue.toJSON()] }] }
       })
 
@@ -206,10 +206,9 @@ export default class ProductsController {
       logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to create product');
       // Gérer erreurs de validation Vine
       if (error.code === 'E_VALIDATION_ERROR') {
-        return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+        return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
       }
-      // 🌍 i18n
-      return response.internalServerError({ message: t('product.creationFailed'), error: error.message }) // Nouvelle clé
+      return response.internalServerError({ message: "Erreur lors de la création du produit.", error: error.message })
     }
   }
 
@@ -229,7 +228,7 @@ export default class ProductsController {
         query.whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
           .first()
       } else {
-        const searchTerm = `%${search.toLowerCase().split(' ').join('%')}%`;
+        const searchTerm = `%${search.toLowerCase().split(" ").join('%')}%`;
         query.where(q => {
           q.whereILike('name', searchTerm)
             .orWhereILike('description', searchTerm);
@@ -280,11 +279,11 @@ export default class ProductsController {
 
     } catch (error) {
       if (error.code === 'E_ROW_NOT_FOUND') {
-        return response.notFound({ message: t('product.notFound') });
+        return response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
       }
 
       logger.error({ slug: params.slug, error: error.message, stack: error.stack }, 'Failed to get similar products');
-      return response.internalServerError({ message: t('product.fetchRelatedFailed') }); // Vous pouvez créer une clé i18n dédiée.
+      return response.internalServerError({ message: "Erreur lors de la récupération des produits similaires." });
     }
   }
   // Lecture publique, pas d'auth/bouncer requis
@@ -300,8 +299,7 @@ export default class ProductsController {
 
     } catch (error) {
       if (error.code === 'E_VALIDATION_ERROR') {
-        // 🌍 i18n
-        return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+        return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
       }
       throw error;
     }
@@ -315,10 +313,9 @@ export default class ProductsController {
         normalizedCategories = normalizeStringArrayInput({ categories_id: payload.categories_id }).categories_id;
         normalizedListProductsIds = normalizeStringArrayInput({ list_product_ids: payload.list_product_ids }).list_product_ids;
       } catch (error) {
-        // 🌍 i18n
         console.log(error);
 
-        return response.badRequest({ message: t('invalid_value', { key: 'categories_id', value: payload.categories_id }) })
+        return response.badRequest({ message: `La valeur du champ 'categories_id' est invalide: ${payload.categories_id}` })
       }
     }
 
@@ -436,11 +433,11 @@ export default class ProductsController {
       // 🌍 i18n (Remplacer le message générique)
       // Gérer spécifiquement l'erreur si la catégorie n'est pas trouvée
       if (error.message?.includes("Aucune catégorie trouvée avec le slug") || error.code === 'E_ROW_NOT_FOUND') {
-        return response.notFound({ message: t('category.notFound') }); // Nouvelle clé
+        return response.notFound({ message: "La catégorie demandée n'a pas été trouvée." });
       }
       return response.status(500).json({
         success: false,
-        message: t('product.fetchFailed'),
+        message: "Erreur lors de la récupération des produits.",
         error: error.message
       })
     }
@@ -454,8 +451,7 @@ export default class ProductsController {
       await request.ctx?.bouncer.authorize('collaboratorAbility', ['edit_product'])
     } catch (error) {
       if (error.code === 'E_AUTHORIZATION_FAILURE') {
-        // 🌍 i18n
-        return response.forbidden({ message: t('unauthorized_action') })
+        return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
       }
       throw error;
     }
@@ -476,8 +472,7 @@ export default class ProductsController {
         try {
           normalizedCategories = normalizeStringArrayInput({ categories_id: payload.categories_id }).categories_id;
         } catch (error) {
-          // 🌍 i18n
-          return response.badRequest({ message: t('invalid_value', { key: 'categories_id', value: payload.categories_id }) })
+          return response.badRequest({ message: `La valeur du champ 'categories_id' est invalide: ${payload.categories_id}` })
         }
       }
 
@@ -495,8 +490,7 @@ export default class ProductsController {
       if (payload.barred_price) {
         const price = (product.price || 0)
         if (payload.barred_price <= price || payload.barred_price > MAX_PRICE) {
-          // 🌍 i18n
-          return response.badRequest({ message: t('product.barredPriceInvalidRange', { max: MAX_PRICE }) }) // Nouvelle clé
+          return response.badRequest({ message: `Le prix barré doit être supérieur au prix actuel et ne peut pas dépasser ${MAX_PRICE}.` })
         }
         updates.barred_price = payload.barred_price
       }
@@ -504,8 +498,7 @@ export default class ProductsController {
         const priceNum = payload.price // Déjà number via Vine
         // Vérifications métier supplémentaires
         if (priceNum <= 0 || priceNum > MAX_PRICE) {
-          // 🌍 i18n
-          return response.badRequest({ message: t('product.priceInvalidRange', { max: MAX_PRICE }) }) // Nouvelle clé
+          return response.badRequest({ message: `Le prix doit être supérieur à 0 et ne peut pas dépasser ${MAX_PRICE}.` })
         }
         updates.price = priceNum
       }
@@ -520,21 +513,18 @@ export default class ProductsController {
       await product.save()
 
       logger.info({ userId: auth.user!.id, productId: product.id }, 'Product updated');
-      // 🌍 i18n
-      return response.ok({ message: t('product.updateSuccess'), product: product.$attributes }) // Nouvelle clé
+      return response.ok({ message: "Produit mis à jour avec succès.", product: product.$attributes })
 
     } catch (error) {
       logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to update product');
       if (error.code === 'E_VALIDATION_ERROR') {
-        return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+        return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
       }
       if (error.name === 'ModelNotFoundException' || error.code === 'E_ROW_NOT_FOUND') {
-        // 🌍 i18n
-        return response.notFound({ message: t('product.notFound') }) // Nouvelle clé
+        return response.notFound({ message: "Le produit demandé n'a pas été trouvé." })
       }
-      // 🌍 i18n
       return response.internalServerError({
-        message: t('product.updateFailed'), // Nouvelle clé
+        message: "Erreur lors de la mise à jour du produit.",
         error: error.message,
       })
     }
@@ -548,8 +538,7 @@ export default class ProductsController {
       await request.ctx?.bouncer.authorize('collaboratorAbility', ['create_delete_product'])
     } catch (error) {
       if (error.code === 'E_AUTHORIZATION_FAILURE') {
-        // 🌍 i18n
-        return response.forbidden({ message: t('unauthorized_action') })
+        return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
       }
       throw error;
     }
@@ -560,8 +549,7 @@ export default class ProductsController {
       payload = await this.productIdParamsSchema.validate(params)
     } catch (error) {
       if (error.code === 'E_VALIDATION_ERROR') {
-        // 🌍 i18n
-        return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+        return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
       }
       throw error;
     }
@@ -570,8 +558,7 @@ export default class ProductsController {
     try {
       const product = await Product.find(payload.id, { client: trx })
       if (!product) {
-        // 🌍 i18n
-        throw new Error(t('product.notFound')) // Utiliser l'erreur générique ou spécifique
+        throw new Error("Le produit demandé n'a pas été trouvé.")
       }
 
       // --- Logique métier (inchangée) ---
@@ -597,17 +584,15 @@ export default class ProductsController {
       // Pas besoin de deleteFiles(product.id) ici.
 
       logger.info({ userId: auth.user!.id, productId: payload.id }, 'Product deleted');
-      // 🌍 i18n
-      return response.ok({ message: t('product.deleteSuccess') }) // Nouvelle clé
+      return response.ok({ message: "Produit supprimé avec succès." })
 
     } catch (error) {
       await trx.rollback()
       logger.error({ userId: auth.user!.id, productId: payload?.id, error: error.message, stack: error.stack }, 'Failed to delete product');
-      if (error.message === t('product.notFound')) { // Réutiliser la clé i18n
+      if (error.message === "Le produit demandé n'a pas été trouvé.") {
         return response.notFound({ message: error.message })
       }
-      // 🌍 i18n
-      return response.internalServerError({ message: t('product.deleteFailed'), error: error.message }) // Nouvelle clé
+      return response.internalServerError({ message: "Erreur lors de la suppression du produit.", error: error.message })
     }
   }
 }

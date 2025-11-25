@@ -6,7 +6,7 @@ import db from '@adonisjs/lucid/services/db'
 import vine from '@vinejs/vine'
 import { Infer } from '@vinejs/vine/types'
 import logger from '@adonisjs/core/services/logger'
-import { t } from '../utils/functions.js' // Assure-toi que ce chemin est correct
+
 import { TypeJsonRole } from '#models/role'
 import { securityService } from '#services/SecurityService'
 
@@ -71,7 +71,7 @@ export default class ProductFaqsController {
         try {
             await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]);
         } catch (error) {
-            return response.forbidden({ message: t('unauthorized_action') });
+            return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
         }
 
         let payload: Infer<typeof this.createFaqSchema>;
@@ -80,7 +80,7 @@ export default class ProductFaqsController {
             payload = await this.createFaqSchema.validate(request.body());
         } catch (error) {
             logger.warn({ validationErrors: error.messages, body: request.body() }, 'ProductFaq creation validation failed');
-            return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
         }
         console.log({ payload });
 
@@ -89,7 +89,7 @@ export default class ProductFaqsController {
             const product = await Product.find(payload.product_id, { client: trx });
             if (!product) {
                 await trx.rollback();
-                return response.notFound({ message: t('product.notFound') });
+                return response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
             }
             // TODO: Vérifier si l'utilisateur a le droit de modifier CE produit spécifique (si pas géré par un scope global)
 
@@ -113,11 +113,11 @@ export default class ProductFaqsController {
 
             await trx.commit();
             logger.info({ userId: user.id, productFaqId: productFaq.id, productId: product.id }, 'ProductFaq created');
-            return response.created({ message: t('productFaq.createdSuccess'), faq: productFaq });
+            return response.created({ message: "Productfaq créé(e) avec succès.", faq: productFaq });
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, productId: payload.product_id, error: error.message }, 'Failed to create ProductFaq');
-            return response.internalServerError({ message: t('productFaq.creationFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la création du/de la productFaq.", error: error.message });
         }
     }
 
@@ -132,14 +132,14 @@ export default class ProductFaqsController {
             payload = await this.listFaqsSchema.validate(request.qs());
         } catch (error) {
             logger.warn({ validationErrors: error.messages, query: request.qs() }, 'ProductFaq list validation failed');
-            return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         try {
             // Vérifier si le produit parent existe (et est visible si c'est une route publique)
             const product = await Product.find(payload.product_id);
             if (!product /* || !product.is_visible */) { // Décommenter is_visible si la lecture est publique
-                return response.notFound({ message: t('product.notFound') });
+                return response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
             }
 
             const query = ProductFaq.query().where('product_id', payload.product_id);
@@ -160,7 +160,7 @@ export default class ProductFaqsController {
             }); // Retourne l'objet paginator
         } catch (error) {
             logger.error({ productId: payload.product_id, error: error.message }, 'Failed to list ProductFaqs');
-            return response.internalServerError({ message: t('productFaq.fetchFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la productFaq.", error: error.message });
         }
     }
 
@@ -174,7 +174,7 @@ export default class ProductFaqsController {
         try {
             validatedParams = await this.faqIdParamsSchema.validate(routeParams);
         } catch (error) {
-            return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         try {
@@ -184,16 +184,16 @@ export default class ProductFaqsController {
                 .first();
 
             if (!faq) {
-                return response.notFound({ message: t('productFaq.notFound') });
+                return response.notFound({ message: "Productfaq n'a pas été trouvé(e)." });
             }
             // if (!faq.product /* || !faq.product.is_visible */) { // Vérif produit parent
-            //   return response.notFound({ message: t('productFaq.notFound') }); // Masquer l'existence si produit non visible
+            //   return response.notFound({ message: "Productfaq n'a pas été trouvé(e)." }); // Masquer l'existence si produit non visible
             // }
 
             return response.ok(faq);
         } catch (error) {
             logger.error({ faqId: validatedParams.faqId, error: error.message }, 'Failed to get ProductFaq');
-            return response.internalServerError({ message: t('productFaq.fetchOneFailed'), error: error.message });
+            return response.internalServerError({ message: "fetchOneFailed.", error: error.message });
         }
     }
 
@@ -206,7 +206,7 @@ export default class ProductFaqsController {
         try {
             await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]);
         } catch (error) {
-            return response.forbidden({ message: t('unauthorized_action') });
+            return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
         }
 
         let validatedParams: Infer<typeof this.faqIdParamsSchema>;
@@ -216,7 +216,7 @@ export default class ProductFaqsController {
             payload = await this.updateFaqSchema.validate(request.body());
         } catch (error) {
             logger.warn({ validationErrors: error.messages, body: request.body(), params: routeParams }, 'ProductFaq update validation failed');
-            return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         const trx = await db.transaction();
@@ -224,7 +224,7 @@ export default class ProductFaqsController {
             const productFaq = await ProductFaq.find(validatedParams.faqId, { client: trx });
             if (!productFaq) {
                 await trx.rollback();
-                return response.notFound({ message: t('productFaq.notFound') });
+                return response.notFound({ message: "Productfaq n'a pas été trouvé(e)." });
             }
             // TODO: Vérifier si l'utilisateur a le droit de modifier la FAQ de CE produit spécifique
 
@@ -250,11 +250,11 @@ export default class ProductFaqsController {
             await productFaq.save();
             await trx.commit();
             logger.info({ userId: user.id, productFaqId: productFaq.id }, 'ProductFaq updated');
-            return response.ok({ message: t('productFaq.updateSuccess'), faq: productFaq });
+            return response.ok({ message: "Productfaq mis(e) à jour avec succès.", faq: productFaq });
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, faqId: validatedParams.faqId, error: error.message }, 'Failed to update ProductFaq');
-            return response.internalServerError({ message: t('productFaq.updateFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la mise à jour du/de la productFaq.", error: error.message });
         }
     }
 
@@ -275,7 +275,7 @@ export default class ProductFaqsController {
         try {
             await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]);
         } catch (error) {
-            return response.forbidden({ message: t('unauthorized_action') });
+            return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
         }
 
         let payload: Infer<typeof this.reorderFaqsSchema>; // reorderFaqsSchema reste le même
@@ -283,7 +283,7 @@ export default class ProductFaqsController {
             payload = await this.reorderFaqsSchema.validate(request.body());
         } catch (error) {
             logger.warn({ validationErrors: error.messages, body: request.body() }, 'ProductFaq reorder validation failed');
-            return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         const trx = await db.transaction();
@@ -293,7 +293,7 @@ export default class ProductFaqsController {
             const product = await Product.find(product_id, { client: trx });
             if (!product) {
                 await trx.rollback();
-                return response.notFound({ message: t('product.notFound') });
+                return response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
             }
 
             // 1. Récupérer TOUTES les FAQs existantes pour ce produit (et groupe si spécifié)
@@ -306,7 +306,7 @@ export default class ProductFaqsController {
             if (allCurrentFaqs.length === 0 && partialReorderedFaqsData.length > 0) {
                 // Cas étrange : on essaie de réordonner des FAQs pour un produit qui n'en a pas (ou pas dans ce groupe)
                 await trx.rollback();
-                return response.badRequest({ message: t('productFaq.noFaqsToReorderInContext') }); // Nouvelle clé i18n
+                return response.badRequest({ message: "noFaqsToReorderInContext." }); // Nouvelle clé i18n
             }
 
             // 2. Vérifier que les IDs des FAQs partielles existent et appartiennent au contexte
@@ -318,7 +318,7 @@ export default class ProductFaqsController {
                 const existingIds = validPartialFaqs.map(f => f.id);
                 const problematicIds = partialFaqIds.filter(id => !existingIds.includes(id));
                 logger.warn({ productId: product_id, group, problematicIds }, "Attempt to reorder non-existent or mismatched FAQs.");
-                return response.badRequest({ message: t('productFaq.mismatchInReorder') });
+                return response.badRequest({ message: "mismatchInReorder." });
             }
 
             // 3. Construire la nouvelle liste ordonnée
@@ -395,12 +395,12 @@ export default class ProductFaqsController {
                 .orderBy('index', 'asc')
                 .paginate(1, totalFaqsInContext || 10); // Paginer pour cohérence
 
-            return response.ok({ message: t('productFaq.reorderSuccess'), faqs: updatedFullList });
+            return response.ok({ message: "reorderSuccess.", faqs: updatedFullList });
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, productId: payload.product_id, error: error.message, stack: error.stack }, 'Failed to reorder ProductFaqs with partial list');
-            return response.internalServerError({ message: t('productFaq.reorderFailed'), error: error.message });
+            return response.internalServerError({ message: "reorderFailed.", error: error.message });
         }
     }
 
@@ -414,14 +414,14 @@ export default class ProductFaqsController {
         try {
             await request.ctx?.bouncer.authorize('collaboratorAbility', [CREATE_DELETE_PERMISSION]);
         } catch (error) {
-            return response.forbidden({ message: t('unauthorized_action') });
+            return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
         }
  
         let validatedParams: Infer<typeof this.faqIdParamsSchema>;
         try {
             validatedParams = await this.faqIdParamsSchema.validate(routeParams);
         } catch (error) {
-            return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         const trx = await db.transaction();
@@ -429,7 +429,7 @@ export default class ProductFaqsController {
             const productFaq = await ProductFaq.find(validatedParams.faqId, { client: trx });
             if (!productFaq) {
                 await trx.rollback();
-                return response.notFound({ message: t('productFaq.notFound') });
+                return response.notFound({ message: "Productfaq n'a pas été trouvé(e)." });
             }
             // TODO: Vérifier si l'utilisateur a le droit de supprimer la FAQ de CE produit
 
@@ -437,11 +437,11 @@ export default class ProductFaqsController {
             await trx.commit();
             // Ici, on pourrait vouloir réindexer les FAQs restantes pour ce produit/groupe.
             logger.info({ userId: user.id, productFaqId: validatedParams.faqId }, 'ProductFaq deleted');
-            return response.ok({ message: t('productFaq.deleteSuccess'), isDeleted: true });
+            return response.ok({ message: "Productfaq supprimé(e) avec succès.", isDeleted: true });
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, faqId: validatedParams.faqId, error: error.message }, 'Failed to delete ProductFaq');
-            return response.internalServerError({ message: t('productFaq.deleteFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la suppression du/de la productFaq.", error: error.message });
         }
     }
 }

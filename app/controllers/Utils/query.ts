@@ -29,7 +29,7 @@ export function applyOrderBy(
       } else if (order_by === 'date_desc') {
         query = query.orderBy(`${tableName}.created_at`, 'desc')
       } else {
-        const orderByParts = order_by.split('_')
+        const orderByParts = order_by.split("_")
         const column = orderByParts.slice(0, -1).join('_')
         const mode = orderByParts[orderByParts.length - 1] as 'asc' | 'desc'
   

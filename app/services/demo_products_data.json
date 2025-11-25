@@ -1,0 +1,1114 @@
+{
+  "categories": [
+    {
+      "name": "Chaussures",
+      "description": "Découvrez notre collection de chaussures élégantes et confortables pour tous les styles et occasions.",
+      "is_visible": true,
+      "products": [
+        {
+          "name": "Baskets Sport Premium",
+          "description": "Baskets de haute qualité conçues pour le sport et le quotidien. Semelle antidérapante, matériaux respirants et design moderne.",
+          "price": 12900,
+          "barred_price": 15900,
+          "currency": "FCFA",
+          "is_visible": true,
+          "faqs": [
+            {
+              "title": "Quelles sont les pointures disponibles ?",
+              "content": "Nos baskets sont disponibles en pointures de 38 à 46. Nous recommandons de prendre une demi-pointure au-dessus de votre taille habituelle pour un confort optimal.",
+              "group": "general",
+              "index": 0,
+              "sources": [
+                {
+                  "label": "Guide tailles running",
+                  "url": "https://www.runnersworld.com/gear/shoes/a20849412/running-shoe-sizing-guide/"
+                },
+                {
+                  "label": "Conseils podologue",
+                  "url": "https://www.podologue.org/conseils/pointures"
+                }
+              ]
+            },
+            {
+              "title": "Comment entretenir mes baskets ?",
+              "content": "Pour préserver la qualité de vos baskets, nous recommandons un nettoyage à la main avec un chiffon humide et un savon doux. Évitez la machine à laver et le séchage en machine.",
+              "group": "usage",
+              "index": 1,
+              "sources": [
+                {
+                  "label": "Conseils d'entretien Adidas",
+                  "url": "https://www.adidas.fr/comment-entretenir-mes-chaussures"
+                }
+              ]
+            },
+            {
+              "title": "Les baskets sont-elles adaptées à la course ?",
+              "content": "Oui, ces baskets sont spécialement conçues pour la course avec une semelle amortissante et un support de la voûte plantaire optimal.",
+              "group": "technical",
+              "index": 2
+            },
+            {
+              "title": "Quelle est la garantie ?",
+              "content": "Tous nos produits bénéficient d'une garantie constructeur de 6 mois contre les défauts de fabrication.",
+              "group": "general",
+              "index": 3
+            }
+          ],
+          "details": [
+            {
+              "title": "Matériaux de qualité",
+              "description": "Tissu mesh respirant et cuir synthétique de haute qualité pour une durabilité exceptionnelle.",
+              "type": "image",
+              "index": 0
+            },
+            {
+              "title": "Semelle antidérapante",
+              "description": "Semelle en caoutchouc avec motifs de traction pour une adhérence optimale sur tous les terrains.",
+              "type": "image",
+              "index": 1
+            },
+            {
+              "title": "Confort optimal",
+              "description": "Semelle intérieure amovible avec coussin d'air pour un confort maximal tout au long de la journée.",
+              "type": "image",
+              "index": 2
+            },
+            {
+              "title": "Guide d'entretien",
+              "description": "Consultez notre guide d'entretien pour préserver la qualité et l'apparence de vos baskets.",
+              "type": "manual",
+              "index": 3
+            }
+          ],
+          "characteristics": [
+            {
+              "name": "Matière",
+              "description": "Tissu mesh et cuir synthétique",
+              "key": "material",
+              "value_text": "Mesh/Cuir synthétique",
+              "quantity": 1,
+              "unity": "unité",
+              "level": 1,
+              "index": 0
+            },
+            {
+              "name": "Poids",
+              "description": "Poids léger pour un confort optimal",
+              "key": "weight",
+              "value_text": "280g",
+              "quantity": 280,
+              "unity": "g",
+              "level": 2,
+              "index": 1
+            },
+            {
+              "name": "Pointures disponibles",
+              "description": "Gamme complète de pointures",
+              "key": "sizes",
+              "value_text": "38 à 46",
+              "quantity": 9,
+              "unity": "pointures",
+              "level": 1,
+              "index": 2
+            },
+            {
+              "name": "Couleurs",
+              "description": "Plusieurs coloris disponibles",
+              "key": "colors",
+              "value_text": "Noir, Blanc, Gris",
+              "quantity": 3,
+              "unity": "couleurs",
+              "level": 1,
+              "index": 3
+            }
+          ],
+          "features": [
+            {
+              "name": "Taille",
+              "type": "icon_text",
+              "required": true,
+              "is_default": true,
+              "index": 0,
+              "values": [
+                {
+                  "text": "38",
+                  "stock": 15,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "40",
+                  "stock": 20,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "42",
+                  "stock": 18,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                },
+                {
+                  "text": "44",
+                  "stock": 12,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 3
+                }
+              ]
+            },
+            {
+              "name": "Couleur",
+              "type": "color",
+              "required": true,
+              "is_default": false,
+              "index": 1,
+              "values": [
+                {
+                  "text": "Noir",
+                  "key": "#000000",
+                  "stock": 25,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "Blanc",
+                  "key": "#FFFFFF",
+                  "stock": 20,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "Gris",
+                  "key": "#808080",
+                  "stock": 18,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Escarpins Classiques",
+          "description": "Escarpins élégants en cuir véritable pour toutes vos occasions spéciales. Talon de 8 cm, confortables et stylés.",
+          "price": 18900,
+          "barred_price": 22900,
+          "currency": "FCFA",
+          "is_visible": true,
+          "faqs": [
+            {
+              "title": "Quelle est la hauteur du talon ?",
+              "content": "Ces escarpins ont un talon de 8 cm, offrant un équilibre parfait entre élégance et confort.",
+              "group": "general",
+              "index": 0,
+              "sources": [
+                {
+                  "label": "Guide talons Louboutin",
+                  "url": "https://us.christianlouboutin.com/us-en/laboutique/laboutique-tips-heel-heights.html"
+                }
+              ]
+            },
+            {
+              "title": "Les escarpins sont-ils confortables pour une longue journée ?",
+              "content": "Oui, nos escarpins sont conçus avec un coussin d'air intégré et une semelle intérieure ergonomique pour un confort optimal même lors de longues journées.",
+              "group": "usage",
+              "index": 1
+            },
+            {
+              "title": "Comment entretenir le cuir ?",
+              "content": "Utilisez un chiffon doux et un produit d'entretien spécial cuir. Évitez l'eau et l'exposition prolongée au soleil.",
+              "group": "usage",
+              "index": 2
+            },
+            {
+              "title": "Puis-je les porter sur toutes les surfaces ?",
+              "content": "Ces escarpins sont adaptés aux surfaces intérieures et extérieures. Évitez cependant les surfaces très glissantes ou boueuses.",
+              "group": "usage",
+              "index": 3
+            }
+          ],
+          "details": [
+            {
+              "title": "Cuir véritable",
+              "description": "Cuir de haute qualité importé, souple et résistant pour une durabilité exceptionnelle.",
+              "type": "image",
+              "index": 0
+            },
+            {
+              "title": "Design élégant",
+              "description": "Lignes épurées et design intemporel qui s'adapte à tous les styles et occasions.",
+              "type": "image",
+              "index": 1
+            },
+            {
+              "title": "Confort garanti",
+              "description": "Semelle intérieure ergonomique avec coussin d'air pour un confort maximal.",
+              "type": "image",
+              "index": 2
+            }
+          ],
+          "characteristics": [
+            {
+              "name": "Matière",
+              "description": "Cuir véritable de haute qualité",
+              "key": "material",
+              "value_text": "Cuir véritable",
+              "quantity": 1,
+              "unity": "unité",
+              "level": 1,
+              "index": 0
+            },
+            {
+              "name": "Hauteur du talon",
+              "description": "Talon de 8 cm pour une élégance optimale",
+              "key": "heel_height",
+              "value_text": "8 cm",
+              "quantity": 8,
+              "unity": "cm",
+              "level": 2,
+              "index": 1
+            },
+            {
+              "name": "Pointures",
+              "description": "Disponible en plusieurs pointures",
+              "key": "sizes",
+              "value_text": "36 à 42",
+              "quantity": 7,
+              "unity": "pointures",
+              "level": 1,
+              "index": 2
+            }
+          ],
+          "features": [
+            {
+              "name": "Taille",
+              "type": "icon_text",
+              "required": true,
+              "is_default": true,
+              "index": 0,
+              "values": [
+                {
+                  "text": "36",
+                  "stock": 8,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "38",
+                  "stock": 12,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "40",
+                  "stock": 10,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                },
+                {
+                  "text": "42",
+                  "stock": 6,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 3
+                }
+              ]
+            },
+            {
+              "name": "Couleur",
+              "type": "color",
+              "required": true,
+              "is_default": false,
+              "index": 1,
+              "values": [
+                {
+                  "text": "Noir",
+                  "key": "#000000",
+                  "stock": 20,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "Beige",
+                  "key": "#F5F5DC",
+                  "stock": 15,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "Rouge",
+                  "key": "#DC143C",
+                  "stock": 12,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Mocassins Cuir Homme",
+          "description": "Mocassins élégants en cuir véritable pour homme. Style classique et intemporel, parfaits pour le bureau et les occasions décontractées.",
+          "price": 15900,
+          "barred_price": 19900,
+          "currency": "FCFA",
+          "is_visible": true,
+          "faqs": [
+            {
+              "title": "Quelles pointures sont disponibles ?",
+              "content": "Nos mocassins sont disponibles en pointures de 40 à 46 pour s'adapter à toutes les tailles.",
+              "group": "general",
+              "index": 0
+            },
+            {
+              "title": "Comment entretenir le cuir ?",
+              "content": "Nettoyez avec un chiffon doux et un produit d'entretien spécial cuir. Appliquez une crème nourrissante régulièrement pour préserver la souplesse.",
+              "group": "usage",
+              "index": 1,
+              "sources": [
+                {
+                  "label": "Guide cuir Saphir",
+                  "url": "https://www.saphir.com/fr/guide-entretien-cuir"
+                }
+              ]
+            },
+            {
+              "title": "Sont-ils adaptés à un usage quotidien ?",
+              "content": "Absolument ! Ces mocassins sont conçus pour un usage quotidien avec une semelle résistante et un cuir de qualité.",
+              "group": "usage",
+              "index": 2
+            },
+            {
+              "title": "Y a-t-il une garantie ?",
+              "content": "Oui, tous nos produits bénéficient d'une garantie de 6 mois contre les défauts de fabrication.",
+              "group": "general",
+              "index": 3
+            },
+            {
+              "title": "Les mocassins sont-ils imperméables ?",
+              "content": "Le cuir est traité pour résister aux éclaboussures, mais nous recommandons d'éviter les fortes pluies.",
+              "group": "technical",
+              "index": 4
+            }
+          ],
+          "details": [
+            {
+              "title": "Cuir véritable",
+              "description": "Cuir de haute qualité, souple et résistant pour une durabilité exceptionnelle.",
+              "type": "image",
+              "index": 0
+            },
+            {
+              "title": "Semelle résistante",
+              "description": "Semelle en cuir avec renforts pour une longévité optimale.",
+              "type": "image",
+              "index": 1
+            },
+            {
+              "title": "Style intemporel",
+              "description": "Design classique qui traverse les époques, parfait pour toutes les occasions.",
+              "type": "image",
+              "index": 2
+            }
+          ],
+          "characteristics": [
+            {
+              "name": "Matière",
+              "description": "Cuir véritable de haute qualité",
+              "key": "material",
+              "value_text": "Cuir véritable",
+              "quantity": 1,
+              "unity": "unité",
+              "level": 1,
+              "index": 0
+            },
+            {
+              "name": "Pointures",
+              "description": "Gamme complète de pointures",
+              "key": "sizes",
+              "value_text": "40 à 46",
+              "quantity": 7,
+              "unity": "pointures",
+              "level": 1,
+              "index": 1
+            },
+            {
+              "name": "Style",
+              "description": "Style classique et élégant",
+              "key": "style",
+              "value_text": "Classique",
+              "quantity": 1,
+              "unity": "unité",
+              "level": 1,
+              "index": 2
+            }
+          ],
+          "features": [
+            {
+              "name": "Taille",
+              "type": "icon_text",
+              "required": true,
+              "is_default": true,
+              "index": 0,
+              "values": [
+                {
+                  "text": "40",
+                  "stock": 10,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "42",
+                  "stock": 15,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "44",
+                  "stock": 12,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                },
+                {
+                  "text": "46",
+                  "stock": 8,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 3
+                }
+              ]
+            },
+            {
+              "name": "Couleur",
+              "type": "color",
+              "required": true,
+              "is_default": false,
+              "index": 1,
+              "values": [
+                {
+                  "text": "Marron",
+                  "key": "#8B4513",
+                  "stock": 25,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "Noir",
+                  "key": "#000000",
+                  "stock": 20,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Vêtements",
+      "description": "Collection de vêtements tendance et confortables pour toute la famille. Qualité premium et styles variés.",
+      "is_visible": true,
+      "products": [
+        {
+          "name": "T-Shirt Coton Bio",
+          "description": "T-shirt en coton biologique 100% naturel. Confortable, respirant et respectueux de l'environnement. Disponible en plusieurs coloris.",
+          "price": 5900,
+          "barred_price": 7900,
+          "currency": "FCFA",
+          "is_visible": true,
+          "faqs": [
+            {
+              "title": "Le t-shirt est-il 100% coton ?",
+              "content": "Oui, nos t-shirts sont fabriqués en coton biologique 100% certifié, sans pesticides ni produits chimiques.",
+              "group": "general",
+              "index": 0,
+              "sources": [
+                {
+                  "label": "Certification GOTS",
+                  "url": "https://global-standard.org/the-standard"
+                }
+              ]
+            },
+            {
+              "title": "Comment laver le t-shirt ?",
+              "content": "Lavage en machine à 30°C, programme délicat. Utilisez une lessive douce et évitez le sèche-linge pour préserver la qualité du tissu.",
+              "group": "usage",
+              "index": 1
+            },
+            {
+              "title": "Le t-shirt rétrécit-il au lavage ?",
+              "content": "Non, notre coton biologique est pré-rétréci, donc le t-shirt conserve sa taille après le lavage.",
+              "group": "technical",
+              "index": 2
+            },
+            {
+              "title": "Quelles tailles sont disponibles ?",
+              "content": "Nous proposons les tailles S, M, L, XL pour s'adapter à toutes les morphologies.",
+              "group": "general",
+              "index": 3
+            }
+          ],
+          "details": [
+            {
+              "title": "Coton biologique",
+              "description": "100% coton biologique certifié, doux et respectueux de la peau.",
+              "type": "image",
+              "index": 0
+            },
+            {
+              "title": "Confort optimal",
+              "description": "Tissu respirant et léger pour un confort maximal tout au long de la journée.",
+              "type": "image",
+              "index": 1
+            },
+            {
+              "title": "Respectueux de l'environnement",
+              "description": "Fabrication éco-responsable sans produits chimiques nocifs.",
+              "type": "image",
+              "index": 2
+            }
+          ],
+          "characteristics": [
+            {
+              "name": "Matière",
+              "description": "100% coton biologique",
+              "key": "material",
+              "value_text": "Coton biologique",
+              "quantity": 100,
+              "unity": "%",
+              "level": 1,
+              "index": 0
+            },
+            {
+              "name": "Tailles",
+              "description": "Plusieurs tailles disponibles",
+              "key": "sizes",
+              "value_text": "S, M, L, XL",
+              "quantity": 4,
+              "unity": "tailles",
+              "level": 1,
+              "index": 1
+            },
+            {
+              "name": "Entretien",
+              "description": "Lavage machine à 30°C",
+              "key": "care",
+              "value_text": "Lavage machine 30°C",
+              "quantity": 30,
+              "unity": "°C",
+              "level": 2,
+              "index": 2
+            }
+          ],
+          "features": [
+            {
+              "name": "Taille",
+              "type": "icon_text",
+              "required": true,
+              "is_default": true,
+              "index": 0,
+              "values": [
+                {
+                  "text": "S",
+                  "stock": 25,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "M",
+                  "stock": 30,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "L",
+                  "stock": 28,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                },
+                {
+                  "text": "XL",
+                  "stock": 20,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 3
+                }
+              ]
+            },
+            {
+              "name": "Couleur",
+              "type": "color",
+              "required": true,
+              "is_default": false,
+              "index": 1,
+              "values": [
+                {
+                  "text": "Blanc",
+                  "key": "#FFFFFF",
+                  "stock": 40,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "Noir",
+                  "key": "#000000",
+                  "stock": 35,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "Bleu",
+                  "key": "#0000FF",
+                  "stock": 30,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                },
+                {
+                  "text": "Rouge",
+                  "key": "#FF0000",
+                  "stock": 28,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 3
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Jean Slim Homme",
+          "description": "Jean slim moderne et confortable pour homme. Coupe ajustée, élastique pour un confort optimal. Matériau résistant et style tendance.",
+          "price": 12900,
+          "barred_price": 16900,
+          "currency": "FCFA",
+          "is_visible": true,
+          "faqs": [
+            {
+              "title": "Le jean rétrécit-il au lavage ?",
+              "content": "Non, notre jean est pré-rétréci et traité pour conserver sa taille et sa forme après le lavage.",
+              "group": "technical",
+              "index": 0
+            },
+            {
+              "title": "Quelles tailles sont disponibles ?",
+              "content": "Nous proposons les tailles 30 à 38 en longueur 32, ainsi que plusieurs longueurs pour s'adapter à toutes les morphologies.",
+              "group": "general",
+              "index": 1
+            },
+            {
+              "title": "Comment entretenir le jean ?",
+              "content": "Lavage en machine à 30°C, retourné, avec un détergent doux. Évitez le sèche-linge pour préserver la couleur et la forme.",
+              "group": "usage",
+              "index": 2
+            },
+            {
+              "title": "Le jean contient-il de l'élasthanne ?",
+              "content": "Oui, notre jean contient 2% d'élasthanne pour un confort et une flexibilité optimaux.",
+              "group": "technical",
+              "index": 3,
+              "sources": [
+                {
+                  "label": "Composition denim",
+                  "url": "https://www.levi.com/US/en_US/features/how-to-care-for-denim"
+                }
+              ]
+            },
+            {
+              "title": "Le jean est-il délavé ?",
+              "content": "Nous proposons plusieurs finitions : brut, délavé clair et délavé foncé selon vos préférences.",
+              "group": "general",
+              "index": 4
+            }
+          ],
+          "details": [
+            {
+              "title": "Coupe slim moderne",
+              "description": "Coupe ajustée et tendance qui met en valeur la silhouette tout en restant confortable.",
+              "type": "image",
+              "index": 0
+            },
+            {
+              "title": "Matériau résistant",
+              "description": "Denim de qualité avec 2% d'élasthanne pour une durabilité et un confort exceptionnels.",
+              "type": "image",
+              "index": 1
+            },
+            {
+              "title": "Finition soignée",
+              "description": "Détails soignés et finitions de qualité pour un rendu professionnel.",
+              "type": "image",
+              "index": 2
+            },
+            {
+              "title": "Guide des tailles",
+              "description": "Consultez notre guide des tailles pour trouver la coupe parfaite.",
+              "type": "manual",
+              "index": 3
+            }
+          ],
+          "characteristics": [
+            {
+              "name": "Matière",
+              "description": "98% Coton, 2% Élasthanne",
+              "key": "material",
+              "value_text": "Coton/Élasthanne",
+              "quantity": 98,
+              "unity": "%",
+              "level": 1,
+              "index": 0
+            },
+            {
+              "name": "Tailles",
+              "description": "Plusieurs tailles disponibles",
+              "key": "sizes",
+              "value_text": "30 à 38",
+              "quantity": 9,
+              "unity": "tailles",
+              "level": 1,
+              "index": 1
+            },
+            {
+              "name": "Longueur",
+              "description": "Longueur standard 32",
+              "key": "length",
+              "value_text": "32",
+              "quantity": 32,
+              "unity": "pouces",
+              "level": 2,
+              "index": 2
+            }
+          ],
+          "features": [
+            {
+              "name": "Taille",
+              "type": "icon_text",
+              "required": true,
+              "is_default": true,
+              "index": 0,
+              "values": [
+                {
+                  "text": "30",
+                  "stock": 15,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "32",
+                  "stock": 20,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "34",
+                  "stock": 18,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                },
+                {
+                  "text": "36",
+                  "stock": 15,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 3
+                },
+                {
+                  "text": "38",
+                  "stock": 12,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 4
+                }
+              ]
+            },
+            {
+              "name": "Couleur",
+              "type": "color",
+              "required": true,
+              "is_default": false,
+              "index": 1,
+              "values": [
+                {
+                  "text": "Bleu foncé",
+                  "key": "#191970",
+                  "stock": 40,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "Bleu clair",
+                  "key": "#87CEEB",
+                  "stock": 35,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "Noir",
+                  "key": "#000000",
+                  "stock": 30,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Robe d'Été Élégante",
+          "description": "Robe d'été légère et élégante en coton. Parfaite pour les occasions estivales, confortable et stylée. Disponible en plusieurs coloris tendance.",
+          "price": 14900,
+          "barred_price": 18900,
+          "currency": "FCFA",
+          "is_visible": true,
+          "faqs": [
+            {
+              "title": "La robe est-elle adaptée aux grandes chaleurs ?",
+              "content": "Absolument ! Notre robe est en coton léger et respirant, parfaite pour les journées chaudes d'été.",
+              "group": "usage",
+              "index": 0
+            },
+            {
+              "title": "Quelles tailles sont disponibles ?",
+              "content": "Nous proposons les tailles XS, S, M, L, XL pour s'adapter à toutes les morphologies.",
+              "group": "general",
+              "index": 1
+            },
+            {
+              "title": "La robe nécessite-t-elle un entretien particulier ?",
+              "content": "Lavage en machine à 30°C, programme délicat. Repassage à basse température si nécessaire.",
+              "group": "usage",
+              "index": 2
+            },
+            {
+              "title": "La robe est-elle doublée ?",
+              "content": "Non, la robe est en coton simple, léger et respirant pour un confort optimal en été.",
+              "group": "technical",
+              "index": 3
+            },
+            {
+              "title": "Peut-on la porter pour des occasions formelles ?",
+              "content": "Oui, le design élégant de cette robe convient aussi bien aux occasions décontractées qu'aux événements plus formels.",
+              "group": "general",
+              "index": 4
+            }
+          ],
+          "details": [
+            {
+              "title": "Coton léger",
+              "description": "Tissu en coton de haute qualité, léger et respirant pour un confort optimal.",
+              "type": "image",
+              "index": 0
+            },
+            {
+              "title": "Design élégant",
+              "description": "Lignes fluides et design moderne qui met en valeur la silhouette.",
+              "type": "image",
+              "index": 1
+            },
+            {
+              "title": "Couleurs tendance",
+              "description": "Plusieurs coloris disponibles pour s'adapter à tous les styles.",
+              "type": "image",
+              "index": 2
+            }
+          ],
+          "characteristics": [
+            {
+              "name": "Matière",
+              "description": "100% coton",
+              "key": "material",
+              "value_text": "Coton",
+              "quantity": 100,
+              "unity": "%",
+              "level": 1,
+              "index": 0
+            },
+            {
+              "name": "Tailles",
+              "description": "Gamme complète de tailles",
+              "key": "sizes",
+              "value_text": "XS à XL",
+              "quantity": 5,
+              "unity": "tailles",
+              "level": 1,
+              "index": 1
+            },
+            {
+              "name": "Style",
+              "description": "Robe d'été élégante",
+              "key": "style",
+              "value_text": "Élégant",
+              "quantity": 1,
+              "unity": "unité",
+              "level": 1,
+              "index": 2
+            }
+          ],
+          "features": [
+            {
+              "name": "Taille",
+              "type": "icon_text",
+              "required": true,
+              "is_default": true,
+              "index": 0,
+              "values": [
+                {
+                  "text": "XS",
+                  "stock": 10,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "S",
+                  "stock": 15,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "M",
+                  "stock": 18,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                },
+                {
+                  "text": "L",
+                  "stock": 15,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 3
+                },
+                {
+                  "text": "XL",
+                  "stock": 12,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 4
+                }
+              ]
+            },
+            {
+              "name": "Couleur",
+              "type": "color",
+              "required": true,
+              "is_default": false,
+              "index": 1,
+              "values": [
+                {
+                  "text": "Blanc",
+                  "key": "#FFFFFF",
+                  "stock": 35,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 0
+                },
+                {
+                  "text": "Rose",
+                  "key": "#FFC0CB",
+                  "stock": 30,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 1
+                },
+                {
+                  "text": "Bleu ciel",
+                  "key": "#87CEEB",
+                  "stock": 25,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 2
+                },
+                {
+                  "text": "Jaune",
+                  "key": "#FFFF00",
+                  "stock": 20,
+                  "additional_price": 0,
+                  "decreases_stock": true,
+                  "continue_selling": false,
+                  "index": 3
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { v4 } from 'uuid'
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { securityService } from '#services/SecurityService';
@@ -70,17 +70,17 @@ export default class UserAddressesController {
             await trx.commit();
             logger.info({ userId: user.id, addressId: user_address.id }, 'User address created');
             // 🌍 i18n
-            return response.created({ message: t('address.createdSuccess'), address: user_address }); // Nouvelle clé
+            return response.created({ message: "Adresse créé(e) avec succès.", address: user_address }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user?.id, error: error.message, stack: error.stack }, 'Failed to create user address');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('address.creationFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la création du/de la adresse.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -96,7 +96,7 @@ export default class UserAddressesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -110,7 +110,7 @@ export default class UserAddressesController {
                 const address = await query.where('id', payload.id).first(); // Utiliser .first()
                 if (!address) {
                     // 🌍 i18n
-                    return response.notFound({ message: t('address.notFound') }); // Nouvelle clé
+                    return response.notFound({ message: "Adresse n'a pas été trouvé(e)." }); // Nouvelle clé
                 }
                 return response.ok(address); // Retourner l'objet unique
             } else {
@@ -121,7 +121,7 @@ export default class UserAddressesController {
         } catch (error) {
             logger.error({ userId: user.id, addressId: payload?.id, error: error.message, stack: error.stack }, 'Failed to get user address(es)');
             // 🌍 i18n
-            return response.internalServerError({ message: t('address.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la adresse.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -140,13 +140,13 @@ export default class UserAddressesController {
 
             if (!user_address) {
                 // 🌍 i18n
-                return response.notFound({ message: t('address.notFound') });
+                return response.notFound({ message: "Adresse n'a pas été trouvé(e)." });
             }
 
             // Vérifier que l'adresse appartient à l'utilisateur authentifié
             if (user_address.user_id !== user.id) {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
 
             user_address.merge({
@@ -158,16 +158,16 @@ export default class UserAddressesController {
 
             logger.info({ userId: user.id, addressId: user_address.id }, 'User address updated');
             // 🌍 i18n
-            return response.ok({ message: t('address.updateSuccess'), address: user_address }); // Nouvelle clé
+            return response.ok({ message: "Adresse mis(e) à jour avec succès.", address: user_address }); // Nouvelle clé
 
         } catch (error) {
             logger.error({ userId: user.id, addressId: payload?.id, error: error.message, stack: error.stack }, 'Failed to update user address');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('address.updateFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la mise à jour du/de la adresse.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -183,7 +183,7 @@ export default class UserAddressesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -196,13 +196,13 @@ export default class UserAddressesController {
 
             if (!address) {
                 // 🌍 i18n
-                return response.notFound({ message: t('address.notFound') });
+                return response.notFound({ message: "Adresse n'a pas été trouvé(e)." });
             }
 
             // Vérifier que l'adresse appartient à l'utilisateur authentifié
             if (address.user_id !== user.id) {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
 
             await address.delete();
@@ -214,7 +214,7 @@ export default class UserAddressesController {
         } catch (error) {
             logger.error({ userId: user.id, addressId: user_address_id, error: error.message, stack: error.stack }, 'Failed to delete user address');
             // 🌍 i18n
-            return response.internalServerError({ message: t('address.deleteFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la suppression du/de la adresse.", error: error.message }); // Nouvelle clé
         }
     }
 }

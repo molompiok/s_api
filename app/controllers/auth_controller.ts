@@ -13,7 +13,7 @@ import { AccessToken } from '@adonisjs/auth/access_tokens';
 import { OAuth2Client } from 'google-auth-library';
 import { GOOGLE_CLIENT_ID } from './Utils/ctrlManager.js';
 import { securityService, SecurityService } from '#services/SecurityService';
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import db from '@adonisjs/lucid/services/db';
 import UserAuthentification from '#models/user_authentification';
@@ -196,7 +196,7 @@ export default class AuthController {
             await trx.rollback(); // Rollback en cas d'erreur
             logger.error({ provider: socialData.provider, email: socialData.email, error: error.message, stack: error.stack }, 'Failed to handle internal social callback');
             // 🌍 i18n (message générique pour API interne)
-            return response.internalServerError({ message: t('auth.socialCallbackFailed') }); // Nouvelle clé
+            return response.internalServerError({ message: "socialCallbackFailed." }); // Nouvelle clé
         }
     }
 
@@ -208,7 +208,7 @@ export default class AuthController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error; // Relancer autres erreurs
         }
@@ -233,7 +233,7 @@ export default class AuthController {
                 // 🌍 i18n
                 return response.unauthorized({
                     code: 'E_EMAIL_NOT_VERIFIED',
-                    // message: t('auth.emailNotVerified') // Nouvelle clé
+                    // message: "emailNotVerified." // Nouvelle clé
                     message: 'Verifier votre boite email' // Nouvelle clé
                 });
             }
@@ -247,7 +247,7 @@ export default class AuthController {
 
             // 🌍 i18n (message de succès optionnel)
             return response.ok({
-                message: t('auth.loginSuccess'), // Nouvelle clé
+                message: "loginSuccess.", // Nouvelle clé
                 user: User.ParseUser(user), // Exclure mot de passe etc.
                 token: token.value!.release(),
                 expires_at: token.expiresAt?.toISOString()
@@ -257,11 +257,11 @@ export default class AuthController {
             if (error.code === 'E_INVALID_CREDENTIALS') {
                 logger.warn({ email }, 'Invalid credentials during login');
                 // 🌍 i18n
-                return response.unauthorized({ message: t('auth.invalidCredentials') }); // Nouvelle clé
+                return response.unauthorized({ message: "invalidCredentials." }); // Nouvelle clé
             }
             logger.error({ email, error: error.message, stack: error.stack }, 'Login failed');
             // 🌍 i18n
-            return response.internalServerError({ message: t('auth.loginFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "loginFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -274,7 +274,7 @@ export default class AuthController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -288,7 +288,7 @@ export default class AuthController {
                 logger.warn({ email: payload.email }, 'Registration attempt with existing email');
                 await trx.rollback(); // Annuler la transaction
                 // 🌍 i18n
-                return response.conflict({ message: t('auth.emailConflict') }); // Nouvelle clé
+                return response.conflict({ message: "emailConflict." }); // Nouvelle clé
             }
 
             user = await User.create({
@@ -312,7 +312,7 @@ export default class AuthController {
 
             // 🌍 i18n
             return response.created({
-                message: t('auth.registerSuccess'), // Nouvelle clé
+                message: "registerSuccess.", // Nouvelle clé
                 user_id: user.id
             });
 
@@ -321,7 +321,7 @@ export default class AuthController {
             logger.error({ email: payload.email, error: error.message, stack: error.stack }, 'Registration failed');
             // 🌍 i18n
             return response.internalServerError({
-                message: t('auth.registerFailed'), // Nouvelle clé
+                message: "registerFailed.", // Nouvelle clé
                 error: error.message,
             });
         }
@@ -346,7 +346,7 @@ export default class AuthController {
             await queue.add('send_email', {
                 event: 'send_email',
                 data: {
-                    to: user.email, subject: t('emails.verifySubject'), // 🌍 i18n pour le sujet
+                    to: user.email, subject: "verifySubject.", // 🌍 i18n pour le sujet
                     template: 'emails/verify_email',
                     context: { userName: user.full_name, verificationUrl: verificationUrl }
                 }
@@ -368,7 +368,7 @@ export default class AuthController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -383,7 +383,7 @@ export default class AuthController {
         if (!verificationToken || verificationToken.expires_at < DateTime.now()) {
             logger.warn({ token: tokenValue }, 'Invalid or expired email verification token used');
             // 🌍 i18n
-            return response.badRequest({ message: t('auth.invalidOrExpiredToken') }); // Nouvelle clé
+            return response.badRequest({ message: "invalidOrExpiredToken." }); // Nouvelle clé
         }
 
         const user = verificationToken.user; // Garanti d'exister car préchargé
@@ -392,7 +392,7 @@ export default class AuthController {
             logger.error({ tokenId: verificationToken.id, tokenValue }, "Verification token found but associated user does not exist.");
             await verificationToken.delete(); // Nettoyer le token orphelin
             // 🌍 i18n
-            return response.badRequest({ message: t('auth.invalidOrExpiredToken') }); // Message générique
+            return response.badRequest({ message: "invalidOrExpiredToken." }); // Message générique
         }
 
 
@@ -400,7 +400,7 @@ export default class AuthController {
             logger.info({ user_id: user.id }, 'Email already verified');
             await verificationToken.delete();
             // 🌍 i18n
-            return response.ok({ message: t('auth.emailAlreadyVerified') }); // Nouvelle clé
+            return response.ok({ message: "emailAlreadyVerified." }); // Nouvelle clé
         }
 
         const trx = await db.transaction(); // Transaction pour MAJ user + delete token
@@ -413,13 +413,13 @@ export default class AuthController {
 
             logger.info({ user_id: user.id }, 'Email successfully verified');
             // 🌍 i18n
-            return response.ok({ message: t('auth.emailVerificationSuccess') }); // Nouvelle clé
+            return response.ok({ message: "emailVerificationSuccess." }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ user_id: user.id, error: error.message, stack: error.stack }, 'Failed to update user verification status');
             // 🌍 i18n
-            return response.internalServerError({ message: t('auth.emailVerificationFailedDb') }); // Nouvelle clé
+            return response.internalServerError({ message: "emailVerificationFailedDb." }); // Nouvelle clé
         }
     }
 
@@ -432,7 +432,7 @@ export default class AuthController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -442,7 +442,7 @@ export default class AuthController {
         const user = await User.findBy('email', email);
 
         // Message générique pour la sécurité (ne pas révéler si l'email existe)
-        const genericMessage = t('auth.resendGenericResponse'); // Nouvelle clé
+        const genericMessage = "resendGenericResponse."; // Nouvelle clé
 
         if (!user || user.isEmailVerified) {
             if (!user) {
@@ -461,7 +461,7 @@ export default class AuthController {
             // 🌍 i18n (Message générique même en cas d'erreur interne pour sécurité)
             return response.ok({ message: genericMessage });
             // Ou retourner une erreur 500 si on préfère indiquer un problème serveur
-            // return response.internalServerError({ message: t('auth.resendFailedInternal') });
+            // return response.internalServerError({ message: "resendFailedInternal." });
         }
     }
 
@@ -530,16 +530,16 @@ export default class AuthController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             // Logguer mais ne pas relancer pour masquer l'erreur
             logger.error({ error }, "Forgot password validation failed");
             // 🌍 i18n - Réponse générique pour la sécurité
-            return response.ok({ message: t('auth.forgotPassword.emailSentConfirmation') });
+            return response.ok({ message: "auth.forgotPassword.emailSentConfirmation" });
         }
 
         const email = payload.email;
-        const genericSuccessMessage = { message: t('auth.forgotPassword.emailSentConfirmation') };
+        const genericSuccessMessage = { message: "auth.forgotPassword.emailSentConfirmation" };
 
         try {
             // --- Logique métier ---
@@ -590,7 +590,7 @@ export default class AuthController {
                     data: {
                         to: user.email,
                         // 🌍 i18n
-                        subject: t('emails.passwordResetSubject'), // Nouvelle clé
+                        subject: "passwordResetSubject.", // Nouvelle clé
                         template: 'emails/password_reset', // Template à créer sur s_server
                         context: {
                             userName: user.full_name,
@@ -611,7 +611,7 @@ export default class AuthController {
             logger.error({ email, error: error.message, stack: error.stack }, 'Forgot password process failed internally');
             // 🌍 i18n - Réponse générique même en cas d'erreur interne
             return response.ok(genericSuccessMessage); // Ou 500 si on veut indiquer un problème serveur
-            // return response.internalServerError({ message: t('auth.forgotPassword.genericError') });
+            // return response.internalServerError({ message: "auth.forgotPassword.genericError" });
         }
     }
 
@@ -627,7 +627,7 @@ export default class AuthController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -661,7 +661,7 @@ export default class AuthController {
             if (!validTokenRecord) {
                 logger.warn({ tokenHint: tokenBrut.substring(0, 5) }, "Invalid or expired password reset token provided");
                 // 🌍 i18n
-                return response.badRequest({ message: t('auth.resetPassword.invalidToken') });
+                return response.badRequest({ message: "auth.resetPassword.invalidToken" });
             }
 
             // 4. Token valide trouvé, procéder à la mise à jour
@@ -671,7 +671,7 @@ export default class AuthController {
                 logger.error({ userId: validTokenRecord.userId, tokenId: validTokenRecord.id }, "User associated with valid password reset token not found.");
                 await validTokenRecord.markAsUsed(); // Invalider le token quand même
                 // 🌍 i18n
-                return response.badRequest({ message: t('auth.resetPassword.invalidToken') }); // Message générique
+                return response.badRequest({ message: "auth.resetPassword.invalidToken" }); // Message générique
             }
 
             // Utiliser une transaction pour la mise à jour du mot de passe et l'invalidation du token
@@ -694,7 +694,7 @@ export default class AuthController {
 
                 logger.info({ userId: user.id }, "Password reset successfully");
                 // 🌍 i18n
-                return response.ok({ message: t('auth.resetPassword.success') });
+                return response.ok({ message: "auth.resetPassword.success" });
 
             } catch (dbError) {
                 await trx.rollback();
@@ -705,7 +705,7 @@ export default class AuthController {
         } catch (error) {
             logger.error({ tokenHint: tokenBrut.substring(0, 5), error: error.message, stack: error.stack }, 'Password reset process failed');
             // 🌍 i18n
-            return response.internalServerError({ message: t('auth.resetPassword.genericError'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "auth.resetPassword.genericError", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -719,7 +719,7 @@ export default class AuthController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             // Logguer erreur inattendue
             logger.error({ error }, "Setup account validation failed");
@@ -753,7 +753,7 @@ export default class AuthController {
             if (!validTokenRecord || !validTokenRecord.user) {
                 logger.warn({ tokenHint: tokenBrut.substring(0, 5) }, "Invalid, expired, used, or userless account setup token provided");
                 // 🌍 i18n
-                return response.badRequest({ message: t('auth.setupAccount.invalidToken') }); // Nouvelle clé
+                return response.badRequest({ message: "auth.setupAccount.invalidToken" }); // Nouvelle clé
             }
 
             // 4. Token valide trouvé, procéder à la mise à jour
@@ -764,7 +764,7 @@ export default class AuthController {
                 logger.warn({ userId: user.id }, "Account setup attempted for already verified user.");
                 await validTokenRecord.markAsUsed(); // Invalider le token quand même
                 // 🌍 i18n
-                return response.badRequest({ message: t('auth.setupAccount.alreadyActive') }); // Nouvelle clé
+                return response.badRequest({ message: "auth.setupAccount.alreadyActive" }); // Nouvelle clé
             }
 
 
@@ -788,7 +788,7 @@ export default class AuthController {
                 logger.info({ userId: user.id }, "Collaborator account setup successfully");
                 // 🌍 i18n
                 // Retourner succès, le frontend redirigera vers login
-                return response.ok({ message: t('auth.setupAccount.success') });
+                return response.ok({ message: "auth.setupAccount.success" });
 
             } catch (dbError) {
                 await trx.rollback();
@@ -799,7 +799,7 @@ export default class AuthController {
         } catch (error) {
             logger.error({ tokenHint: tokenBrut.substring(0, 5), error: error.message, stack: error.stack }, 'Account setup process failed');
             // 🌍 i18n
-            return response.internalServerError({ message: t('auth.setupAccount.genericError'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "auth.setupAccount.genericError", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -818,12 +818,12 @@ export default class AuthController {
 
             logger.info({ userId: user.id }, "User logged out from all devices");
             // 🌍 i18n
-            return response.ok({ message: t('auth.logoutAllSuccess') }); // Nouvelle clé
+            return response.ok({ message: "logoutAllSuccess." }); // Nouvelle clé
 
         } catch (error) {
             logger.error({ userId: user.id, error: error.message, stack: error.stack }, 'Failed to logout from all devices');
             // 🌍 i18n
-            return response.internalServerError({ message: t('auth.logoutAllFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "logoutAllFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -850,7 +850,7 @@ export default class AuthController {
         // Si aucun utilisateur n'est authentifié par aucun guard
         if (!userForLogout) {
             // 🌍 i18n
-            // return response.unauthorized({ message: t('auth.notAuthenticated') }); // Nouvelle clé
+            // return response.unauthorized({ message: "notAuthenticated." }); // Nouvelle clé
             return response.status(401).send({ message: 'je suis ffranfrfr' });
         }
 
@@ -882,13 +882,13 @@ export default class AuthController {
         if (!logoutError) {
             logger.info({ userId }, "User logged out successfully");
             // 🌍 i18n
-            return response.ok({ message: t('auth.logoutSuccess') }); // Nouvelle clé
+            return response.ok({ message: "logoutSuccess." }); // Nouvelle clé
         } else {
             // Si une erreur s'est produite (ex: token déjà invalide?), mais l'utilisateur était authentifié au début
             logger.warn({ userId }, "Logout completed with potential errors (token/session might have been already invalid)");
             // 🌍 i18n
             // On peut quand même retourner un succès partiel ou un message d'erreur générique
-            return response.ok({ message: t('auth.logoutCompletedWithIssues') }); // Nouvelle clé
+            return response.ok({ message: "logoutCompletedWithIssues." }); // Nouvelle clé
         }
     }
 
@@ -919,7 +919,7 @@ export default class AuthController {
         } catch (error) {
             logger.error({ userId: user.id, error: error.message, stack: error.stack }, 'Error fetching user details in /me');
             // 🌍 i18n
-            return response.internalServerError({ message: t('auth.fetchMeFailed') }); // Nouvelle clé
+            return response.internalServerError({ message: "fetchMeFailed." }); // Nouvelle clé
         }
     }
 
@@ -940,7 +940,7 @@ export default class AuthController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -973,12 +973,12 @@ export default class AuthController {
             }
 
             // 🌍 i18n
-            return response.ok({ message: t('auth.profileUpdateSuccess'), user: User.ParseUser(user) }); // Nouvelle clé
+            return response.ok({ message: "profileUpdateSuccess.", user: User.ParseUser(user) }); // Nouvelle clé
 
         } catch (error) {
             logger.error({ user_id: user.id, error: error.message, stack: error.stack }, 'User profile update failed');
             // 🌍 i18n
-            return response.internalServerError({ message: t('auth.profileUpdateFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "profileUpdateFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -1018,13 +1018,13 @@ export default class AuthController {
 
             logger.info({ userId }, 'User account deleted successfully');
             // 🌍 i18n
-            return response.ok({ message: t('auth.accountDeleteSuccess') }); // Nouvelle clé
+            return response.ok({ message: "accountDeleteSuccess." }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback(); // Annuler en cas d'erreur
             logger.error({ userId, error: error.message, stack: error.stack }, 'Account deletion failed');
             // 🌍 i18n
-            return response.internalServerError({ message: t('auth.accountDeleteFailed') }); // Nouvelle clé
+            return response.internalServerError({ message: "accountDeleteFailed." }); // Nouvelle clé
         }
 
     }

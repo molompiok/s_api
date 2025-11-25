@@ -8,7 +8,6 @@ import env from '#start/env'
 import { v4 as uuidv4 } from 'uuid'
 import vine from '@vinejs/vine'
 import logger from '@adonisjs/core/services/logger'
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import BullMQService from '#services/BullMQService'
 // import AsyncConfirm, { AsyncConfirmType } from '#models/asyncConfirm'
@@ -23,7 +22,7 @@ const MANAGE_COLLABORATORS_PERMISSION: keyof TypeJsonRole = 'create_delete_colla
 const VIEW_COLLABORATORS_PERMISSION: keyof TypeJsonRole = 'filter_collaborator';
 
 export default class RolesController {
-    private OWNER_ID = env.get('OWNER_ID');
+    private OWNER_ID = env.get("OWNER_ID");
 
     // --- Input Validation Schemas ---
     private createCollaboratorSchema = vine.compile(
@@ -75,7 +74,7 @@ export default class RolesController {
         // } catch (error) {
         //     if (error.code === 'E_AUTHORIZATION_FAILURE') {
         //         // 🌍 i18n
-        //         return response.forbidden({ message: t('unauthorized_action') })
+        //         return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
         //     }
         //     throw error;
         // }
@@ -86,11 +85,11 @@ export default class RolesController {
             payload = await this.createCollaboratorSchema.validate(request.body());
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             // Logguer erreur inattendue de validation
             logger.error({ error }, "Unexpected validation error in create_collaborator");
-            return response.internalServerError({ message: t('error_occurred') });
+            return response.internalServerError({ message: "error_occurred" });
         }
 
         const { email, full_name, dashboard_url } = payload;
@@ -98,9 +97,9 @@ export default class RolesController {
         const trx = await db.transaction(); // Transaction pour opérations multiples
         try {
             // 1. Vérifier si l'email correspond à l'Owner
-            if (owner.id !== env.get('OWNER_ID')) {
+            if (owner.id !== env.get("OWNER_ID")) {
                 await trx.rollback();
-                return response.conflict({ message: t('collaborator.cannotAddOwner') });
+                return response.conflict({ message: "cannotAddOwner." });
             }
 
             // 2. Chercher l'utilisateur existant par email
@@ -117,7 +116,7 @@ export default class RolesController {
                 if (existingUser.roles && existingUser.roles.length > 0) {
                     await trx.rollback();
                     logger.warn({ email, userId: existingUser.id }, "User is already a collaborator");
-                    return response.conflict({ message: t('collaborator.alreadyCollaborator') });
+                    return response.conflict({ message: "alreadyCollaborator." });
                 }
 
                 // Ajouter comme collaborateur (si c'était un client ou autre rôle non-collabo)
@@ -150,7 +149,7 @@ export default class RolesController {
                         data: {
                             server_action:'addStoreCollaborator',
                             to: existingUser.email,
-                            subject: t('emails.collaboratorAddedSubject', { storeName }), // Nouvelle clé
+                            subject: `Vous avez été ajouté(e) à l'équipe ${storeName} sur Sublymus`,
                             template: 'emails/collaborator_added_notification', // Nouveau template
                             context: {
                                 userName: existingUser.full_name,
@@ -168,7 +167,7 @@ export default class RolesController {
 
 
                 await newRole.load('user'); // Charger user pour la réponse
-                return response.created({ message: t('collaborator.addedSuccessExisting', { email }), role: newRole }); // Nouvelle clé
+                return response.created({ message: `Collaborateur ${email} ajouté avec succès.`, role: newRole });
 
                 // --- Cas 2: Nouvel Utilisateur ---
             } else {
@@ -208,7 +207,7 @@ export default class RolesController {
                         data: {
                             server_action:'addUser',
                             to: newUser.email,
-                            subject: `Invitation à rejoindre l'équipe ${storeName} sur Sublymus`,//t('emails.collaboratorInviteSubject', { storeName }), // Nouvelle clé
+                            subject: `Invitation à rejoindre l'équipe ${storeName} sur Sublymus`,
                             template: 'emails/collaborator_added_notification', 
                             context: {
                                 store_slug:store?.slug,
@@ -225,9 +224,8 @@ export default class RolesController {
                 }
 
                 await newRole.load('user'); // Charger user pour réponse (même si mdp temporaire)
-                // 🌍 i18n
                 // On retourne le rôle créé, mais le message indique une invitation envoyée
-                return response.created({ message: t('collaborator.invitedSuccessNew', { email }), role: newRole }); // Nouvelle clé
+                return response.created({ message: `Invitation envoyée avec succès à ${email}.`, role: newRole });
 
             }
 
@@ -236,7 +234,7 @@ export default class RolesController {
             // Gérer les erreurs spécifiques si nécessaire (ex: contrainte unique email déjà gérée par la logique)
             logger.error({ actorId: owner.id, email, error: error.message, stack: error.stack }, 'Failed to create/invite collaborator');
             // 🌍 i18n
-            return response.internalServerError({ message: t('collaborator.creationInviteFailed'), error: error.message }); // Nouvelle clé générique
+            return response.internalServerError({ message: "creationInviteFailed.", error: error.message }); // Nouvelle clé générique
         }
     }
 
@@ -249,7 +247,7 @@ export default class RolesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -265,14 +263,14 @@ export default class RolesController {
             if (collaborator_user_id === this.OWNER_ID) {
                 await trx.rollback();
                 // 🌍 i18n
-                return response.badRequest({ message: t('collaborator.cannotEditOwnerPerms') }); // Nouvelle clé
+                return response.badRequest({ message: "cannotEditOwnerPerms." }); // Nouvelle clé
             }
 
             const role = await Role.query({ client: trx }).where('user_id', collaborator_user_id).first(); // Utiliser first()
             if (!role) {
                 await trx.rollback();
                 // 🌍 i18n
-                return response.notFound({ message: t('collaborator.notFound') }); // Nouvelle clé
+                return response.notFound({ message: "Collaborator n'a pas été trouvé(e)." }); // Nouvelle clé
             }
 
             role.useTransaction(trx);
@@ -285,17 +283,17 @@ export default class RolesController {
             await role.load('user');
 
             // 🌍 i18n
-            return response.ok({ message: t('collaborator.permsUpdateSuccess'), role: role }); // Nouvelle clé
+            return response.ok({ message: "permsUpdateSuccess.", role: role }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ actorId: auth.user?.id, targetUserId: payload?.collaborator_user_id, error: error.message, stack: error.stack }, 'Failed to update permissions');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('collaborator.permsUpdateFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "permsUpdateFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -308,7 +306,7 @@ export default class RolesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -320,7 +318,7 @@ export default class RolesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -345,7 +343,7 @@ export default class RolesController {
         } catch (error) {
             logger.error({ actorId: auth.user!.id, error: error.message, stack: error.stack }, 'Failed to list collaborators');
             // 🌍 i18n
-            return response.internalServerError({ message: t('collaborator.listFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "listFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -358,7 +356,7 @@ export default class RolesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -370,7 +368,7 @@ export default class RolesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -380,7 +378,7 @@ export default class RolesController {
         // --- Logique métier ---
         if (collaboratorUserId === this.OWNER_ID) {
             // 🌍 i18n
-            return response.badRequest({ message: t('collaborator.cannotRemoveOwner') }); // Nouvelle clé
+            return response.badRequest({ message: "cannotRemoveOwner." }); // Nouvelle clé
         }
 
         const trx = await db.transaction();
@@ -389,7 +387,7 @@ export default class RolesController {
             if (!role) {
                 await trx.rollback();
                 // 🌍 i18n
-                return response.notFound({ message: t('collaborator.notFound') });
+                return response.notFound({ message: "Collaborator n'a pas été trouvé(e)." });
             }
 
             // await User.find(collaboratorUserId, { client: trx });
@@ -409,13 +407,13 @@ export default class RolesController {
             logger.info({ actorId: auth.user!.id, collaboratorId: collaboratorUserId }, 'Collaborator removed');
 
             // 🌍 i18n
-            return response.ok({ message: t('collaborator.removeSuccess'), isDeleted: true }); // Nouvelle clé
+            return response.ok({ message: "removeSuccess.", isDeleted: true }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ actorId: auth.user!.id, collaboratorId: collaboratorUserId, error: error.message, stack: error.stack }, 'Failed to remove collaborator');
             // 🌍 i18n
-            return response.internalServerError({ message: t('collaborator.removeFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "removeFailed.", error: error.message }); // Nouvelle clé
         }
     }
 }

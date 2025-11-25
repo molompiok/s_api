@@ -52,6 +52,7 @@ export default defineConfig({
     () => import('./start/StartBullMQWoker.js'),
     () => import('./start/LoadMonitoring.js'),
     () => import('./start/scheduler.js'),
+    () => import('./start/DemoSeed.js'),
   ],
 
   /*

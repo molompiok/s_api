@@ -12,7 +12,6 @@ import transmit from '@adonisjs/transmit/services/main';
 import env from '#start/env';
 import UserOrderItem from '#models/user_order_item';
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
@@ -85,24 +84,21 @@ export default class CommentsController {
             // --- Logique métier ---
             const item = await UserOrderItem.find(payload.order_item_id);
             if (!item) {
-                // 🌍 i18n
                 await trx.rollback();
-                return response.notFound({ message: t('comment.orderItemNotFound') }); // Nouvelle clé
+                return response.notFound({ message: "L'élément de commande demandé n'a pas été trouvé." });
             }
             // Vérifier que l'item appartient bien à l'utilisateur connecté
             if (user.id !== item.user_id) {
-                // 🌍 i18n
                 await trx.rollback();
-                return response.forbidden({ message: t('comment.cannotCommentOthersItem') }); // Nouvelle clé
+                return response.forbidden({ message: "Vous ne pouvez pas commenter un élément de commande qui ne vous appartient pas." });
             }
             // Vérifier si un commentaire existe déjà pour cet item
             const existingComment = await Comment.query({ client: trx }) // Utiliser transaction
                 .where('order_item_id', payload.order_item_id)
                 .first();
             if (existingComment) {
-                // 🌍 i18n
                 await trx.rollback();
-                return response.conflict({ message: t('comment.alreadyCommented') }); // Nouvelle clé
+                return response.conflict({ message: "Un commentaire existe déjà pour cet élément de commande." });
             }
 
             // Gestion fichiers 'views'
@@ -152,8 +148,7 @@ export default class CommentsController {
             // Diffusion SSE
             transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event: 'create' });
 
-            // 🌍 i18n
-            return response.created({ message: t('comment.createdSuccess'), comment: newComment }); // Nouvelle clé
+            return response.created({ message: "Commentaire créé avec succès.", comment: newComment });
 
         } catch (error) {
             await trx.rollback();
@@ -162,11 +157,9 @@ export default class CommentsController {
 
             logger.error({ userId: user?.id, payload: payload, error: error.message, stack: error.stack }, 'Failed to create comment');
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
-            // 🌍 i18n
-            return response.internalServerError({ message: t('comment.creationFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la création du commentaire.", error: error.message });
         }
     }
 
@@ -182,8 +175,7 @@ export default class CommentsController {
             payload = await this.getCommentSchema.validate(request.qs());
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -192,14 +184,12 @@ export default class CommentsController {
             // --- Logique métier ---
             const item = await UserOrderItem.find(payload.order_item_id);
             if (!item) {
-                // 🌍 i18n
-                return response.notFound({ message: t('comment.orderItemNotFound') });
+                return response.notFound({ message: "L'élément de commande demandé n'a pas été trouvé." });
             }
             // Vérifier que l'utilisateur demande le commentaire de SON item
             if (user.id !== item.user_id) {
-                // 🌍 i18n
                 // Retourner notFound plutôt que forbidden pour ne pas révéler l'existence de l'item
-                return response.notFound({ message: t('comment.notFoundForItem') }); // Nouvelle clé
+                return response.notFound({ message: "Le commentaire demandé n'a pas été trouvé pour cet élément." });
             }
 
             // 🔍 GET par ID (order_item_id)
@@ -213,8 +203,7 @@ export default class CommentsController {
 
         } catch (error) {
             logger.error({ userId: user.id, orderItemId: payload?.order_item_id, error: error.message, stack: error.stack }, 'Failed to get single comment');
-            // 🌍 i18n
-            return response.internalServerError({ message: t('comment.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la récupération du commentaire.", error: error.message });
         }
     }
 
@@ -227,8 +216,7 @@ export default class CommentsController {
             payload = await this.getCommentsSchema.validate(request.qs());
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -243,8 +231,7 @@ export default class CommentsController {
                     .first(); // Utiliser .first()
 
                 if (!comment) {
-                    // 🌍 i18n
-                    return response.notFound({ message: t('comment.notFound') }); // Nouvelle clé
+                    return response.notFound({ message: "Le commentaire demandé n'a pas été trouvé." });
                 }
                 return response.ok(comment);
             }
@@ -271,8 +258,7 @@ export default class CommentsController {
 
         } catch (error) {
             logger.error({ params: payload, error: error.message, stack: error.stack }, 'Failed to get comments list');
-            // 🌍 i18n
-            return response.internalServerError({ message: t('comment.fetchListFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la récupération de la liste des commentaires.", error: error.message });
         }
     }
 
@@ -293,15 +279,13 @@ export default class CommentsController {
             // --- Logique métier ---
             const comment = await Comment.find(comment_id, { client: trx });
             if (!comment) {
-                // 🌍 i18n
                 await trx.rollback();
-                return response.notFound({ message: t('comment.notFound') });
+                return response.notFound({ message: "Le commentaire demandé n'a pas été trouvé." });
             }
             // Vérifier l'appartenance
             if (comment.user_id !== user.id) {
-                // 🌍 i18n
                 await trx.rollback();
-                return response.forbidden({ message: t('comment.cannotUpdateOthers') }); // Nouvelle clé
+                return response.forbidden({ message: "Vous ne pouvez pas modifier le commentaire d'un autre utilisateur." });
             }
 
             // Gestion fichiers 'views'
@@ -311,9 +295,8 @@ export default class CommentsController {
                 try {
                     normalizedViews = normalizeStringArrayInput({ views: payload.views }).views;
                 } catch (error) {
-                    // 🌍 i18n
                     await trx.rollback();
-                    return response.badRequest({ message: t('invalid_value', { key: 'views', value: payload.views }) });
+                    return response.badRequest({ message: `La valeur du champ 'views' est invalide: ${payload.views}` });
                 }
                 updatedViewsUrls = await updateFiles({
                     request, table_name: Comment.table, table_id: comment_id,
@@ -359,18 +342,15 @@ export default class CommentsController {
             // Diffusion SSE
             transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event: 'update' });
 
-            // 🌍 i18n
-            return response.ok({ message: t('comment.updateSuccess'), comment: comment }); // Nouvelle clé
+            return response.ok({ message: "Commentaire mis à jour avec succès.", comment: comment });
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, commentId: comment_id, error: error.message, stack: error.stack }, 'Failed to update comment');
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
-            // 🌍 i18n
-            return response.internalServerError({ message: t('comment.updateFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la mise à jour du commentaire.", error: error.message });
         }
     }
 
@@ -386,8 +366,7 @@ export default class CommentsController {
             payload = await this.commentIdParamsSchema.validate(params);
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -397,9 +376,8 @@ export default class CommentsController {
         try {
             const comment = await Comment.find(comment_id, { client: trx });
             if (!comment) {
-                // 🌍 i18n
                 await trx.rollback();
-                return response.notFound({ message: t('comment.notFound') });
+                return response.notFound({ message: "Le commentaire demandé n'a pas été trouvé." });
             }
 
             // 🛡️ Permissions : Vérifier si l'utilisateur est l'auteur OU a la permission de supprimer n'importe quel commentaire
@@ -420,9 +398,8 @@ export default class CommentsController {
             }
 
             if (!canDelete) {
-                // 🌍 i18n
                 await trx.rollback();
-                return response.forbidden({ message: t('comment.cannotDeleteOthers') }); // Nouvelle clé
+                return response.forbidden({ message: "Vous ne pouvez pas supprimer le commentaire d'un autre utilisateur." });
             }
 
             // --- Logique métier ---
@@ -450,14 +427,12 @@ export default class CommentsController {
             // Diffusion SSE
             transmit.broadcast(`store/${env.get('STORE_ID')}/comment`, { id: comment_id, event: 'delete' });
 
-            // 🌍 i18n
-            return response.ok({ message: t('comment.deleteSuccess') }); // Nouvelle clé
+            return response.ok({ message: "Commentaire supprimé avec succès." });
 
         } catch (error) {
             await trx.rollback();
             logger.error({ actorId: user.id, commentId: comment_id, error: error.message, stack: error.stack }, 'Failed to delete comment');
-            // 🌍 i18n
-            return response.internalServerError({ message: t('comment.deleteFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la suppression du commentaire.", error: error.message });
         }
     }
 }

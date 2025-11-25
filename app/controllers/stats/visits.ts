@@ -82,7 +82,7 @@ async function getVisitStats(params: VisitStatsParams): Promise<VisitStatsResult
     // Requête principale : nombre de visites et utilisateurs uniques
     let statsQuery = query
       .select(db.raw(`strftime('${dateFormat}', created_at) as date`)) // Raw query via db
-      .count('* as visits') // Nombre total de visites
+      .count("* as visits") // Nombre total de visites
       .groupByRaw(groupByClause) // Groupement brut
       .orderBy('date', 'asc')
 
@@ -106,23 +106,23 @@ async function getVisitStats(params: VisitStatsParams): Promise<VisitStatsResult
 
       // Remplacement de pluck par select + extraction manuelle
       if (include.browser) {
-        const browsers = await distinctQuery.select('browser_name').distinct('browser_name')
+        const browsers = await distinctQuery.select("browser_name").distinct("browser_name")
         dynamicFields.browser = browsers.map((b) => b.browser_name).filter(Boolean)
       }
       if (include.os) {
-        const oses = await distinctQuery.select('os_name').distinct('os_name')
+        const oses = await distinctQuery.select("os_name").distinct("os_name")
         dynamicFields.os = oses.map((o) => o.os_name).filter(Boolean)
       }
       if (include.device) {
-        const devices = await distinctQuery.select('device_type').distinct('device_type')
+        const devices = await distinctQuery.select("device_type").distinct("device_type")
         dynamicFields.device = devices.map((d) => d.device_type).filter(Boolean)
       }
       if (include.pageUrl) {
-        const pages = await distinctQuery.select('landing_page').distinct('landing_page')
+        const pages = await distinctQuery.select("landing_page").distinct("landing_page")
         dynamicFields.pageUrl = pages.map((p) => p.landing_page).filter(Boolean)
       }
       if (include.referrer) {
-        const referrers = await distinctQuery.select('referrer').distinct('referrer')
+        const referrers = await distinctQuery.select("referrer").distinct("referrer")
         dynamicFields.referrer = referrers.map((r) => r.referrer||'').filter(Boolean)
       }
 

@@ -13,7 +13,7 @@ import transmit from '@adonisjs/transmit/services/main'
 import env from '#start/env'
 import { DateTime } from 'luxon'
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { normalizeStringArrayInput, t } from '../utils/functions.js'; // ✅ Ajout de t
+import { normalizeStringArrayInput} from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import Role, { TypeJsonRole } from '#models/role' // Pour type permissions
@@ -155,7 +155,7 @@ export default class UserOrdersController {
             if (!cart.items.length) {
                 await trx.rollback();
                 // 🌍 i18n
-                return response.badRequest({ message: t('order.cartEmpty') }); // Nouvelle clé
+                return response.badRequest({ message: "cartEmpty." }); // Nouvelle clé
             }
 
             await cart.load('items', (query) => query.orderBy('created_at', 'asc').preload('product'));
@@ -239,7 +239,7 @@ export default class UserOrdersController {
                 try {
                     if (option?.bindName) {
                         for (const [f_name, value] of Object.entries(option.bindName)) {
-                            const type = f_name.split(':')[1];
+                            const type = f_name.split(":")[1];
                             if (type && [FeatureType.ICON, FeatureType.ICON_TEXT].includes(type as any)) {
                                 try {
                                     const icon = value.icon?.[0] ? [await resizeImageToBase64('.' + value.icon[0])] : [];
@@ -286,10 +286,10 @@ export default class UserOrdersController {
                 }
             };
             // Envoyer au propriétaire de la commande
-            const owner_id = env.get('OWNER_ID');
+            const owner_id = env.get("OWNER_ID");
             const collaboratorsWithPermission = await Role.query()
             .where('manage_command', true) // Filtre directement sur la permission
-            .select('user_id');
+            .select("user_id");
             const collaboratorIds = collaboratorsWithPermission.map(role => role.user_id);
 
             // Assembler tous les IDs d'admins/owners, en s'assurant qu'il n'y a pas de doublons
@@ -300,24 +300,24 @@ export default class UserOrdersController {
             })
             
             // Diffusion SSE
-            transmit.broadcast(`store/${env.get('STORE_ID')}/new_command`, { id: userOrder.id });
+            transmit.broadcast(`store/${env.get("STORE_ID")}/new_command`, { id: userOrder.id });
 
             // 🌍 i18n
-            return response.created({ message: t('order.createdSuccess'), order: userOrder }); // Nouvelle clé
+            return response.created({ message: "Commande créé(e) avec succès.", order: userOrder }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user?.id, error: error.message, stack: error.stack }, 'Failed to create order');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             if (error.code === 'E_ROW_NOT_FOUND') { // Si firstOrFail échoue sur Cart
                 // 🌍 i18n
-                return response.notFound({ message: t('order.cartNotFound') }); // Nouvelle clé
+                return response.notFound({ message: "cartNotFound." }); // Nouvelle clé
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('order.creationFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la création du/de la commande.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -334,7 +334,7 @@ export default class UserOrdersController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -362,7 +362,7 @@ export default class UserOrdersController {
         } catch (error) {
             logger.error({ userId: user.id, error: error.message, stack: error.stack }, 'Failed to get user orders');
             // 🌍 i18n
-            return response.internalServerError({ message: t('order.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la commande.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -464,7 +464,7 @@ export default class UserOrdersController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -476,7 +476,7 @@ export default class UserOrdersController {
             } catch (error) {
                 if (error.code === 'E_AUTHORIZATION_FAILURE') {
                     // 🌍 i18n
-                    return response.forbidden({ message: t('unauthorized_action') });
+                    return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
                 }
                 throw error;
             }
@@ -493,7 +493,7 @@ export default class UserOrdersController {
         } catch (error) {
             logger.error({ userId: auth.user!.id, params: payload, error: error.message, stack: error.stack }, 'Failed to get users orders');
             // 🌍 i18n
-            return response.internalServerError({ message: t('order.fetchAllFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "fetchAllFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -505,7 +505,7 @@ export default class UserOrdersController {
             await request.ctx?.bouncer.authorize('collaboratorAbility', [MANAGE_ORDERS_PERMISSION]);
         } catch (error) { // ... gestion erreur permission
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -516,7 +516,7 @@ export default class UserOrdersController {
             payload = await this.updateOrderSchema.validate(request.body());
         } catch (error) { // ... gestion erreur validation
             if (error.code === 'E_VALIDATION_ERROR') {
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -527,7 +527,7 @@ export default class UserOrdersController {
 
             if (!order) {
                 await trx.rollback();
-                return response.notFound({ message: t('order.notFound') });
+                return response.notFound({ message: "Commande n'a pas été trouvé(e)." });
             }
 
             const currentStatus = order.status;
@@ -540,7 +540,7 @@ export default class UserOrdersController {
                 logger.warn({ actorId: user.id, orderId: order.id, status: currentStatus }, 'Order status update requested but status is already the same.');
                 // On peut retourner OK avec un message spécifique ou la commande actuelle
                 const currentCommandData = await this._get_users_orders({ command_id: order.id, with_items: true });
-                return response.ok({ message: t('order.statusAlreadySet'), order: currentCommandData.list[0] }); // Nouvelle clé i18n
+                return response.ok({ message: "statusAlreadySet.", order: currentCommandData.list[0] }); // Nouvelle clé i18n
             }
 
             // Vérifier si la transition est autorisée dans notre map
@@ -550,14 +550,14 @@ export default class UserOrdersController {
                 await trx.rollback();
                 logger.warn({ actorId: user.id, orderId: order.id, from: currentStatus, to: newStatus }, 'Invalid order status transition attempted');
                 // 🌍 i18n
-                return response.badRequest({ message: t('order.invalidStatusTransition', { from: t(`orderStatus.${currentStatus.toLowerCase()}`), to: t(`orderStatus.${newStatus.toLowerCase()}`) }) }); // Utiliser clés i18n pour les noms de statut
+                return response.badRequest({ message: `Transition de statut invalide: de '${currentStatus}' vers '${newStatus}'.` });
             }
             // --- Fin Vérification de la Transition ---
 
 
             // --- Logique métier (ajout de l'événement) ---
             let actorRole: EventStatus['user_role'] = 'collaborator'; // ... (logique de rôle inchangée)
-            if (user.id === env.get('OWNER_ID')) actorRole = 'owner';
+            if (user.id === env.get("OWNER_ID")) actorRole = 'owner';
             else if (user.id === order.user_id) actorRole = 'client';
 
 
@@ -596,15 +596,15 @@ export default class UserOrdersController {
             PushNotificationService.sendNotificationToUser(order.user_id, notificationPayload)
                 .catch(err => logger.error({ err, userId: order.user_id, orderId: order.id }, "Failed to send order update push notification"));
             
-            transmit.broadcast(`store/${env.get('STORE_ID')}/update_command`, { id: order.id });
+            transmit.broadcast(`store/${env.get("STORE_ID")}/update_command`, { id: order.id });
 
 
-            return response.ok({ message: t('order.updateSuccess')});
+            return response.ok({ message: "Commande mis(e) à jour avec succès."});
 
         } catch (error) { // ... gestion erreur interne
             await trx.rollback();
             logger.error({ actorId: user.id, orderId: order_id, error: error.message, stack: error.stack }, 'Failed to update order status');
-            return response.internalServerError({ message: t('order.updateFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la mise à jour du/de la commande.", error: error.message });
         }
     }
     // Supprimer une commande (admin/collaborateur)
@@ -618,7 +618,7 @@ export default class UserOrdersController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -630,7 +630,7 @@ export default class UserOrdersController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -643,7 +643,7 @@ export default class UserOrdersController {
             if (!order) {
                 await trx.rollback();
                 // 🌍 i18n
-                return response.notFound({ message: t('order.notFound') });
+                return response.notFound({ message: "Commande n'a pas été trouvé(e)." });
             }
 
             // Supprimer d'abord les items associés (bonne pratique, ou utiliser cascade DB)
@@ -654,13 +654,13 @@ export default class UserOrdersController {
             await trx.commit();
             logger.info({ actorId: auth.user!.id, orderId: user_order_id }, 'Order deleted');
             // 🌍 i18n
-            return response.ok({ message: t('order.deleteSuccess'), isDeleted: true }); // Nouvelle clé
+            return response.ok({ message: "Commande supprimé(e) avec succès.", isDeleted: true }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ actorId: auth.user!.id, orderId: user_order_id, error: error.message, stack: error.stack }, 'Failed to delete order');
             // 🌍 i18n
-            return response.internalServerError({ message: t('order.deleteFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la suppression du/de la commande.", error: error.message }); // Nouvelle clé
         }
     }
 }

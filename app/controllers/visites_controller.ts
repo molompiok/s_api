@@ -4,7 +4,7 @@ import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db' // Gardé pour summarize et get_visites
 import { v4 } from 'uuid';
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
@@ -45,7 +45,7 @@ export default class VisitesController {
                 throw new Error('Not authenticated via primary guards'); // Forcer le passage au catch
             }
         } catch {
-            const visite_id = session.get('visite_id');
+            const visite_id = session.get("visite_id");
             if (visite_id) {
                 user_id = visite_id;
             } else {
@@ -74,7 +74,7 @@ export default class VisitesController {
             logger.debug({ userId: user_id }, "Visit throttled (less than 1 hour since last)");
             // 🌍 i18n
             return response.ok({
-                message: t('visit.throttled'), // Nouvelle clé
+                message: "throttled.", // Nouvelle clé
                 lastVisit: lastVisite.created_at.toISO(), // Retourner format ISO
             });
         }
@@ -90,13 +90,13 @@ export default class VisitesController {
             logger.debug({ userId: user_id, visitId: visite.id }, "New visit recorded");
             // 🌍 i18n
             return response.created({ // Utiliser 201 Created
-                message: t('visit.recordedSuccess'), // Nouvelle clé
+                message: "recordedSuccess.", // Nouvelle clé
                 visite: visite // Retourner l'objet créé
             });
         } catch (error) {
             logger.error({ userId: user_id, is_authenticate, error: error.message, stack: error.stack }, 'Failed to create visit record');
             // 🌍 i18n
-            return response.internalServerError({ message: t('visit.recordFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "recordFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -134,11 +134,11 @@ export default class VisitesController {
                 .from(Visite.table) // Utiliser Visite.table
                 .whereBetween('created_at', [lastMonthStart.toISO(), lastMonthEnd.toISO()])
                 // .andWhere('is_month', false) // Si la colonne existe
-                .select('user_id')
-                .count('* as visit_count') // Compter les visites par utilisateur
+                .select("user_id")
+                .count("* as visit_count") // Compter les visites par utilisateur
                 .groupBy('user_id');
 
-            logger.info(`Summarizing visits for ${lastMonthStart.toFormat('yyyy-MM')}. Found ${visites.length} unique users.`);
+            logger.info(`Summarizing visits for ${lastMonthStart.toFormat("yyyy-MM")}. Found ${visites.length} unique users.`);
 
             // Insérer les résumés (ou mettre à jour si existant?)
             // Pour l'instant, on crée juste une entrée par user, sans le count.
@@ -172,7 +172,7 @@ export default class VisitesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -184,7 +184,7 @@ export default class VisitesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -209,7 +209,7 @@ export default class VisitesController {
             // Adapter si autre SGBD (ex: DATE() pour SQLite, DATE_FORMAT pour MySQL)
             const results = await query
                 .select(db.raw(`DATE_TRUNC(created_at) as period_start`))
-                .count('* as visit_count') // Renommer pour clarté
+                .count("* as visit_count") // Renommer pour clarté
                 .groupBy('period_start')
                 .orderBy('period_start', 'asc');
 
@@ -225,7 +225,7 @@ export default class VisitesController {
         } catch (error) {
             logger.error({ userId: auth.user!.id, params: payload, error: error.message, stack: error.stack }, 'Failed to get visits statistics');
             // 🌍 i18n
-            return response.internalServerError({ message: t('visit.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la visite.", error: error.message }); // Nouvelle clé
         }
     }
 }

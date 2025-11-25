@@ -5,7 +5,7 @@ import { UAParser } from 'ua-parser-js'
 import vine from '@vinejs/vine'
 import { Infer } from '@vinejs/vine/types'
 import logger from '@adonisjs/core/services/logger'
-import { t } from '../utils/functions.js' // Assure-toi que ce chemin est correct
+
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { securityService } from '#services/SecurityService'
@@ -82,7 +82,7 @@ export default class NotificationSettingsController {
             payload = await this.registerDeviceSchema.validate(request.body());
         } catch (error) {
             logger.warn({ userId: user.id, validationErrors: error.messages, body: request.body() }, 'Register device validation failed');
-            return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         const { subscription } = payload;
@@ -125,12 +125,12 @@ export default class NotificationSettingsController {
             }
 
             await trx.commit();
-            return response.ok({ message: t('notifications.deviceRegisteredSuccess'), device: userBrowserSubscription });
+            return response.ok({ message: "deviceRegisteredSuccess.", device: userBrowserSubscription });
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, endpoint: subscription.endpoint, error: error.message }, 'Failed to register/update device');
-            return response.internalServerError({ message: t('notifications.deviceRegistrationFailed'), error: error.message });
+            return response.internalServerError({ message: "deviceRegistrationFailed.", error: error.message });
         }
     }
 
@@ -150,7 +150,7 @@ export default class NotificationSettingsController {
             return response.ok(devices);
         } catch (error) {
             logger.error({ userId: user.id, error: error.message }, 'Failed to list user devices');
-            return response.internalServerError({ message: t('notifications.listDevicesFailed'), error: error.message });
+            return response.internalServerError({ message: "listDevicesFailed.", error: error.message });
         }
     }
 
@@ -168,7 +168,7 @@ export default class NotificationSettingsController {
             validatedParams = await this.deviceIdParamsSchema.validate(routeParams);
             payload = await this.updateDeviceStatusSchema.validate(request.body());
         } catch (error) {
-            return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         const trx = await db.transaction();
@@ -180,7 +180,7 @@ export default class NotificationSettingsController {
 
             if (!device) {
                 await trx.rollback();
-                return response.notFound({ message: t('notifications.deviceNotFound') });
+                return response.notFound({ message: "deviceNotFound." });
             }
 
             device.is_active = payload.is_active;
@@ -191,11 +191,11 @@ export default class NotificationSettingsController {
             await trx.commit();
 
             logger.info({ userId: user.id, deviceId: device.id, isActive: device.is_active }, 'Device notification status updated');
-            return response.ok({ message: t('notifications.deviceStatusUpdated'), device });
+            return response.ok({ message: "deviceStatusUpdated.", device });
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, deviceId: validatedParams.deviceId, error: error.message }, 'Failed to update device status');
-            return response.internalServerError({ message: t('notifications.deviceStatusUpdateFailed'), error: error.message });
+            return response.internalServerError({ message: "deviceStatusUpdateFailed.", error: error.message });
         }
     }
 
@@ -211,7 +211,7 @@ export default class NotificationSettingsController {
         try {
             validatedParams = await this.deviceIdParamsSchema.validate(routeParams);
         } catch (error) {
-            return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         const trx = await db.transaction();
@@ -223,7 +223,7 @@ export default class NotificationSettingsController {
 
             if (!device) {
                 await trx.rollback();
-                return response.notFound({ message: t('notifications.deviceNotFound') });
+                return response.notFound({ message: "deviceNotFound." });
             }
 
             // Supprimer aussi les abonnements de contexte liés à cet appareil spécifique
@@ -235,11 +235,11 @@ export default class NotificationSettingsController {
             await trx.commit();
 
             logger.info({ userId: user.id, deviceId: validatedParams.deviceId }, 'Device removed successfully');
-            return response.ok({ message: t('notifications.deviceRemovedSuccess'), isDeleted: true });
+            return response.ok({ message: "deviceRemovedSuccess.", isDeleted: true });
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, deviceId: validatedParams.deviceId, error: error.message }, 'Failed to remove device');
-            return response.internalServerError({ message: t('notifications.deviceRemoveFailed'), error: error.message });
+            return response.internalServerError({ message: "deviceRemoveFailed.", error: error.message });
         }
     }
 
@@ -257,7 +257,7 @@ export default class NotificationSettingsController {
         try {
             payload = await this.subscribeToContextSchema.validate(request.body());
         } catch (error) {
-            return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+            return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         const trx = await db.transaction();
@@ -270,7 +270,7 @@ export default class NotificationSettingsController {
                     .first();
                 if (!device) {
                     await trx.rollback();
-                    return response.badRequest({ message: t('notifications.deviceNotFoundForContext') });
+                    return response.badRequest({ message: "deviceNotFoundForContext." });
                 }
             }
 
@@ -293,10 +293,10 @@ export default class NotificationSettingsController {
                     await existingSubscription.save();
                     await trx.commit();
                     logger.info({ userId: user.id, context: payload, subscriptionId: existingSubscription.id }, 'Notification context subscription reactivated/updated.');
-                    return response.ok({ message: t('notifications.contextSubscriptionUpdated'), subscription: existingSubscription });
+                    return response.ok({ message: "contextSubscriptionUpdated.", subscription: existingSubscription });
                 }
                 await trx.rollback(); // Pas de changement nécessaire
-                return response.ok({ message: t('notifications.alreadySubscribedToContext'), subscription: existingSubscription });
+                return response.ok({ message: "alreadySubscribedToContext.", subscription: existingSubscription });
             }
 
             const newSubscription = await UserNotificationContextSubscription.create({
@@ -309,11 +309,11 @@ export default class NotificationSettingsController {
 
             await trx.commit();
             logger.info({ userId: user.id, context: payload, subscriptionId: newSubscription.id }, 'Subscribed to notification context.');
-            return response.created({ message: t('notifications.contextSubscribedSuccess'), subscription: newSubscription });
+            return response.created({ message: "contextSubscribedSuccess.", subscription: newSubscription });
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, context: payload, error: error.message }, 'Failed to subscribe to notification context');
-            return response.internalServerError({ message: t('notifications.contextSubscriptionFailed'), error: error.message });
+            return response.internalServerError({ message: "contextSubscriptionFailed.", error: error.message });
         }
     }
 
@@ -329,7 +329,7 @@ export default class NotificationSettingsController {
         try {
             payload = await this.listContextsSchema.validate(request.qs());
         } catch (error) {
-            return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         try {
@@ -343,7 +343,7 @@ export default class NotificationSettingsController {
             return response.ok(subscriptions);
         } catch (error) {
             logger.error({ userId: user.id, params: payload, error: error.message }, 'Failed to list notification context subscriptions');
-            return response.internalServerError({ message: t('notifications.listContextsFailed'), error: error.message });
+            return response.internalServerError({ message: "listContextsFailed.", error: error.message });
         }
     }
 
@@ -359,7 +359,7 @@ export default class NotificationSettingsController {
         try {
             validatedParams = await this.contextSubscriptionIdParamsSchema.validate(routeParams);
         } catch (error) {
-            return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+            return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
         }
 
         const trx = await db.transaction();
@@ -371,17 +371,17 @@ export default class NotificationSettingsController {
 
             if (!subscription) {
                 await trx.rollback();
-                return response.notFound({ message: t('notifications.contextSubscriptionNotFound') });
+                return response.notFound({ message: "contextSubscriptionNotFound." });
             }
 
             await subscription.delete();
             await trx.commit();
             logger.info({ userId: user.id, subscriptionId: validatedParams.subscriptionId }, 'Unsubscribed from notification context.');
-            return response.ok({ message: t('notifications.contextUnsubscribedSuccess'), isDeleted: true });
+            return response.ok({ message: "contextUnsubscribedSuccess.", isDeleted: true });
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, subscriptionId: validatedParams.subscriptionId, error: error.message }, 'Failed to unsubscribe from context');
-            return response.internalServerError({ message: t('notifications.contextUnsubscribeFailed'), error: error.message });
+            return response.internalServerError({ message: "contextUnsubscribeFailed.", error: error.message });
         }
     }
 
@@ -431,7 +431,7 @@ export default class NotificationSettingsController {
       // Utilise la permission définie (ou une permission admin générale)
       await request.ctx?.bouncer.authorize('superAdmin');
     } catch (error) {
-      return response.forbidden({ message: t('unauthorized_action') });
+      return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
     }
 
     let payloadRequest: Infer<typeof this.pingNotificationSchema>;
@@ -439,7 +439,7 @@ export default class NotificationSettingsController {
       payloadRequest = await this.pingNotificationSchema.validate(request.body());
     } catch (error) {
       logger.warn({ actorId: actor.id, validationErrors: error.messages, body: request.body() }, 'Ping notification validation failed');
-      return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+      return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
     }
 
     const { user_id: targetUserId, payload: notificationPayload, context } = payloadRequest;
@@ -448,7 +448,7 @@ export default class NotificationSettingsController {
       // Vérifier si l'utilisateur cible existe (optionnel mais bon à faire)
       const targetUser = await User.find(targetUserId);
       if (!targetUser) {
-        return response.notFound({ message: t('user.notFound', { id: targetUserId }) });
+        return response.notFound({ message: `L'utilisateur avec l'ID ${targetUserId} n'a pas été trouvé.` });
       }
 
       let message = '';
@@ -465,7 +465,7 @@ export default class NotificationSettingsController {
           context.id,
           notificationPayload as PushPayload // Assurer le type
         );
-        message = t('notifications.testSentToContextSuccess', { contextName: context.name, userId: targetUserId });
+        message = `Notification de test envoyée avec succès au contexte '${context.name}' pour l'utilisateur ${targetUserId}.`;
 
       } else {
         // Tester l'envoi direct à l'utilisateur
@@ -474,7 +474,7 @@ export default class NotificationSettingsController {
           targetUserId,
           notificationPayload as PushPayload
         );
-        message = t('notifications.testSentDirectlySuccess', { userId: targetUserId });
+        message = `Notification de test envoyée avec succès directement à l'utilisateur ${targetUserId}.`;
       }
       
       // Note: PushNotificationService.sendNotificationToUser/Context gère déjà les erreurs
@@ -485,7 +485,7 @@ export default class NotificationSettingsController {
 
     } catch (error) {
       logger.error({ actorId: actor.id, targetUserId, context, error: error.message }, 'Failed to send test notification');
-      return response.internalServerError({ success: false, message: t('notifications.testSendFailed'), error: error.message });
+      return response.internalServerError({ success: false, message: "testSendFailed.", error: error.message });
     }
   }
 

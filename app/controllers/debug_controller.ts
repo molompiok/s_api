@@ -4,7 +4,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
 import BullMQService from '#services/BullMQService';
 import logger from '@adonisjs/core/services/logger';
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
 // Pas besoin de Vine ici car pas d'input client
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
 import { securityService } from '#services/SecurityService';
@@ -32,18 +31,18 @@ export default class DebugController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
 
-        const storeId = env.get('STORE_ID');
+        const storeId = env.get("STORE_ID");
         const serviceType = 'api'; // s_api demande pour elle-même
 
         if (!storeId) {
             logger.error('[DebugController] STORE_ID not configured.');
             // 🌍 i18n
-            return response.internalServerError({ message: t('debug.storeIdMissing') }); // Nouvelle clé
+            return response.internalServerError({ message: "storeIdMissing." }); // Nouvelle clé
         }
 
         const logCtx = { storeId, action: 'scale-up', serviceType, actorId: auth.user!.id };
@@ -57,13 +56,12 @@ export default class DebugController {
             await serverQueue.add('request_scale_up', { event: 'request_scale_up', data: scaleData }, { jobId });
 
             logger.info({ ...logCtx, jobId }, 'Scale UP request sent to s_server.');
-            // 🌍 i18n
-            return response.ok({ message: t('debug.scaleUpSent', { jobId }), jobId }); // Nouvelle clé
+            return response.ok({ message: `Demande de scale up envoyée avec succès. Job ID: ${jobId}`, jobId });
 
         } catch (error) {
             logger.error({ ...logCtx, err: error }, 'Error sending scale UP request');
             // 🌍 i18n
-            return response.internalServerError({ message: t('debug.scaleUpFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "scaleUpFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -82,18 +80,18 @@ export default class DebugController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
 
-        const storeId = env.get('STORE_ID');
+        const storeId = env.get("STORE_ID");
         const serviceType = 'api'; // s_api demande pour elle-même
 
         if (!storeId) {
             logger.error('[DebugController] STORE_ID not configured.');
             // 🌍 i18n
-            return response.internalServerError({ message: t('debug.storeIdMissing') });
+            return response.internalServerError({ message: "storeIdMissing." });
         }
 
         const logCtx = { storeId, action: 'scale-down', serviceType, actorId: auth.user!.id };
@@ -108,13 +106,12 @@ export default class DebugController {
             await serverQueue.add('request_scale_down', { event: 'request_scale_down', data: scaleData }, { jobId });
 
             logger.info({ ...logCtx, jobId }, 'Scale DOWN request sent to s_server.');
-            // 🌍 i18n
-            return response.ok({ message: t('debug.scaleDownSent', { jobId }), jobId }); // Nouvelle clé
+            return response.ok({ message: `Demande de scale down envoyée avec succès. Job ID: ${jobId}`, jobId });
 
         } catch (error) {
             logger.error({ ...logCtx, err: error }, 'Error sending scale DOWN request');
             // 🌍 i18n
-            return response.internalServerError({ message: t('debug.scaleDownFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "scaleDownFailed.", error: error.message }); // Nouvelle clé
         }
     }
 }

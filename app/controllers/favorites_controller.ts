@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db';
 import { v4 } from 'uuid';
 import { applyOrderBy } from './Utils/query.js'; // Gardé tel quel
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { securityService } from '#services/SecurityService';
@@ -63,7 +63,7 @@ export default class FavoritesController {
             const product = await Product.find(payload.product_id, { client: trx }); // Utiliser transaction
             if (!product) {
                 // 🌍 i18n
-                throw new Error(t('product.notFound'));
+                throw new Error("Le produit demandé n'a pas été trouvé.");
             }
 
             const existingFavorite = await Favorite.query({ client: trx }) // Utiliser transaction
@@ -73,7 +73,7 @@ export default class FavoritesController {
 
             if (existingFavorite) {
                 // 🌍 i18n
-                throw new Error(t('favorite.alreadyExists')); // Nouvelle clé
+                throw new Error("Ce favori existe déjà."); // Nouvelle clé
             }
 
             const favorite = await Favorite.create({
@@ -87,7 +87,7 @@ export default class FavoritesController {
             logger.info({ userId: user.id, favoriteId: favorite.id, productId: payload.product_id }, 'Favorite created');
             // 🌍 i18n
             return response.created({
-                message: t('favorite.createdSuccess'), // Nouvelle clé
+                message: "Favori créé(e) avec succès.", // Nouvelle clé
                 favorite: { favorite_id: favorite.id, product_name: product.name } // Garder le format original de réponse
             });
 
@@ -96,14 +96,14 @@ export default class FavoritesController {
             logger.error({ userId: user?.id, productId: payload?.product_id, error: error.message, stack: error.stack }, 'Failed to create favorite');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
-            if (error.message === t('product.notFound') || error.message === t('favorite.alreadyExists')) {
+            if (error.message === "Le produit demandé n'a pas été trouvé." || error.message === "Ce favori existe déjà.") {
                 // 🌍 i18n (Erreurs métier spécifiques)
                 return response.badRequest({ message: error.message });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('favorite.creationFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la création du favori.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -129,7 +129,7 @@ export default class FavoritesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -150,7 +150,7 @@ export default class FavoritesController {
 
                 if (!favorite) {
                     // 🌍 i18n
-                    return response.notFound({ message: t('favorite.notFound') }); // Nouvelle clé
+                    return response.notFound({ message: "Favori n'a pas été trouvé(e)." }); // Nouvelle clé
                 }
                 // Retourner l'objet unique avec le produit préchargé
                 return response.ok(favorite);
@@ -169,7 +169,7 @@ export default class FavoritesController {
         } catch (error) {
             logger.error({ userId: user.id, error: error.message, stack: error.stack }, 'Failed to get favorites');
             // 🌍 i18n
-            return response.internalServerError({ message: t('favorite.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la favori.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -188,12 +188,12 @@ export default class FavoritesController {
             const favorite = await Favorite.find(payload.favorite_id, { client: trx });
             if (!favorite) {
                 // 🌍 i18n
-                throw new Error(t('favorite.notFound'));
+                throw new Error("Favori n'a pas été trouvé(e).");
             }
             // Vérifier que le favori appartient à l'utilisateur authentifié
             if (favorite.user_id !== user.id) {
                 // 🌍 i18n
-                throw new Error(t('unauthorized_action'));
+                throw new Error("Vous n'avez pas la permission d'effectuer cette action.");
             }
 
             favorite.useTransaction(trx);
@@ -203,22 +203,22 @@ export default class FavoritesController {
             await trx.commit();
             logger.info({ userId: user.id, favoriteId: favorite.id }, 'Favorite updated');
             // 🌍 i18n
-            return response.ok({ message: t('favorite.updateSuccess'), favorite: favorite }); // Nouvelle clé
+            return response.ok({ message: "Favori mis(e) à jour avec succès.", favorite: favorite }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, favoriteId: payload?.favorite_id, error: error.message, stack: error.stack }, 'Failed to update favorite');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
-            if (error.message === t('favorite.notFound') || error.message === t('unauthorized_action')) {
+            if (error.message === "Favori n'a pas été trouvé(e)." || error.message === "Vous n'avez pas la permission d'effectuer cette action.") {
                 // 🌍 i18n
-                const status = error.message === t('unauthorized_action') ? 403 : 404;
+                const status = error.message === "Vous n'avez pas la permission d'effectuer cette action." ? 403 : 404;
                 return response.status(status).send({ message: error.message });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('favorite.updateFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la mise à jour du/de la favori.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -229,12 +229,12 @@ export default class FavoritesController {
         const favorite = await Favorite.find(id, { client: trx });
         if (!favorite) {
             // 🌍 i18n
-            throw new Error(t('favorite.notFound'));
+            throw new Error("Favori n'a pas été trouvé(e).");
         }
         // Vérifier que le favori appartient à l'utilisateur authentifié
         if (favorite.user_id !== user.id) {
             // 🌍 i18n
-            throw new Error(t('unauthorized_action'));
+            throw new Error("Vous n'avez pas la permission d'effectuer cette action.");
         }
 
         await favorite.useTransaction(trx).delete();
@@ -258,18 +258,18 @@ export default class FavoritesController {
             logger.info({ userId: user.id, favoriteId: payload.id }, 'Favorite deleted');
             // 🌍 i18n
             // Garder la réponse originale pour la cohérence avec le code précédent
-            return response.ok({ message: t('favorite.deleteSuccess'), isDeleted: true }); // Nouvelle clé
+            return response.ok({ message: "Favori supprimé(e) avec succès.", isDeleted: true }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, favoriteId: payload?.id, error: error.message, stack: error.stack }, 'Failed to delete favorite');
-            if (error.message === t('favorite.notFound') || error.message === t('unauthorized_action')) {
+            if (error.message === "Favori n'a pas été trouvé(e)." || error.message === "Vous n'avez pas la permission d'effectuer cette action.") {
                 // 🌍 i18n
-                const status = error.message === t('unauthorized_action') ? 403 : 404;
+                const status = error.message === "Vous n'avez pas la permission d'effectuer cette action." ? 403 : 404;
                 return response.status(status).send({ message: error.message });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('favorite.deleteFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la suppression du/de la favori.", error: error.message }); // Nouvelle clé
         }
     }
 }

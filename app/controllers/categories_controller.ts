@@ -9,7 +9,7 @@ import { updateFiles } from './Utils/media/UpdateFiles.js';
 import { deleteFiles } from './Utils/media/DeleteFiles.js';
 import Product from '#models/product';
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t, normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajout de t
+import { normalizeStringArrayInput } from '../utils/functions.js';
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role'; // Pour type permissions
@@ -85,7 +85,7 @@ export default class CategoriesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -98,8 +98,7 @@ export default class CategoriesController {
             try {
                 normalizedCategoriesIds = normalizeStringArrayInput({ categories_id: payload.categories_id }).categories_id;
             } catch (error) {
-                // 🌍 i18n
-                return response.badRequest({ message: t('invalid_value', { key: 'categories_id', value: payload.categories_id }) });
+                return response.badRequest({ message: `La valeur du champ 'categories_id' est invalide: ${payload.categories_id}` });
             }
         }
 
@@ -142,7 +141,7 @@ export default class CategoriesController {
                     query.whereRaw('LOWER(CAST(id AS TEXT)) LIKE ?', [searchPattern])
                         .first()
                 } else {
-                    const searchTerm = `%${payload.search.toLowerCase().split(' ').join('%')}%`;
+                    const searchTerm = `%${payload.search.toLowerCase().split(" ").join('%')}%`;
                     query.where(q => {
                         q.whereILike('name', searchTerm)
                             .orWhereILike('description', searchTerm);
@@ -176,7 +175,7 @@ export default class CategoriesController {
         } catch (error) {
             logger.error({ params: payload, error: error.message, stack: error.stack }, 'Failed to get categories');
             // 🌍 i18n
-            return response.internalServerError({ message: t('category.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la catégorie.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -189,7 +188,7 @@ export default class CategoriesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -206,7 +205,7 @@ export default class CategoriesController {
         } catch (error) {
             logger.error({ parentCategoryId: payload?.category_id, error: error.message, stack: error.stack }, 'Failed to get sub-categories');
             // 🌍 i18n
-            return response.internalServerError({ message: t('category.fetchSubFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "fetchSubFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -220,7 +219,7 @@ export default class CategoriesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -241,10 +240,10 @@ export default class CategoriesController {
             // Si getAvailableFilters lève une erreur "not found"
             if (error.message?.includes("Aucune catégorie trouvée avec le slug")) {
                 // 🌍 i18n
-                return response.notFound({ message: t('category.notFound'), error: error.message });
+                return response.notFound({ message: "Catégorie n'a pas été trouvé(e).", error: error.message });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('category.fetchFiltersFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "fetchFiltersFailed.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -257,7 +256,7 @@ export default class CategoriesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -288,7 +287,7 @@ export default class CategoriesController {
                 if (!parent) {
                     await trx.rollback();
                     // 🌍 i18n
-                    return response.badRequest({ message: t('category.parentNotFound', { id: payload.parent_category_id }) }); // Nouvelle clé
+                    return response.badRequest({ message: `La catégorie parente avec l'ID ${payload.parent_category_id} n'a pas été trouvée.` });
                 }
             }
 
@@ -316,7 +315,7 @@ export default class CategoriesController {
             await trx.commit();
             logger.info({ userId: auth.user!.id, categoryId: newCategory.id }, 'Category created');
             // 🌍 i18n
-            return response.created({ message: t('category.createdSuccess'), category: newCategory }); // Nouvelle clé
+            return response.created({ message: "Catégorie créé(e) avec succès.", category: newCategory }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
@@ -326,10 +325,10 @@ export default class CategoriesController {
             logger.error({ userId: auth.user?.id, payload, error: error.message, stack: error.stack }, 'Failed to create category');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('category.creationFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la création du/de la catégorie.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -345,7 +344,7 @@ export default class CategoriesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -373,13 +372,13 @@ export default class CategoriesController {
                 if (payload.parent_category_id === category.id) { // Empêcher auto-référence
                     await trx.rollback();
                     // 🌍 i18n
-                    return response.badRequest({ message: t('category.cannotBeOwnParent') }); // Nouvelle clé
+                    return response.badRequest({ message: "cannotBeOwnParent." }); // Nouvelle clé
                 }
                 const parent = await Categorie.find(payload.parent_category_id, { client: trx });
                 if (!parent) {
                     await trx.rollback();
                     // 🌍 i18n
-                    return response.badRequest({ message: t('category.parentNotFound', { id: payload.parent_category_id }) });
+                    return response.badRequest({ message: `La catégorie parente avec l'ID ${payload.parent_category_id} n'a pas été trouvée.` });
                 }
             } 
 
@@ -398,9 +397,8 @@ export default class CategoriesController {
                     try {
                         normalizedUrls = normalizeStringArrayInput({ [f]: payload[f] })[f];
                     } catch (error) {
-                        // 🌍 i18n
                         await trx.rollback();
-                        return response.badRequest({ message: t('invalid_value', { key: f, value: payload[f] }) });
+                        return response.badRequest({ message: `La valeur du champ '${f}' est invalide: ${payload[f]}` });
                     }
 
                     if (normalizedUrls !== undefined) { // Vérifier après normalisation
@@ -419,7 +417,7 @@ export default class CategoriesController {
                             // Si updateFiles retourne un tableau vide malgré min:1, c'est une erreur
                             // 🌍 i18n
                             await trx.rollback();
-                            return response.internalServerError({ message: t('category.fileUpdateFailed', { field: f }) }); // Nouvelle clé
+                            return response.internalServerError({ message: `Erreur lors de la mise à jour du fichier pour le champ '${f}'.` });
                         }
                     }
                 }
@@ -434,21 +432,21 @@ export default class CategoriesController {
             await trx.commit();
             logger.info({ userId: auth.user!.id, categoryId: category.id }, 'Category updated');
             // 🌍 i18n
-            return response.ok({ message: t('category.updateSuccess'), category: category }); // Nouvelle clé
+            return response.ok({ message: "Catégorie mis(e) à jour avec succès.", category: category }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user?.id, payload, error: error.message, stack: error.stack }, 'Failed to update category');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('category.notFound') });
+                return response.notFound({ message: "Catégorie n'a pas été trouvé(e)." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('category.updateFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la mise à jour du/de la catégorie.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -461,7 +459,7 @@ export default class CategoriesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -473,7 +471,7 @@ export default class CategoriesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -534,17 +532,17 @@ export default class CategoriesController {
 
             logger.info({ userId: auth.user!.id, categoryId: category_id }, 'Category deleted');
             // 🌍 i18n
-            return response.ok({ message: t('category.deleteSuccess'), isDeleted: true }); // Nouvelle clé
+            return response.ok({ message: "Catégorie supprimé(e) avec succès.", isDeleted: true }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, categoryId: category_id, error: error.message, stack: error.stack }, 'Failed to delete category');
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('category.notFound') });
+                return response.notFound({ message: "Catégorie n'a pas été trouvé(e)." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('category.deleteFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la suppression du/de la catégorie.", error: error.message }); // Nouvelle clé
         }
     }
 }

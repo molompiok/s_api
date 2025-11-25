@@ -9,7 +9,6 @@ import { deleteFiles } from './Utils/media/DeleteFiles.js'
 import { MAX_PRICE } from './Utils/constants.js'
 import Feature, { FeatureType } from '#models/feature'
 import vine from '@vinejs/vine' // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { TypeJsonRole } from '#models/role' // Pour type permissions
@@ -60,8 +59,7 @@ const EDIT_PERMISSION: keyof TypeJsonRole = 'edit_product';
 // --- Fonction de validation métier (gardée car spécifique à Value/Feature) ---
 const checkValidValue = (feature: FeatureInterface | null, value: Partial<ValueInterface>) => {
     if (!feature) {
-        // 🌍 i18n
-        throw new Error(t('feature.notFound')); // Impossible de valider sans la feature parente
+        throw new Error("La caractéristique demandée n'a pas été trouvée.");
     }
     if (feature.type === FeatureType.COLOR) {
         if (!value.key || !/^#[0-9A-Fa-f]{6}$/i.test(value.key)) {
@@ -144,8 +142,7 @@ export default class ValuesController {
 
         const feature = await Feature.find(payload.feature_id); // Pas findOrFail ici, gérer l'erreur
         if (!feature) {
-            // 🌍 i18n
-            throw new Error(t('feature.notFound'));
+            throw new Error("La caractéristique demandée n'a pas été trouvée.");
         }
 
         checkValidValue(feature as any, payload); // Validation métier
@@ -173,6 +170,7 @@ export default class ValuesController {
 
         // Préparation données (défaults)
         const stock = payload.stock;
+        
         const index = parseFloat(payload.index?.toString()||'0'); // Default index 1
         const additional_price = payload.additional_price;
 
@@ -180,10 +178,10 @@ export default class ValuesController {
             id: id,
             feature_id: payload.feature_id,
             stock: stock ?? undefined,
-            decreases_stock: !!payload.decreases_stock,
-            continue_selling: !!payload.continue_selling,
+            decreases_stock: payload.decreases_stock ?? true,
+            continue_selling: payload.continue_selling ?? true,
             index: index ?? 0,
-            additional_price: additional_price,
+            additional_price: additional_price ?? 0,
             currency: payload.currency,
             text: payload.text, // Utiliser directement car validé
             key: payload.key ?? undefined,   // Utiliser directement car validé
@@ -273,8 +271,7 @@ export default class ValuesController {
             await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Utiliser edit_product pour les valeurs aussi?
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -291,8 +288,7 @@ export default class ValuesController {
             await trx.commit()
 
             logger.info({ userId: auth.user!.id, valueId: newValue.id, featureId: newValue.feature_id }, 'Value created');
-            // 🌍 i18n
-            return response.created({ message: t('value.createdSuccess'), value: newValue });
+            return response.created({ message: "Valeur créée avec succès.", value: newValue });
 
         } catch (error) {
             await trx.rollback()
@@ -301,20 +297,12 @@ export default class ValuesController {
 
             logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to create value');
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
-            if (error.message === t('feature.notFound')) {
-                // 🌍 i18n
-                return response.badRequest({ message: error.message }); // Erreur métier (Feature non trouvée)
+            if (error.message === "La caractéristique demandée n'a pas été trouvée.") {
+                return response.badRequest({ message: error.message });
             }
-            if (error.message?.includes(t('value.invalidColorKey', { key: '', value: '' }).substring(0, 10)) || // Check début des messages métier
-                error.message?.includes(t('value.textRequired').substring(0, 10))) {
-                // 🌍 i18n
-                return response.badRequest({ message: error.message }); // Erreur métier de checkValidValue
-            }
-            // 🌍 i18n
-            return response.internalServerError({ message: t('value.creationFailed'), error: error.message })
+            return response.internalServerError({ message: "Erreur lors de la création de la valeur.", error: error.message })
         }
     }
 
@@ -326,8 +314,7 @@ export default class ValuesController {
             payload = await this.getValuesSchema.validate(request.qs());
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -338,8 +325,7 @@ export default class ValuesController {
             if (payload.value_id) {
                 const value = await query.where('id', payload.value_id).first();
                 if (!value) {
-                    // 🌍 i18n
-                    return response.notFound({ message: t('value.notFound') });
+                    return response.notFound({ message: "La valeur demandée n'a pas été trouvée." });
                 }
                 return response.ok(value); // Retourner l'objet unique
             }
@@ -356,8 +342,7 @@ export default class ValuesController {
             return response.ok({ list: valuesPaginate.all(), meta: valuesPaginate.getMeta() });
         } catch (error) {
             logger.error({ error: error.message, stack: error.stack }, 'Failed to get values');
-            // 🌍 i18n
-            return response.internalServerError({ message: t('value.fetchFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la récupération des valeurs.", error: error.message });
         }
     }
 
@@ -369,8 +354,7 @@ export default class ValuesController {
             await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION])
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -384,8 +368,7 @@ export default class ValuesController {
             const valueId = payload.value_id || payload.id; // Utiliser value_id ou id
 
             if (!valueId) {
-                // 🌍 i18n
-                throw new Error(t('value.idRequired')); // Devrait être attrapé par Vine, mais sécurité
+                throw new Error("L'identifiant de la valeur est requis.");
             }
 
             // Appel méthode statique
@@ -393,28 +376,21 @@ export default class ValuesController {
 
             await trx.commit();
             logger.info({ userId: auth.user!.id, valueId: value.id }, 'Value updated');
-            // 🌍 i18n
-            return response.ok({ message: t('value.updateSuccess'), value: value });
+            return response.ok({ message: "Valeur mise à jour avec succès.", value: value });
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to update value');
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages })
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages })
             }
-            if (error.code === 'E_ROW_NOT_FOUND' || error.message === t('feature.notFound')) {
-                // 🌍 i18n (Erreur de findOrFail sur Value ou Feature)
-                return response.notFound({ message: t('value.orFeatureNotFound') }); // Nouvelle clé
+            if (error.code === 'E_ROW_NOT_FOUND' || error.message === "La caractéristique demandée n'a pas été trouvée.") {
+                return response.notFound({ message: "La valeur ou la caractéristique demandée n'a pas été trouvée." });
             }
-            if (error.message === t('value.idRequired') ||
-                error.message?.includes(t('value.invalidColorKey', { key: '', value: '' }).substring(0, 10)) ||
-                error.message?.includes(t('value.textRequired').substring(0, 10))) {
-                // 🌍 i18n (Erreurs métier)
+            if (error.message === "L'identifiant de la valeur est requis.") {
                 return response.badRequest({ message: error.message });
             }
-            // 🌍 i18n
-            return response.internalServerError({ message: t('value.updateFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la mise à jour de la valeur.", error: error.message });
         }
     }
 
@@ -427,8 +403,7 @@ export default class ValuesController {
             await request.ctx?.bouncer.authorize('collaboratorAbility', [EDIT_PERMISSION]) // Ou CREATE_DELETE_PERMISSION
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
-                // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') })
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." })
             }
             throw error;
         }
@@ -439,8 +414,7 @@ export default class ValuesController {
             payload = await this.deleteValueParamsSchema.validate(params);
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages })
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages })
             }
             throw error;
         }
@@ -460,11 +434,9 @@ export default class ValuesController {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, valueId: payload?.id, error: error.message, stack: error.stack }, 'Failed to delete value');
             if (error.code === 'E_ROW_NOT_FOUND') {
-                // 🌍 i18n
-                return response.notFound({ message: t('value.notFound') });
+                return response.notFound({ message: "La valeur demandée n'a pas été trouvée." });
             }
-            // 🌍 i18n
-            return response.internalServerError({ message: t('value.deleteFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la suppression de la valeur.", error: error.message });
         }
     }
 }

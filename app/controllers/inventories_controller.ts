@@ -11,7 +11,7 @@ import { updateFiles } from './Utils/media/UpdateFiles.js'
 import { deleteFiles } from './Utils/media/DeleteFiles.js'
 import { EXT_IMAGE, MEGA_OCTET } from './Utils/ctrlManager.js'
 import { TypeJsonRole } from '#models/role' // Assurez-vous que TypeJsonRole est bien exporté
-import { t, normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajout de t
+import { normalizeStringArrayInput } from '../utils/functions.js'; // ✅ Ajout de t
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import { applyOrderBy } from './Utils/query.js'
 import { securityService } from '#services/SecurityService'
@@ -84,7 +84,7 @@ export default class InventoriesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -127,7 +127,7 @@ export default class InventoriesController {
             await trx.commit();
             logger.info({ userId: auth.user!.id, inventoryId: newInventory.id }, 'Inventory created');
             // 🌍 i18n
-            return response.created({ message: t('inventory.createdSuccess'), inventory: newInventory }); // Nouvelle clé
+            return response.created({ message: "Inventaire créé avec succès.", inventory: newInventory }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
@@ -137,10 +137,10 @@ export default class InventoriesController {
             logger.error({ userId: auth.user?.id, error: error.message, stack: error.stack }, 'Failed to create inventory');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('inventory.creationFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la création de l'inventaire.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -160,7 +160,7 @@ export default class InventoriesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             logger.error({ error, qs: request.qs() }, "Failed to validate get_inventories query");
             throw error; // Relancer pour erreur serveur standard
@@ -202,10 +202,10 @@ export default class InventoriesController {
             logger.error({ userId: auth.user!.id, params: payload, error: error.message, stack: error.stack }, 'Failed to get inventories');
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('inventory.notFound') });
+                return response.notFound({ message: "L'inventaire demandé n'a pas été trouvé." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('inventory.fetchFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la récupération de l'inventaire.", error: error.message });
         }
     }
 
@@ -223,7 +223,7 @@ export default class InventoriesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -236,7 +236,7 @@ export default class InventoriesController {
                 const inventory = await query.where('id', payload.inventory_id).first(); // Utiliser .first()
                 if (!inventory) {
                     // 🌍 i18n
-                    return response.notFound({ message: t('inventory.notFound') }); // Nouvelle clé
+                    return response.notFound({ message: "L'inventaire demandé n'a pas été trouvé." }); // Nouvelle clé
                 }
                 return response.ok(inventory);
             } else {
@@ -252,7 +252,7 @@ export default class InventoriesController {
             // Note: E_ROW_NOT_FOUND est géré par le .first() ci-dessus
             logger.error({ userId: auth.user!.id, error: error.message, stack: error.stack }, 'Failed to get inventories');
             // 🌍 i18n
-            return response.internalServerError({ message: t('inventory.fetchFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la récupération de l'inventaire.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -270,7 +270,7 @@ export default class InventoriesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -278,7 +278,7 @@ export default class InventoriesController {
         const inventoryId = params.id; // ID depuis les paramètres d'URL
         if (!inventoryId) {
             // 🌍 i18n
-            return response.badRequest({ message: t('inventory.idRequired') }); // Nouvelle clé
+            return response.badRequest({ message: "L'identifiant de l'inventaire est requis." }); // Nouvelle clé
         }
 
         const trx = await db.transaction();
@@ -296,9 +296,8 @@ export default class InventoriesController {
                     // Si payload.views est déjà un tableau, normalizeStringArrayInput le retournera tel quel
                     normalizedViews = normalizeStringArrayInput({ views: request.body().views }).views;
                 } catch (error) {
-                    // 🌍 i18n
                     await trx.rollback(); // Important de rollback ici
-                    return response.badRequest({ message: t('invalid_value', { key: 'views', value: payload.views }) });
+                    return response.badRequest({ message: `La valeur du champ 'views' est invalide: ${payload.views}` });
                 }
             }
 
@@ -336,21 +335,21 @@ export default class InventoriesController {
 
             logger.info({ userId: auth.user!.id, inventoryId: inventory.id }, 'Inventory updated');
             // 🌍 i18n
-            return response.ok({ message: t('inventory.updateSuccess'), inventory: inventory }); // Nouvelle clé
+            return response.ok({ message: "Inventaire mis à jour avec succès.", inventory: inventory }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user?.id, inventoryId, error: error.message, stack: error.stack }, 'Failed to update inventory');
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
             }
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('inventory.notFound') });
+                return response.notFound({ message: "L'inventaire demandé n'a pas été trouvé." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('inventory.updateFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la mise à jour de l'inventaire.", error: error.message }); // Nouvelle clé
         }
     }
 
@@ -368,7 +367,7 @@ export default class InventoriesController {
         } catch (error) {
             if (error.code === 'E_AUTHORIZATION_FAILURE') {
                 // 🌍 i18n
-                return response.forbidden({ message: t('unauthorized_action') });
+                return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
             }
             throw error;
         }
@@ -380,7 +379,7 @@ export default class InventoriesController {
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
                 // 🌍 i18n
-                return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+                return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
             }
             throw error;
         }
@@ -403,17 +402,17 @@ export default class InventoriesController {
 
             logger.info({ userId: auth.user!.id, inventoryId: inventoryId }, 'Inventory deleted');
             // 🌍 i18n
-            return response.ok({ message: t('inventory.deleteSuccess') }); // Nouvelle clé
+            return response.ok({ message: "Inventaire supprimé avec succès." }); // Nouvelle clé
 
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: auth.user!.id, inventoryId, error: error.message, stack: error.stack }, 'Failed to delete inventory');
             if (error.code === 'E_ROW_NOT_FOUND') {
                 // 🌍 i18n
-                return response.notFound({ message: t('inventory.notFound') });
+                return response.notFound({ message: "L'inventaire demandé n'a pas été trouvé." });
             }
             // 🌍 i18n
-            return response.internalServerError({ message: t('inventory.deleteFailed'), error: error.message }); // Nouvelle clé
+            return response.internalServerError({ message: "Erreur lors de la suppression de l'inventaire.", error: error.message }); // Nouvelle clé
         }
     }
 }

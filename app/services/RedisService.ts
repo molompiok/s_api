@@ -22,6 +22,7 @@ export type StoreInterface = Partial<{
   disk_storage_limit_gb: number;
   is_active: boolean;
   is_running?: boolean;
+  is_seed_applyed?: boolean;
   created_at: string;
   updated_at: string;
   url?: string;

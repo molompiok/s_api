@@ -9,7 +9,6 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import vine from '@vinejs/vine';
 import { DateTime } from 'luxon';
 import { v4 } from 'uuid';
-import { t } from '../utils/functions.js';
 import { Infer } from '@vinejs/vine/types';
 import logger from '@adonisjs/core/services/logger';
 import { securityService } from '#services/SecurityService';
@@ -101,7 +100,7 @@ export default class CartsController {
             payload = await this.updateCartSchema.validate(request.body());
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
                 return;
             }
             logger.error({ error, body: request.body() }, "Validation failed for update_cart");
@@ -112,11 +111,11 @@ export default class CartsController {
         let value = rawValue ?? 1;
 
         if (mode === 'set' && value < 0) {
-            response.badRequest({ message: t('cart.negativeQuantityNotAllowed') });
+            response.badRequest({ message: "negativeQuantityNotAllowed." });
             return;
         }
         if ((mode === 'increment' || mode === 'decrement') && value <= 0) {
-            response.badRequest({ message: t('cart.positiveValueRequiredForIncDec') });
+            response.badRequest({ message: "positiveValueRequiredForIncDec." });
             return;
         }
 
@@ -127,7 +126,7 @@ export default class CartsController {
             const product = await Product.find(product_id, { client: trx });
             if (!product) {
                 await trx.rollback();
-                response.notFound({ message: t('product.notFound') });
+                response.notFound({ message: "Le produit demandé n'a pas été trouvé." });
                 return;
             }
 
@@ -164,7 +163,7 @@ export default class CartsController {
                     break;
                 case 'decrement':
                     if (!cartItem || cartItem.quantity < value) {
-                        throw new Error(t('cart.cannotDecrement', { current: cartItem?.quantity ?? 0, requested: value }));
+                        throw new Error(`Impossible de décrémenter. Quantité actuelle: ${cartItem?.quantity ?? 0}, quantité demandée: ${value}.`);
                     }
                     newQuantity = cartItem.quantity - value;
                     action = newQuantity === 0 ? 'removed' : 'updated';
@@ -182,7 +181,7 @@ export default class CartsController {
                 case 'max':
                     const maxStock = option?.stock ?? (option?.continue_selling ? Infinity : 0);
                     if (maxStock === Infinity || maxStock === null || maxStock === undefined) {
-                        throw new Error(t('cart.maxStockUndefined'));
+                        throw new Error("maxStockUndefined.");
                     }
                     newQuantity = maxStock;
                     action = cartItem ? (newQuantity === cartItem.quantity ? 'unchanged' : 'updated') : 'added';
@@ -191,7 +190,7 @@ export default class CartsController {
 
             const availableStock = option?.stock ?? (option?.continue_selling ? Infinity : 0);
             if (!ignore_stock && newQuantity !== undefined && newQuantity !== null && newQuantity > availableStock) {
-                throw new Error(t('cart.quantityExceedsStock', { quantity: newQuantity, stock: availableStock }));
+                throw new Error(`La quantité demandée (${newQuantity}) dépasse le stock disponible (${availableStock}).`);
             }
 
             if (newQuantity === 0) {
@@ -251,12 +250,12 @@ export default class CartsController {
                 stack: error.stack
             }, 'Failed to update cart');
 
-            if (error.message.startsWith(t('cart.cannotDecrement', { current: 0, requested: 0 }).substring(0, 10)) ||
-                error.message.startsWith(t('cart.maxStockUndefined').substring(0, 10)) ||
-                error.message.startsWith(t('cart.quantityExceedsStock', { quantity: 0, stock: 0 }).substring(0, 10))) {
+            if (error.message.startsWith("Impossible de décrémenter") ||
+                error.message.startsWith("Le stock maximum") ||
+                error.message.startsWith("La quantité demandée")) {
                 return response.badRequest({ message: error.message });
             }
-            return response.internalServerError({ message: t('cart.updateFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la mise à jour du panier.", error: error.message });
         }
     }
 
@@ -294,7 +293,7 @@ export default class CartsController {
                 return response.ok({
                     cart: { id: null, items: [], user_id: user?.id ?? null, guest_cart_id: user ? null : guestCartIdFromQuery || null },
                     total: 0,
-                    message: user ? t('cart.userCartEmpty') : t('cart.guestCartEmptyOrNotFound')
+                    message: user ? "userCartEmpty." : "guestCartEmptyOrNotFound."
                 });
             }
 
@@ -324,7 +323,7 @@ export default class CartsController {
 
         } catch (error) {
             logger.error({ userId: user?.id, guestCartId: user ? undefined : guestCartIdFromQuery, error: error.message, stack: error.stack }, 'Failed to view cart');
-            return response.internalServerError({ message: t('cart.fetchFailed'), error: error.message });
+            return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la panier.", error: error.message });
         }
     }
 
@@ -337,7 +336,7 @@ export default class CartsController {
             payload = await this.mergeCartSchema.validate(request.body());
         } catch (error) {
             if (error.code === 'E_VALIDATION_ERROR') {
-                response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+                response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
                 return;
             }
             logger.error({ error, body: request.body() }, "Validation failed for merge_cart_on_login");
@@ -350,7 +349,7 @@ export default class CartsController {
             const userCart = await this.getCart({ user });
             if (userCart) await userCart.load('items', q => q.orderBy('created_at', 'asc').preload('product'));
             return response.ok({
-                message: t('cart.noGuestCartToMerge'),
+                message: "noGuestCartToMerge.",
                 cart: userCart,
                 total: userCart ? await userCart.getTotal() : 0
             });
@@ -371,7 +370,7 @@ export default class CartsController {
                 const userCart = await this.getCart({ user });
                 if (userCart) await userCart.load('items', q => q.orderBy('created_at', 'asc').preload('product'));
                 return response.ok({
-                    message: t('cart.guestCartEmptyOrNotFoundForMerge'), // Message plus spécifique
+                    message: "guestCartEmptyOrNotFoundForMerge.", // Message plus spécifique
                     cart: userCart,
                     total: userCart ? await userCart.getTotal() : 0
                 });
@@ -419,7 +418,7 @@ export default class CartsController {
             logger.info({ userId: user.id, oldGuestCartId: tempCart.id, newUserCartId: userCart.id }, "Carts merged successfully");
 
             return response.ok({
-                message: t('cart.mergeSuccess'),
+                message: "mergeSuccess.",
                 cart: userCart,
                 total: finalTotal,
             });
@@ -427,7 +426,7 @@ export default class CartsController {
         } catch (error) {
             await trx.rollback();
             logger.error({ userId: user.id, guestCartIdFromClient: cartIdFromClient, error: error.message, stack: error.stack }, 'Failed to merge carts');
-            return response.internalServerError({ message: t('cart.mergeFailed'), error: error.message });
+            return response.internalServerError({ message: "mergeFailed.", error: error.message });
         }
     }
 }

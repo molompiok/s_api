@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { v4 } from 'uuid'
 import vine from '@vinejs/vine'; // ✅ Ajout de Vine
-import { t } from '../utils/functions.js'; // ✅ Ajout de t
+
 import { Infer } from '@vinejs/vine/types'; // ✅ Ajout de Infer
 import logger from '@adonisjs/core/services/logger'; // Ajout pour logs
 import { securityService } from '#services/SecurityService';
@@ -68,17 +68,17 @@ export default class UserPhonesController {
       await trx.commit();
       logger.info({ userId: user.id, phoneId: user_phone.id }, 'User phone created');
       // 🌍 i18n
-      return response.created({ message: t('phone.createdSuccess'), phone: user_phone }); // Nouvelle clé
+      return response.created({ message: "Téléphone créé(e) avec succès.", phone: user_phone }); // Nouvelle clé
 
     } catch (error) {
       await trx.rollback();
       logger.error({ userId: user?.id, error: error.message, stack: error.stack }, 'Failed to create user phone');
       if (error.code === 'E_VALIDATION_ERROR') {
         // 🌍 i18n
-        return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+        return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
       }
       // 🌍 i18n
-      return response.internalServerError({ message: t('phone.creationFailed'), error: error.message }); // Nouvelle clé
+      return response.internalServerError({ message: "Erreur lors de la erreur lors de la création du/de la téléphone.", error: error.message }); // Nouvelle clé
     }
   }
 
@@ -94,7 +94,7 @@ export default class UserPhonesController {
     } catch (error) {
       if (error.code === 'E_VALIDATION_ERROR') {
         // 🌍 i18n
-        return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+        return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
       }
       throw error;
     }
@@ -114,7 +114,7 @@ export default class UserPhonesController {
     } catch (error) {
       logger.error({ userId: user.id, phoneId: payload?.id, error: error.message, stack: error.stack }, 'Failed to get user phone(s)');
       // 🌍 i18n
-      return response.internalServerError({ message: t('phone.fetchFailed'), error: error.message }); // Nouvelle clé
+      return response.internalServerError({ message: "Erreur lors de la erreur lors de la récupération du/de la téléphone.", error: error.message }); // Nouvelle clé
     }
   }
 
@@ -143,13 +143,13 @@ export default class UserPhonesController {
 
       if (!user_phone) {
         // 🌍 i18n
-        return response.notFound({ message: t('phone.notFound') });
+        return response.notFound({ message: "Téléphone n'a pas été trouvé(e)." });
       }
 
       // Vérifier l'appartenance
       if (user_phone.user_id !== user.id) {
         // 🌍 i18n
-        return response.forbidden({ message: t('unauthorized_action') });
+        return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
       }
 
       user_phone.merge({
@@ -161,16 +161,16 @@ export default class UserPhonesController {
 
       logger.info({ userId: user.id, phoneId: user_phone.id }, 'User phone updated');
       // 🌍 i18n
-      return response.ok({ message: t('phone.updateSuccess'), phone: user_phone }); // Nouvelle clé
+      return response.ok({ message: "Téléphone mis(e) à jour avec succès.", phone: user_phone }); // Nouvelle clé
 
     } catch (error) {
       logger.error({ userId: user.id, phoneId: payload?.id, error: error.message, stack: error.stack }, 'Failed to update user phone');
       if (error.code === 'E_VALIDATION_ERROR') {
         // 🌍 i18n
-        return response.unprocessableEntity({ message: t('validationFailed'), errors: error.messages });
+        return response.unprocessableEntity({ message: "La validation des données a échoué.", errors: error.messages });
       }
       // 🌍 i18n
-      return response.internalServerError({ message: t('phone.updateFailed'), error: error.message }); // Nouvelle clé
+      return response.internalServerError({ message: "Erreur lors de la erreur lors de la mise à jour du/de la téléphone.", error: error.message }); // Nouvelle clé
     }
   }
 
@@ -186,7 +186,7 @@ export default class UserPhonesController {
     } catch (error) {
       if (error.code === 'E_VALIDATION_ERROR') {
         // 🌍 i18n
-        return response.badRequest({ message: t('validationFailed'), errors: error.messages });
+        return response.badRequest({ message: "La validation des données a échoué.", errors: error.messages });
       }
       throw error;
     }
@@ -199,12 +199,12 @@ export default class UserPhonesController {
 
       if (!user_phone) {
         // 🌍 i18n
-        return response.notFound({ message: t('phone.notFound') });
+        return response.notFound({ message: "Téléphone n'a pas été trouvé(e)." });
       }
 
       if (user_phone.user_id !== user.id) {
         // 🌍 i18n
-        return response.forbidden({ message: t('unauthorized_action') });
+        return response.forbidden({ message: "Vous n'avez pas la permission d'effectuer cette action." });
       }
 
       await user_phone.delete();
@@ -216,7 +216,7 @@ export default class UserPhonesController {
     } catch (error) {
       logger.error({ userId: user.id, phoneId: id, error: error.message, stack: error.stack }, 'Failed to delete user phone');
       // 🌍 i18n
-      return response.internalServerError({ message: t('phone.deleteFailed'), error: error.message }); // Nouvelle clé
+      return response.internalServerError({ message: "Erreur lors de la erreur lors de la suppression du/de la téléphone.", error: error.message }); // Nouvelle clé
     }
   }
 }
