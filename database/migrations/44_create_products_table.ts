@@ -8,8 +8,8 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().notNullable()
       table.jsonb('categories_id')
-      table.string('name',500).notNullable().unique()
-      table.string('description',2000).nullable()
+      table.string('name',52).notNullable().unique()
+      table.string('description',1024).nullable()
       table.uuid('default_feature_id').notNullable()
       table.string("slug").notNullable().unique();
       table.integer('barred_price').nullable().checkPositive()
