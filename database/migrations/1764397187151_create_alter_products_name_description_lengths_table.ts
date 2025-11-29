@@ -4,16 +4,21 @@ export default class extends BaseSchema {
   protected tableName = 'products'
 
   async up() {
-    this.schema.alterTable(this.tableName, (table) => {
-      table.string('name', 500).notNullable().unique().alter()
-      table.string('description', 2000).nullable().alter()
-    })
+    // Utiliser une requête SQL brute pour modifier la longueur des colonnes
+    // sans recréer les contraintes (notamment la contrainte unique)
+    await this.db.rawQuery(`
+      ALTER TABLE ${this.tableName} 
+      ALTER COLUMN name TYPE VARCHAR(500),
+      ALTER COLUMN description TYPE VARCHAR(2000)
+    `)
   }
 
   async down() {
-    this.schema.alterTable(this.tableName, (table) => {
-      table.string('name', 52).notNullable().unique().alter()
-      table.string('description', 1024).nullable().alter()
-    })
+    // Rollback : revenir aux longueurs originales
+    await this.db.rawQuery(`
+      ALTER TABLE ${this.tableName} 
+      ALTER COLUMN name TYPE VARCHAR(52),
+      ALTER COLUMN description TYPE VARCHAR(1024)
+    `)
   }
 }
